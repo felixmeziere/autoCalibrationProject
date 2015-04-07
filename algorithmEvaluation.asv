@@ -1,0 +1,266 @@
+classdef algorithmEvaluation < handle
+    %evaluateAlgorithm Summary of this class goes here
+    %   Detailed explanation goes here
+    
+    properties
+        
+        testedAlgorithm              %algorithm object
+        algorithmScoreMethods        %array of algorithmScore objects
+        
+        % State of the object ..............
+        algorithm_loaded            %boolean
+        method_loaded               %boolean
+        algorithm_computation_done  %boolean
+        score_computation_done      %boolean
+        
+        % Output.............................
+        algorithm_score             %number
+        
+    end
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %  Construction, loading algorithm and score methods                  %
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    methods (Access = public)
+        
+        % Construction ......................................
+        function [obj] = algorithmEvaluation()
+            obj.reset_object();
+        end
+        
+        % Add new score method ............................
+        function [obj]=add_score_method(obj, method)
+            scoreMethod=eval(method);
+            if(isa(scoreMethod, 'algorithmScoreMethod'))
+                obj.method_loaded = true;
+                obj.algorithmScoreMethods =[obj.algorithmScoreMethods, {scoreMethod}];
+            else
+                error('Score method does not exist.')
+            end
+        end
+        
+        % Set algorithm to score
+        function [obj]=set_algorithm_to_score(obj,algorithmName)
+            algo=eval(algorithmName);
+            if(isa(algo, 'algorithm'))
+                obj.algorithm_loaded = true;
+                obj.algorithm=algo;
+            else
+                error('Algorithm does not exist.')
+            end
+        end
+    end
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %  Running the algorithm and the evaluation                           %
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    methods (Access = public)
+        
+        % Run algorithm and score it
+        function [obj]=run_beats(obj,param)
+
+            warning('on','all')
+            
+            if(nargin<2)
+                param = struct;
+            end
+            
+            if(isfield(param,'SCENARIO'))
+                delete_scenario = false;
+            else
+                param.SCENARIO = [tempname '.xml'];
+                delete_scenario = true;
+            end
+            
+            if(isfield(param,'OUTPUT_PREFIX'))
+                delete_output = false;
+            else
+                param.OUTPUT_PREFIX = tempname;
+                delete_output = true;
+            end
+            
+            if(~isfield(param,'SIM_DT'))
+                warning('Missing SIM_DT, using to 5 seconds.')
+                param.SIM_DT = 5;
+            end
+            
+            % save scenario to xml
+            obj.scenario_ptr.save(param.SCENARIO);
+
+            % create properties file
+            prop_file = sprintf('%s.properties',tempname);
+            fid = fopen(prop_file,'w+');
+            S = fieldnames(param);
+            for i = 1:length(S)
+                if(ischar(param.(S{i})))
+                    fprintf(fid,'%s = %s\n',S{i},regexprep(param.(S{i}),'\\','\\\\'));
+                else
+                    fprintf(fid,'%s = %f\n',S{i},param.(S{i}));
+                end
+            end
+            fclose(fid);
+            
+            % run beats
+            root = fileparts(mfilename('fullpath'));
+%             beats_jar = fullfile(root,'beats-0.1-SNAPSHOT.one-jar.jar');
+            beats_jar = fullfile(root,'beats-0.1-SNAPSHOT-jar-with-dependencies.jar');
+            status = system(['java -jar ' beats_jar ' -s ' prop_file]);
+            
+            if(status~=0)
+                error('failed to complete the simulation')
+            end
+            
+            obj.simulation_done = true;
+            
+            % load the result
+            obj.load_simulation_output(param.OUTPUT_PREFIX);
+            
+            % clean the temp folder
+%             if(delete_output)
+%                 system(sprintf('del %s_*.txt',param.OUTPUT_PREFIX));
+%             end
+%             if(delete_scenario)
+%                 system(sprintf('del %s',param.SCENARIO));
+%             end
+%             system(sprintf('del %s',prop_file));
+
+        end
+        
+        % run a simulation ..................................
+        function [obj]=run_simulation(obj,varargin)
+            % arg(1) ... simulation time step in seconds
+            % arg(2) ... start time in seconds after midnight
+            % arg(3) ... duration in seconds
+            % arg(4) ... output sampling time in seconds
+            
+            if(~obj.config_loaded)
+                error('load a configuration first.')
+            end
+            
+            if(obj.simulation_done)
+                error('simulation already ran.')
+            end
+            
+            realnargin = nargin-1;
+            
+            if(realnargin<4)
+                outsamplingtime = 300;
+            else
+                outsamplingtime = varargin{4};
+            end
+            
+            if(realnargin<3)
+                duration = 86400;
+            else
+                duration = varargin{3};
+            end
+            
+            if(realnargin<2)
+                start_time = 0;
+            else
+                start_time = varargin{2};
+            end
+            
+            if(realnargin<1)
+                error('not enough input arguments')
+            else
+                time_step = varargin{1};
+            end
+            
+            here = fileparts(mfilename('fullpath'));
+            jarfile = fullfile(here,'beats-0.1-SNAPSHOT-jar-with-dependencies.jar');
+            classname = 'edu.berkeley.path.beats.simulator.Runner';
+            outprefix = fullfile(here,'tempfiles','0');
+            outformat = 'text';
+            
+            if(~exist(fullfile(here,'tempfiles'),'dir'))
+                mkdir(fullfile(here,'tempfiles'))
+            end
+            
+            status = system(sprintf('java -cp %s %s %s %d %s %s %d %d %d', ...
+                jarfile,...
+                classname,...
+                obj.configfile,...
+                time_step,...
+                outprefix,...
+                outformat,...
+                start_time,...
+                duration,...
+                outsamplingtime));
+            
+            if(status~=0)
+                error('failed to complete the simulation')
+            end
+            
+            obj.simulation_done = true;
+            
+            % load the result
+            obj.load_simulation_output(outprefix);
+            
+            % clean the temp folder
+            system(sprintf('del %s_*.txt',outprefix));
+            
+        end
+        
+        function [obj]=reset_simulation(obj)
+            obj.reset_simdata();
+        end
+        
+        function [obj]=load_simulation_output(obj,outprefix)
+                        
+            if(obj.sim_output_loaded)
+                warning('overwriting existing simulation data.')
+                obj.reset_simdata();
+            end
+            
+            disp('Loading simulation result')
+            
+            % ... vehicle type names
+            vtypes = obj.scenario_ptr.get_vehicle_types();
+            
+            % load data
+            obj.time = load(sprintf('%s_%s_0.txt',outprefix,'time'));
+            numlinks = length(obj.scenario_ptr.scenario.NetworkSet.network(1).LinkList.link);
+            numvt = length(vtypes);
+            
+            obj.density_veh = cell(1,numvt);
+            obj.outflow_veh = cell(1,numvt);
+            obj.inflow_veh = cell(1,numvt);
+            
+            [obj.density_veh{1:numvt}] = deal(nan(length(obj.time),numlinks));
+            [obj.outflow_veh{1:numvt}] = deal(nan(length(obj.time),numlinks));
+            [obj.inflow_veh{1:numvt}] = deal(nan(length(obj.time),numlinks));
+            for v=1:numvt
+                obj.density_veh{v} = load(sprintf('%s_%s_%s_0.txt',outprefix,'density',vtypes(v).name));
+                obj.outflow_veh{v} = load(sprintf('%s_%s_%s_0.txt',outprefix,'outflow',vtypes(v).name));
+                obj.inflow_veh{v} = load(sprintf('%s_%s_%s_0.txt',outprefix,'inflow',vtypes(v).name));
+            end
+            
+            obj.sim_output_loaded = true;
+            
+        end
+        
+    end
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %  private methods                                                    %
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    methods (Access = private)
+        
+        function [obj] = reset_object(obj)
+            obj.testedAlgorithm = algorithm;
+            obj.algorithmScoreMethods={};
+            obj.method_loaded = false;
+            obj.algorithm_loaded = false;
+            obj.algorithm_computation_done = false;
+            obj.score_computation_done = false;
+        end
+        
+  
+    end
+    
+end
+
