@@ -45,7 +45,7 @@ classdef algorithmEvaluation < handle
             algo=eval(algorithmName);
             if(isa(algo, 'algorithm'))
                 obj.algorithm_loaded = true;
-                obj.algorithm=algo;
+                obj.testedAlgorithm=algo;
             else
                 error('Algorithm does not exist.')
             end
