@@ -4,12 +4,11 @@ classdef algorithmEvaluation < handle
     
     properties
         
-        testedAlgorithm              %algorithm object
+        testedAlgorithm@algorithm    %algorithm object
         algorithmScoreMethods        %array of algorithmScore objects
+        testedFitnessFunction@fitnessFunction %fitnessFunction
         
         % State of the object ..............
-        algorithm_loaded            %boolean
-        method_loaded               %boolean
         algorithm_computation_done  %boolean
         score_computation_done      %boolean
         
@@ -49,7 +48,7 @@ classdef algorithmEvaluation < handle
             else
                 error('Algorithm does not exist.')
             end
-        end
+        end     
         
         function [obj]=set_algorithm_by_object(obj,algorithmObject)
             if(isa(algorithmObject, 'algorithm'))

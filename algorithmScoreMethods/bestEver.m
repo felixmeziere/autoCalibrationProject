@@ -3,10 +3,13 @@ classdef bestEver < algorithmScoreMethod
     %   Detailed explanation goes here
     
     properties
-        
+        someotherproperty
     end
     
     methods
+        function [obj] = bestEver()
+            'hi'
+        end
     end
     
 end

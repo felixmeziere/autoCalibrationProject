@@ -1,12 +1,14 @@
-classdef errorCalculator
+classdef (Abstract) errorCalculator < handle
     %errorCalculator Summary of this class goes here
     %   Detailed explanation goes here
     
-    properties
+    properties (SetAccess=protected)
+        result
     end
     
-    methods
-    end
-    
+   
+    methods (Abstract, Access = public)
+        [result] = calculate(obj, beatsPerformance, pemsPerformance)
+    end       
 end
 

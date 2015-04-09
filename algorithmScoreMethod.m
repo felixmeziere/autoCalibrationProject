@@ -1,8 +1,9 @@
-classdef algorithmScoreMethod
+classdef (Abstract) algorithmScoreMethod < handle
     %algorithmScoreMethod Summary of this class goes here
     %   Detailed explanation goes here
     
     properties
+        someproperty
     end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
