@@ -4,10 +4,9 @@ classdef algorithmBox < handle
     
     properties (Access = public)
         algorithm@algorithm
-        fitFunction
-        beatsScenario
+        beats_simulation@BeatsSimulation
         pemsScenario
-        initialPopulation
+        knobs=struct;
         maxEval=90;
         maxIter=30;
         stopFlag=1000;
@@ -22,16 +21,52 @@ classdef algorithmBox < handle
     end    
     
     methods (Access= public)
-        function [obj] = AlgorithmBox()
+        function [] = AlgorithmBox()
+            set_knobs_id();
+            set_knobs_boundaries();
         end    
         
-        function [obj] = run_algorithm_and_compute_error(obj)
+        function [] = set_knobs_id(obj)
+            numberMissingKnobs = input(strcat(['Among the', ' ', num2str(length(obj.beats_simulation.scenario_ptr.scenario.DemandSet.demandProfile)), ' knobs, how many have to be tuned ? :']));
+            for i=1:numberMissingKnobs
+                obj.knobs.knobs_id(1,i)=input(strcat(['knob ', num2str(i),' :']));
+            end
+        end
+        
+        function [] = set_knobs_boundaries(obj)
+            if (isfield(obj.knobs, 'knobs_id'))
+                for i=1:length(obj.knobs.knobs_id)
+                    obj.knobs.knobs_boundaries(1,i)=input(['Knob ', num2str(obj.knobs.knobs_id(i)), ' minimum value : ']);
+                    obj.knobs.knobs_boundaries(2,i)=input(['Knob ', num2str(obj.knobs.knobs_id(i)), ' maximum value : ']);
+                end
+            else
+                error('The knobs to tune ids : obj.knobs.knobs_id has to be set first.');
+            end    
         end    
-    end
+        
+        function [] = run_algorithm_and_compute_error(obj)
+        end    
     
-    methods (Access = private)
+        function [] = show_parameters(obj)
+           disp(strcat(['Required parameters for ', obj.algorithm.algo,' :']));
+           disp(obj.algorithm.parameters_required);
+           disp('Optional parameters : ');
+           disp(obj.algorithm.parameters_optional);
+        end
         
-        
+        function [] = ask_for_parameters(obj)
+            disp(strcat(['Required parameters for ', obj.algorithm.algo,' :']));
+            for i=1:length(obj.algorithm.parameters_required);
+                obj.algorithm.parameters(i)=input([char(obj.algorithm.parameters_required(i)),' : ']);
+            end
+            disp('Optional parameters : ');
+            for i=1:length(obj.algorithm.parameters_optional);
+                obj.algorithm.parameters(i)=input([char(obj.algorithm.parameters_optional(i)),' : ']);
+            end 
+        end    
     end    
-end
+        
+        
+end    
+
 

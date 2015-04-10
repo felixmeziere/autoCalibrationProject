@@ -1,5 +1,5 @@
 classdef (Abstract) algorithm < handle
-    %UNTITLED24 Summary of this class goes here
+    %algorithm Summary of this class goes here
     %   Detailed explanation goes here
     
     properties (Abstract, Constant)
@@ -9,19 +9,20 @@ classdef (Abstract) algorithm < handle
         algo
     end
     
-    properties (Abstract, Access = public)
-        parameters
+    properties (Access = public)
+        parameters=struct;
+        knobs
     end
     
-    properties
+    properties (SetAccess = private)
         result
     end    
     
     methods (Access = public)
-        function [result] = run_algorithm(obj, parameters) 
-            result=obj.algo(parameters);
+        function [result] = run_algorithm(obj) 
+            result=eval(evalf(obj.algo,obj.parameters));
             obj.result = result;
-        end    
+        end
     end
     
 end
