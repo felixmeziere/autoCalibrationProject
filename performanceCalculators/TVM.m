@@ -15,8 +15,8 @@ classdef TVM < performanceCalculator
             obj.result_from_beats=out;
         end
         
-        function [obj] = calculate_from_pems(obj, Pems)
-            tot_flux = Pems.compute_performance.tot_flux;
+        function [obj] = calculate_from_pems(obj, pems)
+            tot_flux = pems.compute_performance.tot_flux;
             out=sum(tot_flux);
             obj.result_from_pems=out;
         end    

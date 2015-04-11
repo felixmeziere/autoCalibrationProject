@@ -169,17 +169,17 @@
         %       write dispcmaesdat for Matlab (and Octave)
         %       control savemodulo and plotmodulo via signals.par 
 
-
+        
         cmaVersion = '3.62.beta'; 
-
+        
         % ----------- Set Defaults for Input Parameters and Options -------------
         % These defaults may be edited for convenience
-
+            
         % Input Defaults (obsolete, these are obligatory now)
         definput.fitfun = 'felli'; % frosen; fcigar; see end of file for more
         definput.xstart = rand(10,1); % 0.50*ones(10,1);
         definput.sigma = 0.3;
-
+        
         % Options defaults: Stopping criteria % (value of stop flag)
         defopts.StopFitness  = '-Inf % stop if f(xmin) < stopfitness, minimization';
         defopts.MaxFunEvals  = 'Inf  % maximal number of fevals';
@@ -306,8 +306,8 @@
           % warning(['Objective function not determined, ''' fitfun ''' used']);
           error(['Objective function not determined']);
         end
-        if ~ischar(fitfun)
-          error('first argument FUN must be a string');
+        if ~ischar(fitfun) && ~isa(fitfun,'function_handle')
+          error('first argument FUN must be a string or a function handle');
         end
 
 
@@ -857,7 +857,7 @@
                   strw ']%, ' ...
                   'mu_eff=' num2str(mueff,'%.1f') ...
                   ') on function ' ...
-                  (fitfun) strrun]);
+                  ('fitfun') strrun]);
             if flgDiagonalOnly == 1
               disp('    C is diagonal');
             elseif flgDiagonalOnly
