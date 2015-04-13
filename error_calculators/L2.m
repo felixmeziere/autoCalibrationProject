@@ -1,5 +1,5 @@
-classdef Linfinity < errorCalculator
-    %UNTITLED22 Summary of this class goes here
+classdef L2 < ErrorCalculator
+    %UNTITLED21 Summary of this class goes here
     %   Detailed explanation goes here
     
 
@@ -9,7 +9,7 @@ classdef Linfinity < errorCalculator
             obj.calculate(beatsPerformance, pemsPerformance)
         end    
         function [result] = calculate(obj, beatsPerformance, pemsPerformance)
-            result = norm(beatsPerformance-pemsPerformance,Inf);
+            result = norm(beatsPerformance-pemsPerformance,2);
             obj.result = result;
         end    
     end

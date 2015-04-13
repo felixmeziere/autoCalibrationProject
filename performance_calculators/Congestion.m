@@ -1,11 +1,7 @@
-classdef congestion < performanceCalculator
+classdef Congestion < PerformanceCalculator
     %Congestion Summary of this class goes here
     %   Detailed explanation goes here
-    
-    properties (SetAccess=private)
-        result_from_beats
-        result_from_pems
-    end
+
     
     methods (Access = public)
         

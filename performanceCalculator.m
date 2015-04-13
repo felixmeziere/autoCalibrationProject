@@ -1,7 +1,7 @@
-classdef (Abstract) performanceCalculator < handle
-    %performanceCalculator Summary of this class goes here
+classdef (Abstract) PerformanceCalculator < handle
+    %PerformanceCalculator Summary of this class goes here
     %   Detailed explanation goes here
-   properties (Abstract, SetAccess = private)
+   properties (SetAccess = protected)
        result_from_beats
        result_from_pems
    end

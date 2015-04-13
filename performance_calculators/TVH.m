@@ -1,11 +1,7 @@
-classdef TVH < performanceCalculator
+classdef TVH < PerformanceCalculator
     %TVH Summary of this class goes here
     %   Detailed explanation goes here
     
-    properties (SetAccess=private)
-        result_from_beats
-        result_from_pems
-    end
     
     methods (Access = public)
 

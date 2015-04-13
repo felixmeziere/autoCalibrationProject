@@ -1,5 +1,5 @@
-classdef (Abstract) errorCalculator < handle
-    %errorCalculator Summary of this class goes here
+classdef (Abstract) ErrorCalculator < handle
+    %ErrorCalculator Summary of this class goes here
     %   Detailed explanation goes here
     
     properties (SetAccess=protected)
