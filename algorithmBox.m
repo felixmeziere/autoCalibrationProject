@@ -17,25 +17,33 @@ classdef (Abstract) AlgorithmBox < handle
     end
     
     properties(SetAccess = protected)
-        result % result of the algorithm, given in the result_format.
-        bestEverErrorFunctionValue % smallest error_calculator value reached during the execution. Extracted from the result.
+        initialization_method@char
+        result_xls@cell % result of the algorithm to be outputed to an xls file.
+        out % struct with various histories and solutions.
+        bestEverErrorFunctionValue % smallest error_calculator value reached during the execution. Extracted from out.
         bestEverPoint % array of knob values that gave the best ever function value.
-        numberOfFlops % number of flops for the execution. Extracted from result.
+        numberOfFlops % number of flops for the execution. Extracted from out.
         numberOfEvaluations % number of times beats ran a simulation.
-        stopFlag; % reason why the algorithm stopped. Extracted from result.
-        convergence % convergence speed. Extracted from the result.
+        stopFlag; % reason why the algorithm stopped. Extracted from out.
+        convergence % convergence speed. Extracted from out.
     end    
     
     methods (Access= public)
-            
+        
+        function [obj] = AlgorithmBox()
+            obj.knobs.knob_ids=[];
+            obj.knobs.knob_boundaries_min = [];
+            obj.knobs.knob_boundaries_max = [];
+        end
+        
         function [] = run_assistant(obj) % assistant to set all the parameters in the command window.
             obj.load_beats_simulation;
             obj.load_pems_scenario;
-            obj.set_knob_ids;
-            obj.set_knob_boundaries;
+            obj.ask_for_knob_ids;
+            obj.ask_for_knob_boundaries;
             obj.ask_for_errorFunction;
             obj.ask_for_algorithm_parameters;
-            obj.set_starting_point;
+            obj.ask_for_starting_point;
         end
         
         function [] = load_properties_from_xls_file(obj, properties_file_adress) % load the properties from an excel file in the format described underneath.
@@ -43,7 +51,7 @@ classdef (Abstract) AlgorithmBox < handle
             %properties in the first column and the corresponding
             %expressions to be evaluated by Matlab in the second.
             %Empty cells in the second column will be ignored.
-            [useless,xls,useless2] = xlsread(properties_file_adress);
+            [useless,xls,useless2] = xlsread(properties_file_adress,obj.algo);
             obj.beats_simulation = BeatsSimulation;
             obj.pems = BeatsSimulation;
             for i=1:size(xls,1)
@@ -65,7 +73,7 @@ classdef (Abstract) AlgorithmBox < handle
         function [] = load_pems_scenario(obj)
         end
         
-        function [] = set_knob_ids(obj) % set the ids of the knobs to tune in the command window.
+        function [] = ask_for_knob_ids(obj) % set the ids of the knobs to tune in the command window.
             if (size(obj.beats_simulation)~=0)
                 numberMissingKnobs = input(strcat(['Among the', ' ', num2str(length(obj.beats_simulation.scenario_ptr.scenario.DemandSet.demandProfile)), ' knobs, how many have to be tuned ? :']));
                 for i=1:numberMissingKnobs
@@ -76,7 +84,7 @@ classdef (Abstract) AlgorithmBox < handle
             end    
         end
         
-        function [] = set_knob_boundaries(obj) % set the knob boundaries (in the same order as the knob ids) in the command window.
+        function [] = ask_for_knob_boundaries(obj) % set the knob boundaries (in the same order as the knob ids) in the command window.
             if (isfield(obj.knobs, 'knob_ids'))
                 for i=1:size(obj.knobs.knob_ids,1)
                     obj.knobs.knob_boundaries_min(i,1)=input(['Knob ', num2str(obj.knobs.knob_ids(i,1)), ' minimum value : ']);
@@ -108,10 +116,22 @@ classdef (Abstract) AlgorithmBox < handle
         
     end   
     
+    methods (Access = protected)
+        
+        function[bool] = is_set_knobs(obj)
+            bool = 0;
+            if (size(obj.knobs.knob_ids,2)~=0 && size(obj.knobs.knob_boundaries_max,2)~=0 && size(obj.knobs.knob_boundaries_min,2)~=0)
+                bool=1;
+            end    
+        end    
+    end    
+    
     methods (Abstract, Access = public)
         [] = ask_for_algorithm_parameters(obj) % ask for the algorithm parameters in the command window.
         [] = run_algorithm(obj) % run the algorithm.
         [] = ask_for_starting_point(obj); % set the starting knob values.
+        [] = set_random_starting_point(obj, mode);
+        [] = send_result_to_xls(obj, filename);
     end    
 end    
 
