@@ -2,7 +2,10 @@ classdef L2 < ErrorCalculator
     %UNTITLED21 Summary of this class goes here
     %   Detailed explanation goes here
     
-
+    properties (Constant)
+        name='L2';
+    end
+    
     methods (Access = public)
         
         function [obj] = L1error(beatsPerformance, pemsPerformance)

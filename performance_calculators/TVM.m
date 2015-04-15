@@ -2,7 +2,10 @@ classdef TVM < PerformanceCalculator
     %TVMSim Summary of this class goes here
     %   Detailed explanation goes here
     
-
+    properties (Constant)
+        name='TVM';
+    end
+    
     methods (Access = public)
        
         function [out] = calculate_from_beats(obj, BS)

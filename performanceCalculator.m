@@ -6,6 +6,10 @@ classdef (Abstract) PerformanceCalculator < handle
        result_from_pems
    end
    
+   properties (Abstract, Constant)
+       name
+   end    
+   
    methods(Abstract, Static, Access = public)
         [result] = calculate_from_beats(obj, BS)
         [result] = calculate_from_pems(obj, Pems)   

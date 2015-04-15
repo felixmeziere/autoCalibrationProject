@@ -2,6 +2,9 @@ classdef Congestion < PerformanceCalculator
     %Congestion Summary of this class goes here
     %   Detailed explanation goes here
 
+    properties (Constant)
+        name='Congestion';
+    end
     
     methods (Access = public)
         
