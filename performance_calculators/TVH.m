@@ -8,7 +8,7 @@ classdef TVH < PerformanceCalculator
     
     methods (Access = public)
 
-        function [out] = calculate_from_beats(obj, BS)
+        function [out] = calculate_from_beats(obj, BS, good_sensors_mask)
             tot_veh = BS.compute_performance.tot_veh;
             out=sum(tot_veh);
             obj.result_from_beats=out;

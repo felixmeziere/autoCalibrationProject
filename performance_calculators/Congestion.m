@@ -8,7 +8,7 @@ classdef Congestion < PerformanceCalculator
     
     methods (Access = public)
         
-        function [out] = calculate_from_beats(obj, BS)
+        function [out] = calculate_from_beats(obj, BS, good_sensors_mask)
             
         end
         

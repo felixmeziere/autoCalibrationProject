@@ -47,6 +47,12 @@ classdef (Abstract) AlgorithmBox < handle
         stopFlag; % reason why the algorithm stopped. Extracted from out.
         convergence % convergence speed.
         
+    end
+    
+    properties (Hidden)
+        
+        mainline_links_with_good_sensors_mask
+        
     end    
    
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -103,8 +109,9 @@ classdef (Abstract) AlgorithmBox < handle
             obj.beats_parameters=input(['Enter a struct containing the beats simulation properties (like struct("DURATION",86000,"SIM_DT",5)) : ']);
         end   
         
-        function [] = ask_for_pems_scenario(obj)
-        end % ask the user for the pems info (still not implemented).
+        function [] = ask_for_pems_data(obj) % ask the user for the pems info (still not implemented).
+            
+        end 
         
         function [] = ask_for_knob_ids(obj) % set the ids of the knobs to tune in the command window.
             if (size(obj.beats_simulation)~=0)
@@ -133,6 +140,26 @@ classdef (Abstract) AlgorithmBox < handle
             obj.error_calculator=input(['Enter the name of an "ErrorCalculator" subclass (like L1) : ']);
         end
         
+        function [] = load_pems_data(obj)
+            obj.pems.peMS5minData= PeMS5minData;
+            vds2id = obj.beats_simulation.scenario_ptr.get_sensor_vds2id_map;
+            obj.pems.peMS5minData.load(obj.pems.processed_folder,  vds2id(:,1), obj.pems.days);
+            X=obj.pems.peMS5minData.get_data_batch_aggregate(vds2id(:,1), obj.pems.days(1), 'smooth', true);
+            is_bad_detector = all(isnan(X.flw), 1);
+            good_sensors = vds2id(~is_bad_detector, :);
+            flw = X.flw(:, ~is_bad_detector);
+            link_ids = obj.beats_simulation.scenario_ptr.get_link_ids;
+            link_types = obj.beats_simulation.scenario_ptr.get_link_types;
+            sensor_link = obj.beats_simulation.scenario_ptr.get_sensor_link_map;
+            links_with_good_sensors_mask=ismember(link_ids, sensor_link(ismember(sensor_link(:,1),good_sensors(:,2)),2));
+            for i=1:size(link_types,2)
+                if strcmp(link_types(1,i),'Freeway')
+                    mainline_links_mask(1,i)=1;
+                else mainline_links_mask(1,i)=0;
+                end    
+            end
+            obj.mainline_links_with_good_sensors_mask=links_with_good_sensors_mask.*mainline_links_mask;
+        end       
     end
             
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -186,6 +213,8 @@ classdef (Abstract) AlgorithmBox < handle
         function [result] = errorFunction(obj, knob_values) % the error function used by the algorithm. Compares the beats simulation result and pems data.
             %knob_values : n x 1 array where n is the number of knobs
             %to tune, containing the new values of the knobs.
+            knob_values=reshape(knob_values,2,1);
+            disp(knob_values);
             if (size(knob_values,1)==size(obj.knobs.knob_ids,1))
               obj.beats_simulation.scenario_ptr.set_knob_values(obj.knobs.knob_ids, knob_values)
               obj.beats_simulation.run_beats(obj.beats_parameters);
@@ -193,7 +222,7 @@ classdef (Abstract) AlgorithmBox < handle
               obj.performance_calculator.calculate_from_pems(obj.pems);
               result = obj.error_calculator.calculate(obj.performance_calculator.result_from_beats, obj.performance_calculator.result_from_pems);
             else
-                error('The matrix with knobs values given does not match with the number of knobs to tune.');
+                error('The matrix with knobs values given does not match the number of knobs to tune.');
             end    
         end
         
@@ -216,6 +245,19 @@ classdef (Abstract) AlgorithmBox < handle
            end    
         end % run the program defined by the input Excel file and write its results in the output Excel file.
         
+         function [mainline_links_with_sensors_mask] = get_mainline_sensors_mask(obj)
+            link_ids = obj.beats_simulation.scenario_ptr.get_link_ids;
+            link_types = obj.beats_simulation.scenario_ptr.get_link_types;
+            sensor_link = obj.beats_simulation.scenario_ptr.get_sensor_link_map;
+            mainline_links_with_sensors_mask = ismember(link_ids,sensor_link(:,2));
+            for i=1:length(mainline_links_with_sensors_mask)
+                if ~strcmp(link_types(i),'Freeway')
+                    mainline_links_with_sensors_mask(i)=0;
+                end    
+            end    
+         end
+         
+        
     end
     
     methods (Abstract, Access = public)
@@ -230,14 +272,19 @@ classdef (Abstract) AlgorithmBox < handle
     
     methods (Access = protected)
         
-        function[bool] = is_set_knobs(obj)
+        function [bool] = is_set_knobs(obj)
             bool = 0;
             if (size(obj.knobs.knob_ids,2)~=0 && size(obj.knobs.knob_boundaries_max,2)~=0 && size(obj.knobs.knob_boundaries_min,2)~=0)
                 bool=1;
             end    
         end  %check if the knobs struct is set.
         
+
+
     end
+ 
+    
+    
 
 end    
 
