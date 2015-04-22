@@ -1,6 +1,6 @@
 % Single run of the algorithm set manually.
 
-a=CmaesAlgorithmBox;
+a=CmaesBox;
 a.run_assistant; %Please enter the scenartiototest.xml file adress as scenario for beats.
 a.pems=BeatsSimulation;
 a.pems.load_scenario('C:\Users\Felix\code\autoCalibrationProject\pemsdata.xml');
@@ -13,7 +13,7 @@ a.plot;
 
 % Single run of the algorithm set by the second column of an Excel file.
 
-% a=CmaesAlgorithmBox;
+% a=CmaesBox;
 % a.load_xls('C:\Users\Felix\code\autoCalibrationProject\xls\Cmaes_program.xlsx');
 % a.pems=BeatsSimulation;
 % a.pems.load_scenario('C:\Users\Felix\code\autoCalibrationProject\pemsdata.xml');
@@ -28,7 +28,7 @@ a.plot;
 
 % %Run program set in Excel file, from columns 2 to 4, and print the results in another one.
 % 
-% a=CmaesAlgorithmBox;
+% a=CmaesBox;
 % a.load_xls('C:\Users\Felix\code\autoCalibrationProject\xls\Cmaes_program.xlsx','C:\Users\Felix\code\autoCalibrationProject\xls\Results.xlsx');
 % a.pems=BeatsSimulation;
 % a.pems.load_scenario('C:\Users\Felix\code\autoCalibrationProject\pemsdata.xml');

@@ -8,11 +8,11 @@ classdef Congestion < PerformanceCalculator
     
     methods (Access = public)
         
-        function [out] = calculate_from_beats(obj, BS, good_sensors_mask)
+        function [] = calculate_from_beats(obj, BS, good_freeway_link_mask)
             
         end
         
-        function [obj] = calculate_from_pems(obj, Pems)
+        function [] = calculate_from_pems(obj, pems, mask)
         end    
         
     end

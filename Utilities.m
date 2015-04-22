@@ -59,7 +59,7 @@ classdef Utilities
                 char=inputChar;
             end    
         end    
-            
+        
     end
     
     

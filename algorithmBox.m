@@ -49,9 +49,15 @@ classdef (Abstract) AlgorithmBox < handle
         
     end
     
-    properties (Hidden)
+    properties (Hidden, SetAccess = protected)
         
-        mainline_links_with_good_sensors_mask
+        good_freeway_mask_beats
+        good_onramp_mask_beats
+        good_offramp_mask_beats
+        good_freeway_mask_pems
+        good_onramp_mask_pems
+        good_offramp_mask_pems
+        good_sensor_link_ids
         
     end    
    
@@ -79,12 +85,13 @@ classdef (Abstract) AlgorithmBox < handle
         
         function [] = run_assistant(obj) % assistant to set all the parameters for a single run in the command window.
             obj.ask_for_beats_simulation;
-            obj.ask_for_pems_scenario;
+            obj.ask_for_pems_data;
             obj.ask_for_knob_ids;
             obj.ask_for_knob_boundaries;
             obj.ask_for_errorFunction;
             obj.ask_for_algorithm_parameters;
             obj.ask_for_starting_point;
+            
         end
         
         function [] = load_properties_from_xls(obj) % load the properties from an excel file in the format described underneath.
@@ -110,14 +117,32 @@ classdef (Abstract) AlgorithmBox < handle
         end   
         
         function [] = ask_for_pems_data(obj) % ask the user for the pems info (still not implemented).
-            
+            startyear=input(['Enter pems data beginning year (integer) : ']);
+            startmonth=input(['Enter pems data beginning month (integer) : ']);
+            startday=input(['Enter pems data beginning day (integer) : ']);
+            endyear=input(['Enter pems data last year (integer) : ']);
+            endmonth=input(['Enter pems data last month (integer) : ']);
+            endday=input(['Enter pems data last day (integer) : ']);
+            obj.pems.days = (datenum(startyear, startmonth, startday):datenum(endyear, endmonth, endday));
+            obj.pems.district = input(['Enter district : ']);
+            obj.pems.processed_folder = input(['Enter the adress of the peMS processed folder : '])
+            obj.load_pems_data;
         end 
         
         function [] = ask_for_knob_ids(obj) % set the ids of the knobs to tune in the command window.
             if (size(obj.beats_simulation)~=0)
-                numberMissingKnobs = input(strcat(['Among the', ' ', num2str(length(obj.beats_simulation.scenario_ptr.scenario.DemandSet.demandProfile)), ' knobs, how many have to be tuned ? :']));
+                bad_onramps=obj.beats_simulation.scenario_ptr.get_link_ids_by_type('on-ramp');
+                bad_onramps=bad_onramps(~ismember(bad_onramps,obj.good_sensor_link_ids));
+                bad_offramps=obj.beats_simulation.scenario_ptr.get_link_ids_by_type('off-ramp');
+                bad_offramps=bad_offramps(~ismember(bad_offramps,obj.good_sensor_link_ids));
+                numberOfKnobs=length(bad_onramps)+length(bad_offramps);
+                numberMissingKnobs = input(strcat(['Among the ', num2str(numberOfKnobs), ' on and off ramps whithout sensors, how many knobs have to be tuned ? (you can directly copy-paste several at a time from the list) :']));
+                disp(['List of on-ramps whithout working sensor link ids : ']);
+                disp(bad_onramps);
+                disp(['List of off-ramps whithout working sensor link ids : ']);
+                disp(bad_offramps);
                 for i=1:numberMissingKnobs
-                    obj.knobs.knob_ids(i,1)=input(strcat(['knob ', num2str(i),' id :']));
+                    obj.knobs.knob_ids(i,1)=input(strcat(['knob ', num2str(i),' link id :']));
                 end
             else
                 error('No Beats Simulation loaded');
@@ -142,24 +167,11 @@ classdef (Abstract) AlgorithmBox < handle
         
         function [] = load_pems_data(obj)
             obj.pems.peMS5minData= PeMS5minData;
-            vds2id = obj.beats_simulation.scenario_ptr.get_sensor_vds2id_map;
-            obj.pems.peMS5minData.load(obj.pems.processed_folder,  vds2id(:,1), obj.pems.days);
-            X=obj.pems.peMS5minData.get_data_batch_aggregate(vds2id(:,1), obj.pems.days(1), 'smooth', true);
-            is_bad_detector = all(isnan(X.flw), 1);
-            good_sensors = vds2id(~is_bad_detector, :);
-            flw = X.flw(:, ~is_bad_detector);
-            link_ids = obj.beats_simulation.scenario_ptr.get_link_ids;
-            link_types = obj.beats_simulation.scenario_ptr.get_link_types;
-            sensor_link = obj.beats_simulation.scenario_ptr.get_sensor_link_map;
-            links_with_good_sensors_mask=ismember(link_ids, sensor_link(ismember(sensor_link(:,1),good_sensors(:,2)),2));
-            for i=1:size(link_types,2)
-                if strcmp(link_types(1,i),'Freeway')
-                    mainline_links_mask(1,i)=1;
-                else mainline_links_mask(1,i)=0;
-                end    
-            end
-            obj.mainline_links_with_good_sensors_mask=links_with_good_sensors_mask.*mainline_links_mask;
-        end       
+            obj.pems.flow_measurements=obj.set_masks_and_flow;
+            obj.performance_calculator.calculate_from_pems(obj.pems.flow_measurements,obj.good_freeway_mask_pems);        
+            disp('PeMS data loaded');
+        end
+        
     end
             
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -190,6 +202,7 @@ classdef (Abstract) AlgorithmBox < handle
             obj.xls_results=xls_results_adress;
             obj.beats_simulation = BeatsSimulation;
             obj.load_properties_from_xls;
+            obj.load_pems_data;
         end 
 
         function [] = send_result_to_xls(obj, filename)
@@ -208,18 +221,23 @@ classdef (Abstract) AlgorithmBox < handle
     %  Running algorithm and program                                      %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
+    methods (Abstract, Access = public)
+        
+        [] = run_algorithm(obj) % single run of the algorithm.
+    
+    end    
+    
     methods (Access = public)
         
         function [result] = errorFunction(obj, knob_values) % the error function used by the algorithm. Compares the beats simulation result and pems data.
             %knob_values : n x 1 array where n is the number of knobs
             %to tune, containing the new values of the knobs.
-            knob_values=reshape(knob_values,2,1);
+            disp('Knobs vector tested');
             disp(knob_values);
             if (size(knob_values,1)==size(obj.knobs.knob_ids,1))
               obj.beats_simulation.scenario_ptr.set_knob_values(obj.knobs.knob_ids, knob_values)
               obj.beats_simulation.run_beats(obj.beats_parameters);
               obj.performance_calculator.calculate_from_beats(obj.beats_simulation);
-              obj.performance_calculator.calculate_from_pems(obj.pems);
               result = obj.error_calculator.calculate(obj.performance_calculator.result_from_beats, obj.performance_calculator.result_from_pems);
             else
                 error('The matrix with knobs values given does not match the number of knobs to tune.');
@@ -243,34 +261,15 @@ classdef (Abstract) AlgorithmBox < handle
                 end
                 obj.current_xls_program_column=obj.current_xls_program_column+1; 
            end    
-        end % run the program defined by the input Excel file and write its results in the output Excel file.
-        
-         function [mainline_links_with_sensors_mask] = get_mainline_sensors_mask(obj)
-            link_ids = obj.beats_simulation.scenario_ptr.get_link_ids;
-            link_types = obj.beats_simulation.scenario_ptr.get_link_types;
-            sensor_link = obj.beats_simulation.scenario_ptr.get_sensor_link_map;
-            mainline_links_with_sensors_mask = ismember(link_ids,sensor_link(:,2));
-            for i=1:length(mainline_links_with_sensors_mask)
-                if ~strcmp(link_types(i),'Freeway')
-                    mainline_links_with_sensors_mask(i)=0;
-                end    
-            end    
-         end
-         
+        end % run the program defined by the input Excel file and write its results in the output Excel file.        
         
     end
-    
-    methods (Abstract, Access = public)
-        
-        [] = run_algorithm(obj) % single run of the algorithm.
-    
-    end    
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %  Utilities                                                          %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
     
-    methods (Access = protected)
+    methods (Access = private)
         
         function [bool] = is_set_knobs(obj)
             bool = 0;
@@ -279,7 +278,36 @@ classdef (Abstract) AlgorithmBox < handle
             end    
         end  %check if the knobs struct is set.
         
-
+        function [flw] = set_masks_and_flow(obj)
+            link_ids = obj.beats_simulation.scenario_ptr.get_link_ids;
+            link_types = obj.beats_simulation.scenario_ptr.get_link_types;
+            sensor_link = obj.beats_simulation.scenario_ptr.get_sensor_link_map;
+            vds2id = obj.beats_simulation.scenario_ptr.get_sensor_vds2id_map;
+            obj.pems.peMS5minData.load(obj.pems.processed_folder,  vds2id(:,1), obj.pems.days);
+            flw=obj.pems.peMS5minData.get_data_batch_aggregate(vds2id(:,1), obj.pems.days(1), 'smooth', true);
+            is_good_sensor_mask_pems = all(~isnan(flw.flw), 1);
+            good_sensor_ids=vds2id(is_good_sensor_mask_pems,2);
+            good_sensor_link_ids=sensor_link(ismember(sensor_link(:,1), good_sensor_ids),2);
+            freeway_link_ids=obj.beats_simulation.scenario_ptr.get_link_ids_by_type('freeway');
+            onramp_link_ids=obj.beats_simulation.scenario_ptr.get_link_ids_by_type('on-ramp');
+            offramp_link_ids=obj.beats_simulation.scenario_ptr.get_link_ids_by_type('off-ramp');
+            freeway_mask_beats=ismember(link_ids, freeway_link_ids);
+            onramp_mask_beats=ismember(link_ids, onramp_link_ids);
+            offramp_mask_beats=ismember(link_ids, offramp_link_ids);
+            freeway_mask_pems=reshape(ismember(sensor_link(:,2), freeway_link_ids),1,[]);
+            onramp_mask_pems=reshape(ismember(sensor_link(:,2), onramp_link_ids),1,[]);
+            offramp_mask_pems=reshape(ismember(sensor_link(:,2), offramp_link_ids),1,[]);
+            is_good_sensor_mask_beats=ismember(link_ids, good_sensor_link_ids);
+            obj.good_freeway_mask_beats=is_good_sensor_mask_beats.*freeway_mask_beats;
+            obj.good_onramp_mask_beats=is_good_sensor_mask_beats.*onramp_mask_beats;
+            obj.good_offramp_mask_beats=is_good_sensor_mask_beats.*offramp_mask_beats;
+            obj.good_freeway_mask_pems=logical(is_good_sensor_mask_pems.*freeway_mask_pems);
+            obj.good_onramp_mask_pems=logical(is_good_sensor_mask_pems.*onramp_mask_pems);
+            obj.good_offramp_mask_pems=logical(is_good_sensor_mask_pems.*offramp_mask_pems);
+            obj.good_sensor_link_ids=good_sensor_link_ids;
+            
+        end    
+        
 
     end
  
