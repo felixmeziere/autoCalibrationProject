@@ -1,0 +1,10 @@
+a=BeatsSimulation;
+a.load_scenario('C:\Users\Felix\code\autoCalibrationProject\beats_scenarios\210E.xml');
+sensor_link = a.scenario_ptr.get_sensor_link_map;
+sensor_link_without_repeated_links=unique(sensor_link(:,2));
+disp(sensor_link);
+disp('Number of sensor links :');
+disp(size(sensor_link,1));
+disp('Number of different sensor links :');
+disp(size(sensor_link_without_repeated_links,1));
+disp('link 908310328 has two sensors, for example.');

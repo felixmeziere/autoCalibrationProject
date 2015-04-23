@@ -8,14 +8,13 @@ classdef TVM < PerformanceCalculator
     
     methods (Access = public)
        
-        function [] = calculate_from_beats(obj, BS, good_freeway_link_mask)
-            tot_flux = BS.compute_performance.tot_flux(good_freeway_link_mask,:);
-            out=sum(tot_flux);
-            obj.result_from_beats=out;
+        function [] = calculate_from_beats(obj, beats_simulation, good_freeway_link_mask)
+            total_flow_in_each_link = sum(cell2mat(beats_simulation.outflow_veh),1); %sum over time
+            obj.result_from_beats = sum(total_flow_in_each_link(1,good_freeway_link_mask)); %sum over links with working sensors
         end
         
         function [] = calculate_from_pems(obj, pems, mask)
-            out=sum(sum(pems.flw(:,mask)));
+            out=sum(sum(pems.flow_measurements(:,mask))); 
             obj.result_from_pems=out;
         end    
         
