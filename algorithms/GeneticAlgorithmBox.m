@@ -9,19 +9,13 @@ classdef GeneticAlgorithmBox < EvolutionnaryAlgorithmBox
     
     properties (Access = public)
         
-        
-        
     end    
     
     properties (Hidden, SetAccess = private)
         
-        inopts=struct;
-        
     end    
     
     properties (SetAccess = private)
-        
-        bestEver
         
     end    
     

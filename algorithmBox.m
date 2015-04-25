@@ -1,8 +1,8 @@
 classdef (Abstract) AlgorithmBox < handle
     %AlgorithmBox : used by any algorithm.
     %   Contains the properties and methods that are used by any algorithm for
-    %   the automatic calibration problem (for now, tuning only on and
-    %   offramp knobs). This allows you to run a program set in an excel
+    %   the automatic calibration problem (for now, tuning only source and
+    %   sink knobs). This allows you to run a program set in an excel
     %   file and automaticlly registers the results in another excel file.
     
     properties (Abstract, Constant)
@@ -23,8 +23,8 @@ classdef (Abstract) AlgorithmBox < handle
         error_calculator@ErrorCalculator % an ErrorCalculator subclass, which is a way of comparing two performance calculator values (e.g. L1 norm).
         beats_simulation@BeatsSimulation % the BeatsSimulation object that will run and be overwritten at each algorithm iteration.
         beats_parameters=struct; % the parameters passed to BeatsSimulation.run_beats(beats_parameters).
-        pems % the pems data to compare with the beats results.
-        knobs=struct; % struct with three array fields : (nx1) 'knob_link_ids' containing the ids of the n knobs to tune,(nx2) 'knob_boundaries_min' containing the value of the minimum and (n x 1) 'knob_boundaries_max' containing the values of the maximum value allowed for each knob (in the same order as in 'knob_link_ids').
+        pems=struct; % the pems data to compare with the beats results. Input fields : 'days' (e.g. datenum(2014,10,1):datenum(2014,10,10)); 'district' (e.g. 7); 'processed_folder'(e.g. C:\Code). Output Fields : 'data';'TVM'. 
+        knobs=struct; % struct with four array fields : (nx1) 'knob_link_ids' containing the ids of the n knobs to tune, (nx1) 'knob_demand_ids' containing their respective demand profile ids, (nx1) 'knob_boundaries_min' containing the value of the minimum and (n x 1) 'knob_boundaries_max' containing the values of the maximum value allowed for each knob (in the same order as in 'knob_link_ids').
         number_runs=1; % the number of times the algorithm will run before going to the next column if an xls program is run. 
         initialization_method@char % initialization method must be 'normal', 'uniform' or 'manual'.
         maxEval=90; % maximum number of times that beats will run.
@@ -53,14 +53,23 @@ classdef (Abstract) AlgorithmBox < handle
         
         %masks pointing at the links with working sensors used on beats 
         %output or on pems data.
-        good_freeway_mask_beats
-        good_onramp_mask_beats
-        good_offramp_mask_beats
-        good_freeway_mask_pems
-        good_onramp_mask_pems
-        good_offramp_mask_pems
-        good_sensor_link_ids % list of the link ids of the working sensors
-        current_day=1;
+        mainline_mask_beats
+        good_mainline_mask_beats
+        source_mask_beats
+        good_source_mask_beats
+        sink_mask_beats
+        good_sink_mask_beats
+        good_sensor_mask_beats
+        mainline_mask_pems
+        good_mainline_mask_pems
+        source_mask_pems
+        good_source_mask_pems
+        sink_mask_pems
+        good_sink_mask_pems
+        good_sensor_mask_pems
+        
+        current_day=1; %current day used in the pems data loaded.
+        force_manual_knob_boundaries=0; % 1 if knob boundaries are set manually, 0 if they are set to [link's FD max capacity*number of lanes]/[max value of the link's demand template].
         
     end    
    
@@ -107,8 +116,11 @@ classdef (Abstract) AlgorithmBox < handle
                     eval(strcat('obj.',char(obj.xls_program(i,1)),'=',char(obj.xls_program(i,obj.current_xls_program_column)),';'));
                 end
             end
-            obj.set_starting_point(obj.initialization_method);
             obj.set_knob_demand_ids;
+            if (obj.force_manual_knob_boundaries==0)
+                obj.set_auto_knob_boundaries;
+            end    
+            obj.set_starting_point(obj.initialization_method);
         end    
                
         function [] = ask_for_beats_simulation(obj) % ask the user to enter a beats scenario and beats run parameters.
@@ -133,22 +145,32 @@ classdef (Abstract) AlgorithmBox < handle
         
         function [] = ask_for_knob_link_ids(obj) % set the ids of the knobs to tune in the command window.
             if (size(obj.beats_simulation)~=0)
+                obj.knobs.knob_link_ids=[];
                 demand2link=obj.beats_simulation.scenario_ptr.get_demandprofile_link_map;
-                bad_onramps=obj.beats_simulation.scenario_ptr.get_link_ids_by_type('on-ramp');
-                bad_onramps=bad_onramps(~ismember(bad_onramps,obj.good_sensor_link_ids));
-                bad_onramps=demand2link(ismember(demand2link(:,2),bad_onramps),:);
-                bad_offramps=obj.beats_simulation.scenario_ptr.get_link_ids_by_type('off-ramp');
-                bad_offramps=bad_offramps(~ismember(bad_offramps,obj.good_sensor_link_ids));
-                bad_offramps=demand2link(ismember(demand2link(:,2), bad_offramps),:);
-                numberOfKnobs=size(bad_onramps,1)+size(bad_offramps,1);
-                numberMissingKnobs = input(strcat(['Among the ', num2str(numberOfKnobs), ' on and off ramps whithout sensors, how many knobs have to be tuned ? :']));
-                disp(['List of on-ramps whithout working sensor demand ids and corresponding link ids : ']);
-                disp(bad_onramps);
-                disp(bad_onramps(:,2));
-                disp(['List of off-ramps whithout working sensor demand ids and corresponding link ids : ']);
-                disp(bad_offramps);
-                disp(bad_offramps(:,2));
-                disp('You can directly select and copy-paste several at a time from the second lists with only link ids.');
+                link_ids = obj.beats_simulation.scenario_ptr.get_link_ids;
+                bad_sources=link_ids(1,logical(~obj.good_source_mask_beats.*obj.source_mask_beats));
+                bad_sources=demand2link(ismember(demand2link(:,2),bad_sources),:);
+                bad_sinks=link_ids(1,logical(~obj.good_sink_mask_beats.*obj.sink_mask_beats));
+                bad_sinks=demand2link(ismember(demand2link(:,2), bad_sinks),:);
+                numberOfKnobs=size(bad_sources,1)+size(bad_sinks,1);
+                numberMissingKnobs = input(strcat(['Among the ', num2str(numberOfKnobs), ' sources and sinks without sensors, how many knobs have to be tuned ? :']));
+                disp(['List of sources (on-ramps or interconnects) without working sensor demand ids and corresponding link ids : ']);
+                disp(' ');
+                disp(['Demand Id :','     ', 'Link Id :']);
+                disp(' ');
+                disp(bad_sources);
+                disp('Link Id (again) :');
+                disp(' ');
+                disp(bad_sources(:,2));
+                disp(['List of sinks (off-ramps or interconnects) without working sensor demand ids and corresponding link ids : ']);
+                disp(' ');
+                disp(['Demand Id :','     ', 'Link Id :']);                                
+                disp(' ');
+                disp(bad_sinks);
+                disp('Link Id (again) :');
+                disp(' ');
+                disp(bad_sinks(:,2));
+                disp('You can directly select and copy-paste several at a time from the second lists which contains only the link ids.');
                 for i=1:numberMissingKnobs
                     obj.knobs.knob_link_ids(i,1)=input(strcat(['knob ', num2str(i),' link id :']));
                 end
@@ -160,9 +182,20 @@ classdef (Abstract) AlgorithmBox < handle
         
         function [] = ask_for_knob_boundaries(obj) % set the knob boundaries (in the same order as the knob ids) in the command window.
             if (isfield(obj.knobs, 'knob_link_ids'))
-                for i=1:size(obj.knobs.knob_link_ids,1)
-                    obj.knobs.knob_boundaries_min(i,1)=input(['Knob ', num2str(obj.knobs.knob_link_ids(i,1)), ' minimum value : ']);
-                    obj.knobs.knob_boundaries_max(i,1)=input(['Knob ', num2str(obj.knobs.knob_link_ids(i,1)), ' maximum value : ']);
+                mode='';
+                while (~strcmp(mode,'auto') && ~strcmp(mode,'manual'))
+                    mode=input('How should the knob boundaries be set ? (auto/manual)','s');
+                end    
+                if (strcmp(mode,'auto'))
+                    obj.set_auto_knob_boundaries;
+                elseif (strcmp(mode,'manual'))     
+                    obj.knobs.knob_boundaries_max=[];
+                    obj.knobs.knob_boundaries_min=[];
+                    for i=1:size(obj.knobs.knob_link_ids,1)
+                        obj.knobs.knob_boundaries_min(i,1)=input(['Knob ', num2str(obj.knobs.knob_demand_ids(i,1)), ' | ', num2str(obj.knobs.knob_link_ids(i,1)), ' minimum value : ']);
+                        obj.knobs.knob_boundaries_max(i,1)=input(['Knob ', num2str(obj.knobs.knob_demand_ids(i,1)), ' | ', num2str(obj.knobs.knob_link_ids(i,1)), ' maximum value : ']);
+                    end
+                else     
                 end
             else
                 error('The knobs to tune ids : obj.knobs.knob_link_ids has to be set first.');
@@ -176,13 +209,25 @@ classdef (Abstract) AlgorithmBox < handle
           
     end
     
-    methods (Access = private)
+    methods (Access = public)
         
-        function [] = load_pems_data(obj)
+        function [] = load_pems_data(obj)   %loads pems data once all the inputs have been given to the object
             obj.pems.peMS5minData= PeMS5minData;
-            obj.set_masks_and_flow;
-            obj.performance_calculator.calculate_from_pems(obj.pems,obj.good_freeway_mask_pems);        
+            obj.set_masks_and_pems_data;
+            obj.performance_calculator.calculate_from_pems(obj.pems,obj.good_mainline_mask_pems,obj.get_link_length_miles(obj.good_mainline_mask_beats));        
             disp('PeMS data loaded');
+        end
+        
+        function [] = set_auto_knob_boundaries(obj) %sets automatically the knob minimums to zero and maximums to [link's FD max capacity*number of lanes]/[max value of the link's demand template]
+            for i=1:size(obj.knobs.knob_link_ids)    
+                maxTemplateValue=max(obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.knobs.knob_link_ids(i)).demand);       
+                lanes=obj.beats_simulation.scenario_ptr.get_link_byID(obj.knobs.knob_link_ids(i)).ATTRIBUTE.lanes;
+                FDcapacity=obj.beats_simulation.scenario_ptr.get_fds_with_linkIDs(obj.knobs.knob_link_ids(i)).capacity*lanes;
+                obj.knobs.knob_boundaries_min(i,1)=0;
+                obj.knobs.knob_boundaries_max(i,1)=FDcapacity/maxTemplateValue;
+                disp(['Knob ', num2str(obj.knobs.knob_demand_ids(i,1)), ' | ', num2str(obj.knobs.knob_link_ids(i,1)), ' minimum value : ','0']);
+                disp(['Knob ', num2str(obj.knobs.knob_demand_ids(i,1)), ' | ', num2str(obj.knobs.knob_link_ids(i,1)), ' maximum value : ',num2str(FDcapacity/maxTemplateValue)]);
+            end    
         end
         
     end    
@@ -217,15 +262,12 @@ classdef (Abstract) AlgorithmBox < handle
             obj.beats_simulation = BeatsSimulation;
             obj.load_properties_from_xls;
             obj.load_pems_data;
-        end 
-        
-    end
+        end
     
-    methods (Access = private)
-    
-       function [] = send_result_to_xls(obj, filename)
+        function [] = send_result_to_xls(obj, filename)
             %the legend in the xls file should be written manually.
             %the counter for current cell should be in cell AZ1.
+            obj.set_result_for_xls;
             [useless1,useless2,xls]=xlsread(filename, obj.algorithm_name);
             id=xls{1,52};
             xlswrite(filename,id,obj.algorithm_name, strcat('A',num2str(id+1)));
@@ -250,12 +292,15 @@ classdef (Abstract) AlgorithmBox < handle
         function [result] = errorFunction(obj, knob_values) % the error function used by the algorithm. Compares the beats simulation result and pems data.
             %knob_values : n x 1 array where n is the number of knobs
             %to tune, containing the new values of the knobs.
-            disp('Knobs vector tested');
-            disp(knob_values);
+            disp('Knobs vector and values being tested:');
+            disp(' ');
+            disp(['Demand Id :','     ', 'Link Id :','     ', 'Value :']);
+            disp(' ');
+            disp([obj.knobs.knob_demand_ids,obj.knobs.knob_link_ids, knob_values]);
             if (size(knob_values,1)==size(obj.knobs.knob_link_ids,1))
               obj.beats_simulation.scenario_ptr.set_knob_values(obj.knobs.knob_demand_ids, knob_values)
               obj.beats_simulation.run_beats(obj.beats_parameters);
-              obj.performance_calculator.calculate_from_beats(obj.beats_simulation, obj.good_freeway_mask_beats);
+              obj.performance_calculator.calculate_from_beats(obj.beats_simulation, obj.good_mainline_mask_beats);
               result = obj.error_calculator.calculate(obj.performance_calculator.result_from_beats, obj.performance_calculator.result_from_pems);
             else
                 error('The matrix with knobs values given does not match the number of knobs to tune or is not a column array.');
@@ -273,7 +318,6 @@ classdef (Abstract) AlgorithmBox < handle
                 while (counter > 0)
                     disp([num2str(counter), ' RUNS REMAINING FOR THESE SETTINGS']);
                     obj.run_algorithm;
-                    obj.set_result_for_xls;
                     obj.send_result_to_xls(obj.xls_results);
                     counter=counter-1;
                 end
@@ -287,7 +331,16 @@ classdef (Abstract) AlgorithmBox < handle
     %  Utilities                                                          %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
     
-    methods (Access = protected)
+    methods (Access = public)
+    
+        function [length] = get_link_length_miles(obj,link_mask)
+            link_length_miles = obj.beats_simulation.scenario_ptr.get_link_lengths('us');
+            length = link_length_miles(link_mask);
+        end 
+    
+    end    
+    
+    methods (Access = public)
         
         function [bool] = is_set_knobs(obj) %check if the knobs struct is set.
 
@@ -297,45 +350,65 @@ classdef (Abstract) AlgorithmBox < handle
             end    
         end 
         
-        function [] = set_masks_and_flow(obj)
-            %sets the masks for further link selection and smoothens flow 
-            %values.
+        function [] = set_masks_and_pems_data(obj)
+            %sets the masks for further link selection and smoothens pems 
+            %data. Ugly code...
             link_ids = obj.beats_simulation.scenario_ptr.get_link_ids;
             sensor_link = obj.beats_simulation.scenario_ptr.get_sensor_link_map;
             vds2id = obj.beats_simulation.scenario_ptr.get_sensor_vds2id_map;
             obj.pems.peMS5minData.load(obj.pems.processed_folder,  vds2id(:,1), obj.pems.days);
-            obj.pems.flow_measurements=obj.pems.peMS5minData.get_data_batch_aggregate(vds2id(:,1), obj.pems.days(obj.current_day), 'smooth', true).flw;
-            is_good_sensor_mask_pems = all(~isnan(obj.pems.flow_measurements), 1);
-            good_sensor_ids=vds2id(is_good_sensor_mask_pems,2);
-            good_sensor_link_ids=sensor_link(ismember(sensor_link(:,1), good_sensor_ids),2);
-            freeway_link_ids=obj.beats_simulation.scenario_ptr.get_link_ids_by_type('freeway');
-            onramp_link_ids=obj.beats_simulation.scenario_ptr.get_link_ids_by_type('on-ramp');
-            offramp_link_ids=obj.beats_simulation.scenario_ptr.get_link_ids_by_type('off-ramp');
-            freeway_mask_beats=ismember(link_ids, freeway_link_ids);
-            onramp_mask_beats=ismember(link_ids, onramp_link_ids);
-            offramp_mask_beats=ismember(link_ids, offramp_link_ids);
-            freeway_mask_pems=reshape(ismember(sensor_link(:,2), freeway_link_ids),1,[]);
-            onramp_mask_pems=reshape(ismember(sensor_link(:,2), onramp_link_ids),1,[]);
-            offramp_mask_pems=reshape(ismember(sensor_link(:,2), offramp_link_ids),1,[]);
-            is_good_sensor_mask_beats=ismember(link_ids, good_sensor_link_ids);
-            obj.good_freeway_mask_beats=logical(is_good_sensor_mask_beats.*freeway_mask_beats);
-            obj.good_onramp_mask_beats=logical(is_good_sensor_mask_beats.*onramp_mask_beats);
-            obj.good_offramp_mask_beats=logical(is_good_sensor_mask_beats.*offramp_mask_beats);
-            obj.good_freeway_mask_pems=logical(is_good_sensor_mask_pems.*freeway_mask_pems);
-            obj.good_onramp_mask_pems=logical(is_good_sensor_mask_pems.*onramp_mask_pems);
-            obj.good_offramp_mask_pems=logical(is_good_sensor_mask_pems.*offramp_mask_pems);
-            obj.good_sensor_link_ids=good_sensor_link_ids;
+            obj.pems.data=obj.pems.peMS5minData.get_data_batch_aggregate(vds2id(:,1), obj.pems.days(obj.current_day), 'smooth', true);
+            good_sensor_mask_pems_r = all(~isnan(obj.pems.data.flw), 1);
+            good_sensor_ids_r=vds2id(good_sensor_mask_pems_r,2);
+            good_sensor_link_r=sensor_link(ismember(sensor_link(:,1), good_sensor_ids_r),:);
+            good_sensor_link=zeros(1,2);
+            k=1;
+            for i= 1:size(good_sensor_link_r(:,2),1)
+                if (~ismember(good_sensor_link_r(i,2),good_sensor_link(:,2)))
+                    good_sensor_link(k,:)=good_sensor_link_r(i,:);
+                    k=k+1;
+                end    
+            end
+            good_sensor_ids=good_sensor_link(:,1);
+            obj.good_sensor_mask_pems=reshape(ismember(vds2id(:,2),good_sensor_ids),1,[]);
+            good_sensor_link_ids=good_sensor_link(:,2);
+            mainline_link_ids=obj.beats_simulation.scenario_ptr.get_link_ids_by_type('freeway');
+            obj.mainline_mask_beats=ismember(link_ids, mainline_link_ids);
+            obj.source_mask_beats=obj.beats_simulation.scenario_ptr.is_source_link;
+            obj.sink_mask_beats=obj.beats_simulation.scenario_ptr.is_sink_link;
+            source_link_ids=link_ids(1,obj.source_mask_beats);
+            sink_link_ids=link_ids(1,obj.sink_mask_beats);
+            obj.mainline_mask_pems=reshape(ismember(sensor_link(:,2), mainline_link_ids),1,[]);
+            obj.source_mask_pems=reshape(ismember(sensor_link(:,2), source_link_ids),1,[]);
+            obj.sink_mask_pems=reshape(ismember(sensor_link(:,2), sink_link_ids),1,[]);
+            obj.good_sensor_mask_beats=ismember(link_ids, good_sensor_link_ids);
+            obj.good_mainline_mask_beats=logical(obj.good_sensor_mask_beats.*obj.mainline_mask_beats);
+            obj.good_source_mask_beats=logical(obj.good_sensor_mask_beats.*obj.source_mask_beats);
+            obj.good_sink_mask_beats=logical(obj.good_sensor_mask_beats.*obj.sink_mask_beats);
+            obj.good_mainline_mask_pems=logical(obj.good_sensor_mask_pems.*obj.mainline_mask_pems);
+            obj.good_source_mask_pems=logical(obj.good_sensor_mask_pems.*obj.source_mask_pems);
+            obj.good_sink_mask_pems=logical(obj.good_sensor_mask_pems.*obj.sink_mask_pems);
             
         end    %sets the masks for further link selection and smoothens flow values.
+       
+        function [knobs_on_correct_subspace] = project_on_correct_TVM_subspace(obj,vector)
+            obj.pems.TVM=sum(sum(obj.pems.data.flw(:,obj.good_mainline_mask_pems).*repmat(obj.get_link_length_miles(obj.good_mainline_mask_beats),size(obj.pems.data.flw,1),1),2));
+            equation_coefficients_tuple=[];
+            for i=1:size(obj.knobs.knob_link_ids)
+                equation_coefficients_tuple(1,i)=sum(obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.knobs.knob_link_ids(i,1)).demand); 
+            end
+            equation_rightside=obj.pems.TVM;
+            [knobs_on_correct_subspace,fval]=fmincon(@(x)Utilities.euclidianDistance(x,vector),vector,[],[],equation_coefficients_tuple,equation_rightside,obj.knobs.knob_boundaries_min,obj.knobs.knob_boundaries_max);
+        end    
         
-        function [] = set_knob_demand_ids(obj) 
-            %sets obj.knobs.knob_demand_ids, which is the list of the 
-            %demandprofile ids corresponding to the link ids of the knobs.
-            demand2link = obj.beats_simulation.scenario_ptr.get_demandprofile_link_map;
-            obj.knobs.knob_demand_ids=demand2link(ismember(demand2link(:,2),obj.knobs.knob_link_ids),1);
-        end   %described in the body       
-
-    end
+        function [] =set_knob_demand_ids(obj)
+            obj.knobs.knob_demand_ids=[];
+            for i=1:size(obj.knobs.knob_link_ids,1)
+                dps=obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.knobs.knob_link_ids);
+                obj.knobs.knob_demand_ids(i,1)=dps(i).id;
+            end
+        end    
+     end
  
 end    
 
