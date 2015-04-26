@@ -70,7 +70,8 @@ classdef (Abstract) AlgorithmBox < handle
         
         current_day=1; %current day used in the pems data loaded.
         force_manual_knob_boundaries=0; % 1 if knob boundaries are set manually, 0 if they are set to [link's FD max capacity*number of lanes]/[max value of the link's demand template].
-        
+        TVM_beats_all_knobs_set_to_one; % reference value of TVM before tuning the knobs (for initial constraint purposes).
+        link_ids % all the link ids of the scenario. For practical reasons.
     end    
    
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -100,7 +101,6 @@ classdef (Abstract) AlgorithmBox < handle
             obj.ask_for_errorFunction;
             obj.ask_for_pems_data;
             obj.ask_for_knob_link_ids;
-            obj.ask_for_knob_boundaries;
             obj.ask_for_algorithm_parameters;
             obj.ask_for_starting_point;
         end
@@ -116,6 +116,8 @@ classdef (Abstract) AlgorithmBox < handle
                     eval(strcat('obj.',char(obj.xls_program(i,1)),'=',char(obj.xls_program(i,obj.current_xls_program_column)),';'));
                 end
             end
+            obj.link_ids=obj.beats_simulation.scenario_ptr.get_link_ids;
+            obj.beats_simulation.run_beats(obj.beats_parameters);
             obj.set_knob_demand_ids;
             if (obj.force_manual_knob_boundaries==0)
                 obj.set_auto_knob_boundaries;
@@ -127,7 +129,9 @@ classdef (Abstract) AlgorithmBox < handle
             scenario_ptr = input('Address of the scenario xml file : ', 's');
             obj.beats_simulation = BeatsSimulation;
             obj.beats_simulation.load_scenario(scenario_ptr);
+            obj.link_ids=obj.beats_simulation.scenario_ptr.get_link_ids;
             obj.beats_parameters=input(['Enter a struct containing the beats simulation properties (like struct("DURATION",86000,"SIM_DT",5)) : ']);
+            obj.beats_simulation.run_beats(obj.beats_parameters);
         end   
         
         function [] = ask_for_pems_data(obj) % ask the user for the pems info (still not implemented).
@@ -147,10 +151,9 @@ classdef (Abstract) AlgorithmBox < handle
             if (size(obj.beats_simulation)~=0)
                 obj.knobs.knob_link_ids=[];
                 demand2link=obj.beats_simulation.scenario_ptr.get_demandprofile_link_map;
-                link_ids = obj.beats_simulation.scenario_ptr.get_link_ids;
-                bad_sources=link_ids(1,logical(~obj.good_source_mask_beats.*obj.source_mask_beats));
+                bad_sources=obj.link_ids(1,logical(~obj.good_source_mask_beats.*obj.source_mask_beats));
                 bad_sources=demand2link(ismember(demand2link(:,2),bad_sources),:);
-                bad_sinks=link_ids(1,logical(~obj.good_sink_mask_beats.*obj.sink_mask_beats));
+                bad_sinks=obj.link_ids(1,logical(~obj.good_sink_mask_beats.*obj.sink_mask_beats));
                 bad_sinks=demand2link(ismember(demand2link(:,2), bad_sinks),:);
                 numberOfKnobs=size(bad_sources,1)+size(bad_sinks,1);
                 numberMissingKnobs = input(strcat(['Among the ', num2str(numberOfKnobs), ' sources and sinks without sensors, how many knobs have to be tuned ? :']));
@@ -159,22 +162,21 @@ classdef (Abstract) AlgorithmBox < handle
                 disp(['Demand Id :','     ', 'Link Id :']);
                 disp(' ');
                 disp(bad_sources);
-                disp('Link Id (again) :');
                 disp(' ');
-                disp(bad_sources(:,2));
                 disp(['List of sinks (off-ramps or interconnects) without working sensor demand ids and corresponding link ids : ']);
                 disp(' ');
                 disp(['Demand Id :','     ', 'Link Id :']);                                
                 disp(' ');
                 disp(bad_sinks);
-                disp('Link Id (again) :');
+                disp('Link Id (again, for copy-paste) :');
                 disp(' ');
-                disp(bad_sinks(:,2));
+                disp([bad_sources(:,2); bad_sinks(:,2)]);
                 disp('You can directly select and copy-paste several at a time from the second lists which contains only the link ids.');
                 for i=1:numberMissingKnobs
                     obj.knobs.knob_link_ids(i,1)=input(strcat(['knob ', num2str(i),' link id :']));
                 end
                 obj.set_knob_demand_ids;
+                obj.ask_for_knob_boundaries;
             else
                 error('No Beats Simulation loaded');
             end    
@@ -209,16 +211,23 @@ classdef (Abstract) AlgorithmBox < handle
           
     end
     
-    methods (Access = public)
+    methods (Access = private)
         
         function [] = load_pems_data(obj)   %loads pems data once all the inputs have been given to the object
             obj.pems.peMS5minData= PeMS5minData;
             obj.set_masks_and_pems_data;
-            obj.performance_calculator.calculate_from_pems(obj.pems,obj.good_mainline_mask_pems,obj.get_link_length_miles(obj.good_mainline_mask_beats));        
+            obj.performance_calculator.calculate_from_pems(obj.pems,obj.good_mainline_mask_pems,obj.get_link_length_miles(obj.good_mainline_mask_beats));
+            TVmiles=TVM;
+            TVmiles.calculate_from_beats(obj.beats_simulation,obj.good_mainline_mask_beats);
+            obj.TVM_beats_all_knobs_set_to_one=TVmiles.result_from_beats;
+            TVmiles=TVM;
+            TVmiles.calculate_from_pems(obj.pems, obj.good_mainline_mask_pems,obj.get_link_length_miles(obj.good_mainline_mask_beats));
+            obj.pems.TVM=TVmiles.result_from_pems;
             disp('PeMS data loaded');
         end
         
         function [] = set_auto_knob_boundaries(obj) %sets automatically the knob minimums to zero and maximums to [link's FD max capacity*number of lanes]/[max value of the link's demand template]
+            disp('Knob boundaries set automatically :');
             for i=1:size(obj.knobs.knob_link_ids)    
                 maxTemplateValue=max(obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.knobs.knob_link_ids(i)).demand);       
                 lanes=obj.beats_simulation.scenario_ptr.get_link_byID(obj.knobs.knob_link_ids(i)).ATTRIBUTE.lanes;
@@ -340,7 +349,7 @@ classdef (Abstract) AlgorithmBox < handle
     
     end    
     
-    methods (Access = public)
+    methods (Access = public) %supposed to be private but public for debug reasons
         
         function [bool] = is_set_knobs(obj) %check if the knobs struct is set.
 
@@ -353,7 +362,6 @@ classdef (Abstract) AlgorithmBox < handle
         function [] = set_masks_and_pems_data(obj)
             %sets the masks for further link selection and smoothens pems 
             %data. Ugly code...
-            link_ids = obj.beats_simulation.scenario_ptr.get_link_ids;
             sensor_link = obj.beats_simulation.scenario_ptr.get_sensor_link_map;
             vds2id = obj.beats_simulation.scenario_ptr.get_sensor_vds2id_map;
             obj.pems.peMS5minData.load(obj.pems.processed_folder,  vds2id(:,1), obj.pems.days);
@@ -373,15 +381,15 @@ classdef (Abstract) AlgorithmBox < handle
             obj.good_sensor_mask_pems=reshape(ismember(vds2id(:,2),good_sensor_ids),1,[]);
             good_sensor_link_ids=good_sensor_link(:,2);
             mainline_link_ids=obj.beats_simulation.scenario_ptr.get_link_ids_by_type('freeway');
-            obj.mainline_mask_beats=ismember(link_ids, mainline_link_ids);
+            obj.mainline_mask_beats=ismember(obj.link_ids, mainline_link_ids);
             obj.source_mask_beats=obj.beats_simulation.scenario_ptr.is_source_link;
             obj.sink_mask_beats=obj.beats_simulation.scenario_ptr.is_sink_link;
-            source_link_ids=link_ids(1,obj.source_mask_beats);
-            sink_link_ids=link_ids(1,obj.sink_mask_beats);
+            source_link_ids=obj.link_ids(1,obj.source_mask_beats);
+            sink_link_ids=obj.link_ids(1,obj.sink_mask_beats);
             obj.mainline_mask_pems=reshape(ismember(sensor_link(:,2), mainline_link_ids),1,[]);
             obj.source_mask_pems=reshape(ismember(sensor_link(:,2), source_link_ids),1,[]);
             obj.sink_mask_pems=reshape(ismember(sensor_link(:,2), sink_link_ids),1,[]);
-            obj.good_sensor_mask_beats=ismember(link_ids, good_sensor_link_ids);
+            obj.good_sensor_mask_beats=ismember(obj.link_ids, good_sensor_link_ids);
             obj.good_mainline_mask_beats=logical(obj.good_sensor_mask_beats.*obj.mainline_mask_beats);
             obj.good_source_mask_beats=logical(obj.good_sensor_mask_beats.*obj.source_mask_beats);
             obj.good_sink_mask_beats=logical(obj.good_sensor_mask_beats.*obj.sink_mask_beats);
@@ -391,23 +399,83 @@ classdef (Abstract) AlgorithmBox < handle
             
         end    %sets the masks for further link selection and smoothens flow values.
        
-        function [knobs_on_correct_subspace] = project_on_correct_TVM_subspace(obj,vector)
-            obj.pems.TVM=sum(sum(obj.pems.data.flw(:,obj.good_mainline_mask_pems).*repmat(obj.get_link_length_miles(obj.good_mainline_mask_beats),size(obj.pems.data.flw,1),1),2));
-            equation_coefficients_tuple=[];
-            for i=1:size(obj.knobs.knob_link_ids)
-                equation_coefficients_tuple(1,i)=sum(obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.knobs.knob_link_ids(i,1)).demand); 
+        function [knobs_on_correct_subspace] = project_on_correct_TVM_subspace(obj,vector) % Project vector on the hyperplan of vectors that will make beats output have the same TVM as pems.
+            equation_coefficients_tuple=[]; 
+            %N tuple that will contain the coefficients of the equation of 
+            %the hyperplan. We will call them alpha(i) : alpha(i)= (sum over time of the template values of the demand profile of knob(i))*(remaining mainline length from the corresponding link) 
+            %The equation is [(knob1)*alpha(1)+(knob2)*alpha(2)+...+(knobN)*alpha(N)]+[(TVM value given by beats output when all knobs are set to one)-(alpha(1)+...+alpha(N)(this removes the extra contribution of the knobs links this beats TVM))]=pems TVM value
+            for i=1:size(obj.knobs.knob_link_ids) %fill the tuple
+                if (ismember(obj.knobs.knob_link_ids(i),obj.link_ids(obj.source_mask_beats)))
+                    sign=1;
+                else
+                    sign=-1;
+                end
+                equation_coefficients_tuple(1,i)=sign*sum(obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.knobs.knob_link_ids(i,1)).demand)*obj.get_remaining_mainline_length(obj.get_next_mainline_link_id(obj.knobs.knob_link_ids(i))); 
             end
-            equation_rightside=obj.pems.TVM;
-            [knobs_on_correct_subspace,fval]=fmincon(@(x)Utilities.euclidianDistance(x,vector),vector,[],[],equation_coefficients_tuple,equation_rightside,obj.knobs.knob_boundaries_min,obj.knobs.knob_boundaries_max);
+            equation_rest_of_left_side=obj.TVM_beats_all_knobs_set_to_one-sum(equation_coefficients_tuple); %second term between brackets of the left side
+            [knobs_on_correct_subspace,fval]=fmincon(@(x)Utilities.euclidianDistance(x,vector),vector,[],[],equation_coefficients_tuple, obj.pems.TVM-equation_rest_of_left_side,obj.knobs.knob_boundaries_min,obj.knobs.knob_boundaries_max); % minimization program
+            
         end    
-        
-        function [] =set_knob_demand_ids(obj)
+            
+        function []=set_knob_demand_ids(obj)
             obj.knobs.knob_demand_ids=[];
             for i=1:size(obj.knobs.knob_link_ids,1)
                 dps=obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.knobs.knob_link_ids);
                 obj.knobs.knob_demand_ids(i,1)=dps(i).id;
             end
+        end
+        
+        function [mainline_link_id]=get_next_mainline_link_id(obj,input_link_id)
+            if ismember(input_link_id,obj.link_ids(logical(obj.source_mask_beats.*~obj.mainline_mask_beats)))
+                output_node_id=obj.beats_simulation.scenario_ptr.get_link_byID(input_link_id).end.ATTRIBUTE.node_id;
+                output_node=obj.beats_simulation.scenario_ptr.get_node_byID(output_node_id);
+                mainline_link_ids=obj.link_ids(obj.mainline_mask_beats);
+                output_link_ids=output_node.outputs.output;
+                node_output_links=[];
+                for i=1:size(output_link_ids,2)
+                    node_output_links=output_node.outputs.output(i).ATTRIBUTE.link_id;
+                end
+                mainline_link_id=node_output_links(ismember(node_output_links,mainline_link_ids));
+            elseif ismember(input_link_id,obj.link_ids(logical(obj.sink_mask_beats.*~obj.mainline_mask_beats)))
+                input_node_id=obj.beats_simulation.scenario_ptr.get_link_byID(input_link_id).begin.ATTRIBUTE.node_id;
+                input_node=obj.beats_simulation.scenario_ptr.get_node_byID(input_node_id);
+                mainline_link_ids=obj.link_ids(obj.mainline_mask_beats);
+                output_link_ids=input_node.outputs.output;
+                node_output_links=[];
+                for i=1:size(output_link_ids,2)
+                    node_output_links=input_node.outputs.output(i).ATTRIBUTE.link_id;
+                end
+                mainline_link_id=node_output_links(ismember(node_output_links,mainline_link_ids));
+            else error('Input link must be non-mainline sink or source');        
+            end    
+        end % gets the id of the mainline link just after the node connecting the ramp to the freeway.
+        
+        function [remaining_mainline_length]=get_remaining_mainline_length(obj, first_mainline_link_id)
+            remaining_mask=zeros(1,size(obj.link_ids,2));
+            k=1;
+            while obj.link_ids(k)~=first_mainline_link_id && k<=size(obj.link_ids,2)
+                k=k+1;
+            end
+            for i=k:size(obj.link_ids,2)
+                remaining_mask(i)=1;
+            end
+            remaining_mainline_links_mask=logical(remaining_mask.*obj.mainline_mask_beats);
+            remaining_mainline_length=sum(obj.get_link_length_miles(remaining_mainline_links_mask));
+        end 
+        
+        function [res] = compute_TVM_with_knobs_vector(obj,vector)
+            equation_coefficients_tuple=[];
+            for i=1:size(obj.knobs.knob_link_ids) %fill the tuple
+                if (ismember(obj.knobs.knob_link_ids(i),obj.link_ids(obj.source_mask_beats)))
+                    sign=1;
+                else
+                    sign=-1;
+                end
+                equation_coefficients_tuple(1,i)=sign*sum(obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.knobs.knob_link_ids(i,1)).demand)*obj.get_remaining_mainline_length(obj.get_next_mainline_link_id(obj.knobs.knob_link_ids(i))); 
+            end
+            res=obj.TVM_beats_all_knobs_set_to_one+equation_coefficients_tuple*(vector-ones(size(vector,1),1));
         end    
+            
      end
  
 end    
