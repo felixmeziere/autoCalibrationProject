@@ -33,9 +33,9 @@ a=CmaesBox; %create the object.
 a.load_xls('C:\Users\Felix\code\autoCalibrationProject\xls\Cmaes_210E_program.xlsx'); %load the first column of the program (set of properties for a).
 disp('Knobs are in the hyperplan when pems and beats TVM values are equal.');
 disp('TVM value calculated with the pems data coming from non-broken sensors :');
-disp(a.pems.TVM);
+disp(a.TVM_reference_values.pems);
 disp('TVM value calculated from a first beats run with all the knobs left to one, using only the links with non-broken sensors :');
-disp(a.TVM_beats_all_knobs_set_to_one);
+disp(a.TVM_reference_values.beats);
 
 %As you can see, this two value differ for several billions. I do not know
 %if it is normal. My problem is that I cannot make the beats and pems
