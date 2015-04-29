@@ -229,7 +229,7 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.performance_calculator=input(['Enter the name of a "PerformanceCalculator" subclass (like TVH) : ']);
                 obj.error_calculator=input(['Enter the name of an "ErrorCalculator" subclass (like L1) : ']);
                 obj.performance_calculator.calculate_from_pems(obj.pems,obj.good_mainline_mask_pems,obj.get_link_length_miles(obj.good_mainline_mask_beats));
-                obj.performance_calculator.calculate_from_beats(obj.beats_simulation, obj.good_mainline_mask_beats);
+                obj.performance_calculator.calculate_from_beats(obj);
 
             else
                 error('Pems data must be loaded first.')
@@ -243,6 +243,7 @@ classdef (Abstract) AlgorithmBox < handle
         function [] = load_beats(obj)
             if (~strcmp(obj.scenario_ptr,''))
                 obj.beats_loaded=0;
+                obj.beats_parameters.RUN_MODE = 'fw_fr_split_output'; 
                 display('RUNNING BEATS A FIRST TIME FOR REFERENCE DATA.');
                 obj.beats_simulation = BeatsSimulation;
                 obj.beats_simulation.load_scenario(obj.scenario_ptr);
@@ -250,8 +251,8 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.beats_simulation.run_beats(obj.beats_parameters);
                 if obj.pems_loaded==1
                     TVmiles=TVM;
-                    obj.TVM_reference_values.beats=TVmiles.calculate_from_beats(obj.beats_simulation,obj.good_mainline_mask_beats);
-                    obj.performance_calculator.calculate_from_beats(obj.beats_simulation, obj.good_mainline_mask_beats);
+                    obj.TVM_reference_values.beats=TVmiles.calculate_from_beats(obj);
+                    obj.performance_calculator.calculate_from_beats(obj);
                     refflw=DailyExitFlow;
                     obj.flow_reference_values.beats=refflw.calculate_from_beats(obj);
                 end    
@@ -267,9 +268,9 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.pems.peMS5minData= PeMS5minData;
                 obj.set_masks_and_pems_data;
                 TVmiles=TVM;
-                obj.TVM_reference_values.beats=TVmiles.calculate_from_beats(obj.beats_simulation,obj.good_mainline_mask_beats);
+                obj.TVM_reference_values.beats=TVmiles.calculate_from_beats(obj);
                 obj.performance_calculator.calculate_from_pems(obj.pems, obj.good_mainline_mask_pems,obj.get_link_length_miles(obj.good_mainline_mask_beats));
-                obj.performance_calculator.calculate_from_beats(obj.beats_simulation, obj.good_mainline_mask_beats);
+                obj.performance_calculator.calculate_from_beats(obj);
                 obj.TVM_reference_values.pems = TVmiles.calculate_from_pems(obj.pems, obj.good_mainline_mask_pems,obj.get_link_length_miles(obj.good_mainline_mask_beats));
                 refflw=DailyExitFlow;
                 obj.flow_reference_values.beats=refflw.calculate_from_beats(obj);
@@ -358,18 +359,18 @@ classdef (Abstract) AlgorithmBox < handle
         function [result] = errorFunction(obj, knob_values) % the error function used by the algorithm. Compares the beats simulation result and pems data.
             %knob_values : n x 1 array where n is the number of knobs
             %to tune, containing the new values of the knobs.
-            disp('Knobs vector and values being tested:');
-            disp(' ');
-            disp(['Demand Id :','     ', 'Link Id :','     ', 'Value :']);
-            disp(' ');
-            disp([obj.knobs.knob_demand_ids,obj.knobs.knob_link_ids, knob_values]);
             if (size(knob_values,1)==size(obj.knobs.knob_link_ids,1))
-              obj.beats_simulation.scenario_ptr.set_knob_values(obj.knobs.knob_demand_ids, knob_values)
-              obj.beats_simulation.run_beats(obj.beats_parameters);
-              obj.performance_calculator.calculate_from_beats(obj.beats_simulation, obj.good_mainline_mask_beats);
-              result = obj.error_calculator.calculate(obj.performance_calculator.result_from_beats, obj.performance_calculator.result_from_pems);
+                disp('Knobs vector and values being tested:');
+                disp(' ');
+                disp(['Demand Id :','     ', 'Link Id :','     ', 'Value :']);
+                disp(' ');
+                disp([obj.knobs.knob_demand_ids,obj.knobs.knob_link_ids, knob_values]);
+                obj.beats_simulation.scenario_ptr.set_knob_values(obj.knobs.knob_demand_ids, knob_values);
+                obj.beats_simulation.run_beats(obj.beats_parameters);
+                obj.performance_calculator.calculate_from_beats(obj);
+                result = obj.error_calculator.calculate(obj.performance_calculator.result_from_beats, obj.performance_calculator.result_from_pems);
             else
-                error('The matrix with knobs values given does not match the number of knobs to tune or is not a column array.');
+                error('The matrix with knobs values given does not match the number of knobs to tune or is not a column vector.');
             end    
         end
         
@@ -528,9 +529,9 @@ classdef (Abstract) AlgorithmBox < handle
                 else
                     sign=-1;
                 end
-                alphaIs_tuple(1,i)=sign*obj.get_sum_of_template(obj.knobs.knob_link_ids(i,1))*obj.get_remaining_monitored_mainline_length(obj.get_next_mainline_link_id(obj.knobs.knob_link_ids(i))); 
+                alphaIs_tuple(1,i)=sign*obj.get_sum_of_template(obj.knobs.knob_link_ids(i,1))*obj.get_remaining_monitored_mainline_length(obj.get_next_mainline_link_id(obj.knobs.knob_link_ids(i)))*300; 
             end
-            res=obj.TVM_reference_values.beats+equation_coefficients_tuple*(vector-ones(size(vector,1),1));
+            res=obj.TVM_reference_values.beats+alphaIs_tuple*(vector-ones(size(vector,1),1));
         end   % Computes the TVM with the knobs vector.
         
         function [res] = compute_exit_outflow_with_knobs_vector(obj,vector)
@@ -541,13 +542,14 @@ classdef (Abstract) AlgorithmBox < handle
                 else
                     sign=-1;
                 end
-                sum_of_templates_tuple(1,i)=sign*obj.get_sum_of_template(obj.knobs.knob_link_ids(i,1)); 
+                sum_of_templates_tuple(1,i)=sign*obj.get_sum_of_template_in_veh(obj.knobs.knob_link_ids(i,1)); 
             end
-            res=obj.flow_reference_values.beats+sum_of_templates_tuple*(vector-ones(size(vector,1),1));
+            res=obj.flow_reference_values.beats + sum_of_templates_tuple*(vector-1);
         end   % Computes the outflow of the exit mainline link with the knobs vector.
         
-        function [sum_of_template] = get_sum_of_template(obj,knob_link_id)
-            sum_of_template=sum(obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(knob_link_id).demand);
+        function [sum_of_template] = get_sum_of_template_in_veh(obj,knob_link_id)
+        % assumes the demand profile is in SI (veh/sec) and dt=300 sec
+            sum_of_template=sum(obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(knob_link_id).demand)*60;
         end    
             
      end

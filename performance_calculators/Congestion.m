@@ -8,7 +8,7 @@ classdef Congestion < PerformanceCalculator
     
     methods (Access = public)
         
-        function [result] = calculate_from_beats(obj, BS, good_freeway_link_mask)
+        function [result] = calculate_from_beats(obj,algoBox)
             
         end
         

@@ -10,8 +10,8 @@ classdef TVH < PerformanceCalculator
     
     methods (Access = public)
 
-        function [result] = calculate_from_beats(obj, beats_simulation, good_freeway_link_mask)
-            result = sum(beats_simulation.compute_performance(good_freeway_link_mask).tot_veh); %sum over time
+        function [result] = calculate_from_beats(obj, algoBox)
+            result = sum(algoBox.beats_simulation.compute_performance(algoBox.good_mainline_mask_beats).tot_veh); %sum over time
             obj.result_from_beats = result; 
         end
         

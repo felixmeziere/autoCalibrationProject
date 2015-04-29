@@ -16,8 +16,8 @@ classdef (Abstract) PerformanceCalculator < handle
    
    methods(Abstract, Access = public)
        
-        [result] = calculate_from_beats(obj, BS, freeway_links_with_good_sensors_mask)
-        [result] = calculate_from_pems(obj, pems, mask)   
+        [result] = calculate_from_beats(obj, algoBox)
+        [result] = calculate_from_pems(obj, algoBox)   
         
    end
    
