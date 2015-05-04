@@ -58,9 +58,9 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
               obj.inopts.MaxFunEvals = obj.maxEval;
               obj.inopts.MaxIter = obj.maxIter;
               obj.inopts.StopFitness = obj.stopFValue;
-              obj.inopts.UBounds = obj.knobs.knob_boundaries_max;
-              obj.inopts.LBounds = obj.knobs.knob_boundaries_min;
-              [obj.bestEverPoint, obj.bestEverErrorFunctionValue, obj.numberOfEvaluations, obj.stopFlag, obj.out, obj.bestEver]=cmaes(@obj.errorFunction, obj.starting_point, obj.insigma, obj.inopts);
+              obj.inopts.UBounds = ones(size(obj.knobs.knob_link_ids),1)*10;
+              obj.inopts.LBounds = zeros(size(obj.knobs.knob_link_ids),1);
+              [obj.bestEverPoint, obj.bestEverErrorFunctionValue, obj.numberOfEvaluations, obj.stopFlag, obj.out, obj.bestEver]=cmaes(@(x)obj.errorFunction(x,1), obj.starting_point, obj.insigma, obj.inopts);
         end   % defined in AlgorithmBox   
         
         function [] = set_result_for_xls(obj)
