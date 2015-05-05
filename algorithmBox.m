@@ -364,7 +364,7 @@ classdef (Abstract) AlgorithmBox < handle
             %to tune, containing the new values of the knobs.
             if (size(knob_values,1)==size(obj.knobs.knob_link_ids,1))
                 if exist('isCmaes','var') && isCmaes==1
-                    knob_values=obj.rescale_knobs(knob_values);
+                    knob_values=obj.rescale_knobs(knob_values,0);
                 end    
                 disp('Knobs vector and values being tested:');
                 disp(' ');
@@ -571,17 +571,17 @@ classdef (Abstract) AlgorithmBox < handle
             dp=obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(knob_link_id);
             sum_of_template=sum(dp.demand)*dp.dt;
         end  
-        
-        function [real_scale_knobs] = rescale_knobs(knobs_vector) % rescales the knobs from 0:10 to their actual respective range (used by cmaes for 'uniform sensitivity' reasons)
+
+        function [result_vector] = rescale_knobs(obj, input_vector, isRealScaleToZeroTenScale) % rescales the knobs from 0:10 to their actual respective range (used by cmaes for 'uniform sensitivity' reasons) or the opposite operation.
             Knobs=obj.knobs;
-            sze=size(knobs_vector,1);
-            real_scale_knobs=zeros(sze,1);
-            for i=1:sze
-                real_scale_knobs(i)=(knobs_vector(i,1)/10)*(Knobs.knob_boundaries_max(i)-Knobs.knob_boundaries_min)+Knobs.knob_boundaries_min;
-            end    
-        end    
-            
-     end
+            if isRealScaleToZeroTenScale==1
+                result_vector=((input_vector-Knobs.knob_boundaries_min)./(Knobs.knob_boundaries_max-Knobs.knob_boundaries_min))*10;
+            elseif isRealScaleToZeroTenScale==0
+                result_vector=(input_vector/10).*(Knobs.knob_boundaries_max-Knobs.knob_boundaries_min)+Knobs.knob_boundaries_min;
+            else error ('The second parameter must be zero or one');
+            end        
+        end
+    end
  
 end    
 

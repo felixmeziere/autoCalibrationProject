@@ -1925,20 +1925,20 @@
          <parameters/>
          <sensor_type description="" id="1" name="Loop"/>
       </sensor>
-      <sensor data_feed_id="0" health_status="0" id="12" lane_number="1" link_id="135273082" link_offset="0" link_type_original="OR" sensor_id_original="716563">
+      <!-- <sensor data_feed_id="0" health_status="0" id="12" lane_number="1" link_id="135273082" link_offset="0" link_type_original="OR" sensor_id_original="716563">
          <display_position>
             <point elevation="0" lat="34.1413399165717" lng="-118.181942134571"/>
          </display_position>
          <parameters/>
          <sensor_type description="" id="1" name="Loop"/>
-      </sensor>
-      <sensor data_feed_id="0" health_status="0" id="147" lane_number="1" link_id="135273082" link_offset="0" link_type_original="OR" sensor_id_original="774035">
+      </sensor> -->
+      <!-- <sensor data_feed_id="0" health_status="0" id="147" lane_number="1" link_id="135273082" link_offset="0" link_type_original="OR" sensor_id_original="774035">
          <display_position>
             <point elevation="0" lat="34.1413421260068" lng="-118.18187114467"/>
          </display_position>
          <parameters/>
          <sensor_type description="" id="1" name="Loop"/>
-      </sensor>
+      </sensor> -->
       <sensor data_feed_id="0" health_status="0" id="20" lane_number="1" link_id="128794214" link_offset="0" link_type_original="FR" sensor_id_original="717600">
          <display_position>
             <point elevation="0" lat="34.1426073013897" lng="-118.172064712334"/>
@@ -1953,13 +1953,13 @@
          <parameters/>
          <sensor_type description="" id="1" name="Loop"/>
       </sensor>
-      <sensor data_feed_id="0" health_status="0" id="18" lane_number="1" link_id="128794217" link_offset="0" link_type_original="OR" sensor_id_original="716565">
+      <!-- <sensor data_feed_id="0" health_status="0" id="18" lane_number="1" link_id="128794217" link_offset="0" link_type_original="OR" sensor_id_original="716565">
          <display_position>
             <point elevation="0" lat="34.1438815212889" lng="-118.168899705696"/>
          </display_position>
          <parameters/>
          <sensor_type description="" id="1" name="Loop"/>
-      </sensor>
+      </sensor> -->
       <sensor data_feed_id="0" health_status="0" id="29" lane_number="1" link_id="-24021313" link_offset="0" link_type_original="FR" sensor_id_original="717605">
          <display_position>
             <point elevation="0" lat="34.1457296736042" lng="-118.164284310234"/>
