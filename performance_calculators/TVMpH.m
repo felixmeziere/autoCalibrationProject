@@ -1,10 +1,10 @@
-classdef TVM < PerformanceCalculator
+classdef TVMpH < PerformanceCalculator
     %TVMSim Summary of this class goes here
     %   Detailed explanation goes here
     
     properties (Constant)
         
-        name='TVM';
+        name='TVMpH';
         
     end
     

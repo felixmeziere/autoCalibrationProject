@@ -15,8 +15,8 @@ classdef TVH < PerformanceCalculator
             obj.result_from_beats = result; 
         end
         
-        function [result] = calculate_from_pems(obj, pems, mask_pems, link_length_miles)
-            result =sum(sum(pems.data.occ(:,mask_pems).*repmat(link_length_miles,size(pems.data.flw,1),1),2)); %sum over time and links
+        function [result] = calculate_from_pems(obj, algoBox)
+            result =sum(sum(algoBox.pems.data.occ(:,algoBox.good_mainline_mask_pems))); %sum over time and links
             obj.result_from_pems = result;
         end    
         
