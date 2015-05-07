@@ -124,12 +124,12 @@ classdef (Abstract) AlgorithmBox < handle
             %Empty cells in the current column will be ignored.
             %The program input (0 or 1) is to avoid reloading useless
             %stuff.
-            for i=1:size(obj.xls_program,1)
-                if ~strcmp(obj.xls_program(i,obj.current_xls_program_column),'')
-                    eval(strcat('obj.',char(obj.xls_program(i,1)),'=',char(obj.xls_program(i,obj.current_xls_program_column)),';'));
-                end
-            end
             if ~exist('is_program','var') || is_program~=1
+                for i=1:size(obj.xls_program,1)
+                    if ~strcmp(obj.xls_program(i,obj.current_xls_program_column),'')
+                        eval(strcat('obj.',char(obj.xls_program(i,1)),'=',char(obj.xls_program(i,obj.current_xls_program_column)),';'));
+                    end
+                end
                 obj.load_beats;
                 obj.load_pems;
             end
@@ -357,13 +357,16 @@ classdef (Abstract) AlgorithmBox < handle
     
     methods (Access = public)
         
-        function [result] = errorFunction(obj, knob_values) % the error function used by the algorithm. Compares the beats simulation result and pems data.
+        function [result] = errorFunction(obj, knob_values, isCmaes) % the error function used by the algorithm. Compares the beats simulation result and pems data.
             %knob_values : n x 1 array where n is the number of knobs
             %to tune, containing the new values of the knobs.
             if (size(knob_values,1)==size(obj.knobs.knob_link_ids,1))
+                if exist('isCmaes','var') && isCmaes==1
+                    knob_values=obj.rescale_knobs(knob_values,0);
+                end    
                 disp('Knobs vector and values being tested:');
                 disp(' ');
-                disp(['Demand Id :','     ', 'Link Id :','     ', 'Value :']);
+                disp(['               ','Demand Id :','                 ', 'Link Id :','                   ', 'Value :']);
                 disp(' ');
                 disp([obj.knobs.knob_demand_ids,obj.knobs.knob_link_ids, knob_values]);
                 obj.beats_simulation.scenario_ptr.set_knob_values(obj.knobs.knob_demand_ids, knob_values);

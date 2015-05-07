@@ -11,7 +11,7 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
     
     properties (Access = public)
         
-        insigma
+        
         
     end    
     
@@ -23,6 +23,7 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
     
     properties (SetAccess = private)
         
+        insigma
         bestEver
         
     end    
@@ -55,6 +56,8 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
         end  % set a field of inopts.
         
         function [] = run_algorithm(obj)
+              format SHORTG;
+              format LONGG;
               obj.inopts.MaxFunEvals = obj.maxEval;
               obj.inopts.MaxIter = obj.maxIter;
               obj.inopts.StopFitness = obj.stopFValue;
