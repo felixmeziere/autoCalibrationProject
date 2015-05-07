@@ -31,7 +31,7 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
     methods (Access = public)
 
         function [] = ask_for_algorithm_parameters(obj)
-            obj.insigma = input(['Enter initial standard deviation for cmaes : ']);
+            obj.insigma = input(['Enter initial standard deviation for cmaes (all knob boundaries have been set to a zero to ten scale so value should be between 2 and 5): ']);
             obj.maxIter= input(['Enter the maximum number of cmaes iterations : ']);
             obj.maxEval = input(['Enter the maximum number of beats simulations runs : ']);
             obj.stopFValue = input(['Enter the error value under which the algorithm will stop : ']);

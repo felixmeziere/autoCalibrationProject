@@ -177,7 +177,10 @@ classdef (Abstract) AlgorithmBox < handle
                 bad_sinks=obj.link_ids_beats(1,logical(~obj.good_sink_mask_beats.*obj.sink_mask_beats));
                 bad_sinks=demand2link(ismember(demand2link(:,2), bad_sinks),:);
                 numberOfKnobs=size(bad_sources,1)+size(bad_sinks,1);
-                numberMissingKnobs = input(strcat(['Among the ', num2str(numberOfKnobs), ' sources and sinks without sensors, how many knobs have to be tuned ? :']));
+                numberMissingKnobs=numberOfKnobs+1;
+                while numberMissingKnobs>numberOfKnobs
+                    numberMissingKnobs = input(strcat(['Among the ', num2str(numberOfKnobs), ' sources and sinks without sensors, how many knobs have to be tuned ? :']));
+                end    
                 disp(['List of sources (on-ramps or interconnects) without working sensor demand ids and corresponding link ids : ']);
                 disp(' ');
                 disp(['Demand Id :','     ', 'Link Id :']);
