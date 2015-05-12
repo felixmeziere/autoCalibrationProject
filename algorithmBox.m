@@ -4,7 +4,7 @@ classdef (Abstract) AlgorithmBox < handle
     %   the automatic calibration problem (for now, tuning only source and
     %   sink knobs). This allows you to run a program set in an excel
     %   file and automaticlly registers the results in another excel file.
-    
+        
     properties (Abstract, Constant)
         
         algorithm_name %name used sometimes.
@@ -250,9 +250,9 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.beats_parameters.RUN_MODE = 'fw_fr_split_output'; 
                 display('RUNNING BEATS A FIRST TIME FOR REFERENCE DATA.');
                 obj.beats_simulation = BeatsSimulation;
-                obj.beats_simulation.load_scenario(obj.scenario_ptr);
+                obj.beats_simulation.create_beats_object(obj.scenario_ptr,obj.beats_parameters.SIM_DT, 0,obj.beats_parameters.DURATION,obj.beats_paramters.OUTPUT_DT,strcat(fileparts(mfilename('fullpath')),'\out'));
                 obj.link_ids_beats=obj.beats_simulation.scenario_ptr.get_link_ids;
-                obj.beats_simulation.run_beats(obj.beats_parameters);
+                obj.run_beats_persistent; % fw fr mode remains to implement in persistent beats
                 if obj.pems_loaded==1
                     TVmiles=TVM;
                     obj.TVMpH_reference_values.beats=TVmiles.calculate_from_beats(obj);
@@ -260,7 +260,7 @@ classdef (Abstract) AlgorithmBox < handle
                     refflw=DailyExitFlow;
                     obj.flow_reference_values.beats=refflw.calculate_from_beats(obj);
                 end    
-                disp('BEATS SETTINGS LOADED.')
+                disp('BEATS SETTINGS LOADED.');
                 obj.beats_loaded=1;
             else error('Beats scenario xml file adress and beats parameters must be set before loading beats.');   
             end    
@@ -372,8 +372,8 @@ classdef (Abstract) AlgorithmBox < handle
                 disp(['               ','Demand Id :','                 ', 'Link Id :','                   ', 'Value :']);
                 disp(' ');
                 disp([obj.knobs.knob_demand_ids,obj.knobs.knob_link_ids, knob_values,'/',obj.knobs.knob_boundaries_max]);
-                obj.beats_simulation.scenario_ptr.set_knob_values(obj.knobs.knob_demand_ids, knob_values);
-                obj.beats_simulation.run_beats(obj.beats_parameters);
+                obj.set_knobs_persistent(knob_values);
+                obj.run_beats_persistent;
                 obj.performance_calculator.calculate_from_beats(obj);
                 result = obj.error_calculator.calculate(obj.performance_calculator.result_from_beats, obj.performance_calculator.result_from_pems);
             else
@@ -581,6 +581,17 @@ classdef (Abstract) AlgorithmBox < handle
             else error ('The second parameter must be zero or one');
             end        
         end
+        
+        function [] = set_knobs_persistent(knob_values)
+            for i=1:size(knob_values,1)
+                if (ismember(obj.knobs.knob_link_ids(i),obj.link_ids_beats(~obj.good_source_mask_beats.*obj.source_mask_beats)))
+                    obj.beats_simulation.beats.set.demand_knob_for_link_id(obj.knobs.knob_link_ids(i),knob_values(i));
+                elseif (ismember(obj.knobs.knob_link_ids(i),obj.link_ids_beats(~obj.good_sink_mask_beats.*obj.sink_mask_beats)))   
+                    obj.beats_simulation.beats.set.knob_for_offramp_link_id(obj.knobs.knob_link_ids(i),knob_values(i));
+                else error ('At least one of the knobs is tuned on a monitored source or sink. It should not.');    
+                end    
+            end    
+        end    
                     
      end
  
