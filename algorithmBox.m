@@ -113,7 +113,7 @@ classdef (Abstract) AlgorithmBox < handle
             obj.ask_for_knobs;
             obj.ask_for_algorithm_parameters;
             obj.ask_for_starting_point;
-            disp('ALL SETTINGS LOADED, ALGORTIHM READY TO RUN');
+            disp('ALL SETTINGS LOADED, ALGORITHM READY TO RUN');
         end
         
         function [] = load_properties_from_xls(obj,is_program,is_program_first_run) % load the properties from an excel file in the format described underneath.
@@ -371,7 +371,7 @@ classdef (Abstract) AlgorithmBox < handle
                 disp(' ');
                 disp(['               ','Demand Id :','                 ', 'Link Id :','                   ', 'Value :']);
                 disp(' ');
-                disp([obj.knobs.knob_demand_ids,obj.knobs.knob_link_ids, knob_values]);
+                disp([obj.knobs.knob_demand_ids,obj.knobs.knob_link_ids, knob_values,'/',obj.knobs.knob_boundaries_max]);
                 obj.beats_simulation.scenario_ptr.set_knob_values(obj.knobs.knob_demand_ids, knob_values);
                 obj.beats_simulation.run_beats(obj.beats_parameters);
                 obj.performance_calculator.calculate_from_beats(obj);
@@ -581,7 +581,7 @@ classdef (Abstract) AlgorithmBox < handle
             else error ('The second parameter must be zero or one');
             end        
         end
-            
+                    
      end
  
 end    
