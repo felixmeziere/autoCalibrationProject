@@ -11,11 +11,11 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
     
     properties (Access = public)
         
-        
+        insigma
         
     end    
     
-    properties (Hidden, SetAccess = private)
+    properties (Hidden, SetAccess = public)
         
         inopts=struct;
         
@@ -23,7 +23,6 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
     
     properties (SetAccess = private)
         
-        insigma
         bestEver
         
     end    

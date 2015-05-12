@@ -250,7 +250,7 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.beats_parameters.RUN_MODE = 'fw_fr_split_output'; 
                 display('RUNNING BEATS A FIRST TIME FOR REFERENCE DATA.');
                 obj.beats_simulation = BeatsSimulation;
-                obj.beats_simulation.create_beats_object(obj.scenario_ptr,obj.beats_parameters.SIM_DT, 0,obj.beats_parameters.DURATION,obj.beats_paramters.OUTPUT_DT,strcat(fileparts(mfilename('fullpath')),'\out'));
+                obj.beats_simulation.create_beats_object(obj.scenario_ptr,obj.beats_parameters.SIM_DT, 0,obj.beats_parameters.DURATION,obj.beats_parameters.OUTPUT_DT,strcat(fileparts(mfilename('fullpath')),'\out'));
                 obj.link_ids_beats=obj.beats_simulation.scenario_ptr.get_link_ids;
                 obj.run_beats_persistent; % fw fr mode remains to implement in persistent beats
                 if obj.pems_loaded==1
