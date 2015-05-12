@@ -2587,7 +2587,7 @@
                   <point elevation="0" lat="34.13533" lng="-117.96417"/>
                </position>
                <shape>oajoEh~~nU?QN]?ADu@</shape>
-               <link_type id="5" name="Interconnect"/>
+               <link_type id="4" name="Off-Ramp"/>
             </link>
             <link id="-781749995" in_sync="true" lane_offset="0" lanes="2" length="152.399621212121" speed_limit="17">
                <begin node_id="49472468"/>
@@ -3402,7 +3402,7 @@
                   <point elevation="0" lat="34.13359" lng="-117.9551"/>
                </position>
                <shape>ywioElm}nUHk@PgANqA@U?U?KAICIRoA</shape>
-               <link_type id="5" name="Interconnect"/>
+               <link_type id="3" name="On-Ramp"/>
             </link>
             <link id="-24558231" in_sync="true" lane_offset="0" lanes="1" length="152.399621212121" speed_limit="11">
                <begin node_id="49470161"/>
@@ -3424,7 +3424,7 @@
                   <point elevation="0" lat="34.1347" lng="-117.96001"/>
                </position>
                <shape>m_joEnh~nUFg@Hk@LC@A?A@C?CDQBOFSDMNm@DW</shape>
-               <link_type id="5" name="Interconnect"/>
+               <link_type id="4" name="Off-Ramp"/>
             </link>
             <link id="-24031553" in_sync="true" lane_offset="0" lanes="1" length="283.95" speed_limit="17">
                <begin node_id="49492903"/>
@@ -3944,7 +3944,7 @@
                   <point elevation="0" lat="34.13263" lng="-117.95167"/>
                </position>
                <shape>goioEns}nUGQKSISKWM_@M_@Om@Kg@Kk@Ig@Go@C_@Ek@AY?UAa@?[@y@Bg@Bc@Hw@P_BP{AFc@^yB@G?IAKAMAQZuA</shape>
-               <link_type id="5" name="Interconnect"/>
+               <link_type id="3" name="On-Ramp"/>
             </link>
             <link id="126492859" in_sync="true" lane_offset="0" lanes="5" length="296.55" speed_limit="32">
                <begin node_id="49492142"/>
@@ -4350,7 +4350,7 @@
                   <point elevation="0" lat="34.15171" lng="-118.14911"/>
                </position>
                <shape>snloEpbdpUMAC?i@AYCYEC?YEMCMCQESGa@MWISIc@Uo@a@?AA?AAc@]SUUWUUS[OWEIMUGKEI?AUa@Wq@g@sAIUWaA_@}ASeAMu@EYE[AEAMCCQWIwAEwAAO?]</shape>
-               <link_type id="5" name="Interconnect"/>
+               <link_type id="3" name="On-Ramp"/>
             </link>
             <link id="128792525" in_sync="true" lane_offset="0" lanes="1" length="152.399621212121" speed_limit="32">
                <begin node_id="311832368"/>
@@ -4907,7 +4907,7 @@
                   <point elevation="0" lat="34.15168" lng="-118.14439"/>
                </position>
                <shape>}emoEfpbpUCkC?MA{ACY?AW]?eB?cA</shape>
-               <link_type id="5" name="Interconnect"/>
+               <link_type id="3" name="On-Ramp"/>
             </link>
             <link id="135273082" in_sync="true" lane_offset="0" lanes="1" length="152.399621212121" speed_limit="32">
                <begin node_id="311840744"/>
@@ -5332,7 +5332,7 @@
                   <point elevation="0" lat="34.14658" lng="-118.16103"/>
                </position>
                <shape>efloEtnepUCOMi@IWFY?E?A?EEa@CI?A</shape>
-               <link_type id="5" name="Interconnect"/>
+               <link_type id="4" name="Off-Ramp"/>
             </link>
             <link id="855894664" in_sync="true" lane_offset="0" lanes="1" length="152.399621212121" speed_limit="17">
                <begin node_id="902392280"/>
@@ -8483,6 +8483,7 @@
          </position>
       </network>
    </NetworkSet>
+   <!--
    <SensorSet id="1" lockedForEdit="false" lockedForHistory="false" project_id="6">
       <sensor data_feed_id="0" health_status="0" id="1" lane_number="4" link_id="908310422" link_offset="0" link_type_original="ML" sensor_id_original="774011">
          <display_position>
@@ -9143,6 +9144,7 @@
          <sensor_type description="" id="1" name="Loop"/>
       </sensor>
    </SensorSet>
+   -->
    <DemandSet id="1" lockedForEdit="false" lockedForHistory="false" name="demand set" project_id="6">
       <demandProfile dt="300" id="1" knob="1" link_id_org="-873337960" start_time="0" std_dev_add="0" std_dev_mult="1">
          <demand vehicle_type_id="1">0.0550000,0.0510000,0.0410000,0.0390000,0.0390000,0.0380000,0.0360000,0.0340000,0.0330000,0.0310000,0.0300000,0.0290000,0.0280000,0.0270000,0.0270000,0.0260000,0.0250000,0.0240000,0.0230000,0.0230000,0.0230000,0.0230000,0.0230000,0.0220000,0.0220000,0.0210000,0.0210000,0.0210000,0.0210000,0.0210000,0.0190000,0.0190000,0.0170000,0.0160000,0.0160000,0.0150000,0.0150000,0.0140000,0.0140000,0.0130000,0.0120000,0.0130000,0.0120000,0.0130000,0.0130000,0.0130000,0.0140000,0.0140000,0.0150000,0.0140000,0.0160000,0.0170000,0.0170000,0.0190000,0.0210000,0.0220000,0.0220000,0.0230000,0.0250000,0.0280000,0.0310000,0.0310000,0.0350000,0.0370000,0.0390000,0.0430000,0.0460000,0.0480000,0.0520000,0.0540000,0.0560000,0.0600000,0.0650000,0.0680000,0.0720000,0.0810000,0.0870000,0.0960000,0.1030000,0.1090000,0.1170000,0.1230000,0.1290000,0.1360000,0.1460000,0.1540000,0.1590000,0.1680000,0.1720000,0.1790000,0.1860000,0.1920000,0.1970000,0.2010000,0.2070000,0.2080000,0.2090000,0.2100000,0.2070000,0.2060000,0.2030000,0.2020000,0.2000000,0.2000000,0.1970000,0.1930000,0.1900000,0.1880000,0.1870000,0.1840000,0.1820000,0.1810000,0.1790000,0.1770000,0.1760000,0.1760000,0.1760000,0.1760000,0.1730000,0.1710000,0.1720000,0.1710000,0.1720000,0.1730000,0.1740000,0.1740000,0.1740000,0.1760000,0.1790000,0.1870000,0.1930000,0.1940000,0.1960000,0.1970000,0.1990000,0.2030000,0.2090000,0.2140000,0.2190000,0.2220000,0.2190000,0.2210000,0.2250000,0.2300000,0.2350000,0.2370000,0.2390000,0.2400000,0.2380000,0.2360000,0.2350000,0.2370000,0.2360000,0.2370000,0.2410000,0.2410000,0.2400000,0.2380000,0.2400000,0.2440000,0.2470000,0.2490000,0.2470000,0.2470000,0.2490000,0.2470000,0.2460000,0.2490000,0.2530000,0.2500000,0.2530000,0.2550000,0.2540000,0.2550000,0.2540000,0.2510000,0.2520000,0.2520000,0.2520000,0.2460000,0.2420000,0.2340000,0.2330000,0.2280000,0.2330000,0.2340000,0.2300000,0.2240000,0.2240000,0.2260000,0.2280000,0.2310000,0.2330000,0.2320000,0.2400000,0.2390000,0.2420000,0.2450000,0.2450000,0.2440000,0.2460000,0.2520000,0.2550000,0.2560000,0.2560000,0.2540000,0.2530000,0.2480000,0.2490000,0.2520000,0.2540000,0.2480000,0.2470000,0.2460000,0.2470000,0.2520000,0.2470000,0.2450000,0.2460000,0.2480000,0.2470000,0.2420000,0.2410000,0.2370000,0.2330000,0.2320000,0.2290000,0.2310000,0.2290000,0.2250000,0.2200000,0.2190000,0.2160000,0.2120000,0.2090000,0.2080000,0.2010000,0.1970000,0.1930000,0.1890000,0.1860000,0.1840000,0.1770000,0.1770000,0.1760000,0.1740000,0.1700000,0.1670000,0.1630000,0.1600000,0.1590000,0.1580000,0.1560000,0.1550000,0.1520000,0.1490000,0.1470000,0.1420000,0.1380000,0.1340000,0.1310000,0.1280000,0.1230000,0.1210000,0.1170000,0.1150000,0.1110000,0.1060000,0.1030000,0.1000000,0.0960000,0.0920000,0.0860000,0.0820000,0.0760000,0.0720000,0.0690000,0.0660000,0.0690000,0.0660000,0.0620000,0.0600000,0.0590000,0.0570000,0.0560000,0.0540000,0.0540000,0.0550000</demand>
@@ -10197,6 +10199,10 @@
       </fundamentalDiagramProfile>
    </FundamentalDiagramSet>
    <ActuatorSet id="0" project_id="0">
+      <actuator id="25">
+         <scenarioElement id="49323802" type="node"/>
+         <actuator_type id="0" name="cms"/>
+      </actuator>
       <actuator id="1">
          <scenarioElement id="49492101" type="node"/>
          <actuator_type id="0" name="cms"/>
@@ -10293,13 +10299,9 @@
          <scenarioElement id="49322733" type="node"/>
          <actuator_type id="0" name="cms"/>
       </actuator>
-      <actuator id="25">
-         <scenarioElement id="49323802" type="node"/>
-         <actuator_type id="0" name="cms"/>
-      </actuator>
    </ActuatorSet>
    <ControllerSet id="0" project_id="0">
-      <controller dt="0" enabled="true" id="0" name="SR_Generator" type="SR_Generator">
+      <controller dt="4" enabled="true" id="0" name="SR_Generator" type="SR_Generator">
          <parameters>
             <parameter name="fr_flow_file" value="C:\Users\Felix\code\autoCalibrationProject\config\fr_demands.xml"/>
          </parameters>

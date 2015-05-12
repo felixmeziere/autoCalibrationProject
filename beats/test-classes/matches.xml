@@ -1,0 +1,741 @@
+<?xml version="1.0"?>
+<matches>
+	<group element="position">
+		<match child="point"/>
+	</group>
+	<group element="display_position">
+		<match child="point"/>
+	</group>
+	<group element="point">
+		<match child="lat"/>
+		<match child="lng"/>
+		<match child="elevation"/>
+	</group>
+	<group element="begin">
+		<match child="node_id"/>
+	</group>
+	<group element="end">
+		<match child="node_id"/>
+	</group>
+	<group element="parameters">
+		<match child="parameter"/>
+	</group>
+	<group element="link_references">
+		<match child="link_reference"/>
+	</group>
+	<group element="VehicleTypeOrder">
+		<match child="vehicle_type"/>
+	</group>
+
+  <group table="projects" element="">
+    <match column="id" child=""/>
+    <match column="name" child=""/>
+    <match column="description" child=""/>
+  </group>
+	<group element="NetworkList">
+		<match child="network"/>
+	</group>
+  <group table="networks" element="network">
+    <match column="id" child="id"/>
+    <match column="name" child="name"/>
+    <match column="source"/>
+    <match column="description" child="description"/>
+    <match column="in_use" child=""/>
+    <match column="locked" child="locked"/>
+		<match child="NodeList"/>
+		<match child="LinkList"/>
+  </group>
+  <group table="node_families" element="">
+    <match column="id" child=""/>
+  </group>
+	<group element="NodeList">
+		<match child="node"/>
+	</group>
+  <group table="nodes" element="node">
+    <match column="id" child="id"/>
+    <match column="network_id" child=""/>
+    <match column="geom" child="position"/>
+    <match column="in_sync" child="in_sync"/>
+		<match child="roadway_markers"/>
+		<match child="outputs"/>
+		<match child="inputs"/>
+		<match child="type"/>
+  </group>
+	<group element="roadway_markers">
+		<match child="marker"/>
+	</group>
+  <group table="node_names" element="marker">
+    <match column="node_id"/>
+    <match column="network_id"/>
+    <match column="name" child="name"/>
+  </group>
+  <group table="node_types"><!-- node/@type -->
+    <match column="id"/>
+    <match column="description"/>
+    <match column="in_use" child=""/>
+  </group>
+  <group table="node_type_det" element=""><!-- node/@type -->
+    <match column="node_id" child=""/>
+    <match column="network_id" child=""/>
+    <match column="node_type_id" child=""/>
+  </group>
+  <group table="postmile_highways" element="">
+    <match column="id" child=""/>
+    <match column="highway_name" child=""/>
+  </group>
+  <group table="postmiles" element="marker">
+    <match column="network_id"/>
+    <match column="node_id"/>
+    <match column="highway_id" child="name"/>
+    <match column="postmile" child="postmile"/>
+  </group>
+	<group element="outputs">
+		<match child="output"/>
+	</group>
+	<group element="inputs">
+		<match child="input"/>
+	</group>
+	<group element="output">
+		<match child="link_id"/>
+	</group>
+	<group element="input">
+		<match child="link_id"/>
+	</group>
+	<group element="LinkList">
+		<match child="link"/>
+	</group>
+  <group table="link_families" element="">
+    <match column="id" child=""/>
+  </group>
+  <group table="links" element="link">
+    <match column="id" child="id"/>
+    <match column="network_id" child=""/>
+    <match column="beg_node_id" child="begin"/>
+    <match column="end_node_id" child="end"/>
+    <match column="geom" child="shape"/>
+    <match column="length" child="length"/>
+    <match column="in_sync" child="in_sync"/>
+		<match child="roads"/>
+		<match child="lanes"/>
+		<match child="lane_offset"/>
+		<match child="type"/>
+  </group>
+	<group element="roads">
+		<match child="road"/>
+	</group>
+  <group table="link_names" element="road">
+    <match column="link_id"/>
+    <match column="network_id"/>
+    <match column="name" child="name"/>
+  </group>
+  <group table="link_types"><!-- link/@type -->
+    <match column="id"/>
+    <match column="description"/>
+    <match column="in_use" child=""/>
+  </group>
+  <group table="link_type_det" element="">
+    <match column="link_id" child=""/>
+    <match column="network_id" child=""/>
+    <match column="link_type_id" child=""/>
+  </group>
+  <group table="link_lanes"><!-- link/@lanes -->
+    <match column="link_id" child=""/>
+    <match column="network_id" child=""/>
+    <match column="lanes" child=""/>
+  </group>
+  <group table="link_lane_offset"><!-- link/@lane_offset -->
+    <match column="link_id" child=""/>
+    <match column="network_id" child=""/>
+    <match column="display_lane_offset" child=""/>
+  </group>
+<!--
+  <group table="link_speed_limit" element="">
+    <match column="ID" child=""/>
+    <match column="network_id" child=""/>
+    <match column="speed_limit" child=""/>
+  </group>
+-->
+<!--
+  <group table="link_turn_rest" element="">
+    <match column="from_net_id" child=""/>
+    <match column="from_link_id" child=""/>
+    <match column="to_net_id" child=""/>
+    <match column="to_link_id" child=""/>
+  </group>
+-->
+  <group table="net_conn_sets" element="NetworkConnections">
+    <match column="id" child="id"/>
+    <match column="project_id"/>
+    <match column="name" child="name"/>
+    <match column="description" child="description"/>
+		<match child="networkpair"/>
+  </group>
+  <group table="net_conns" element="networkpair">
+    <match column="set_id"/>
+    <match column="from_net_id" child="network_a"/>
+    <match column="to_net_id" child="network_b"/>
+		<match child="linkpair"/>
+  </group>
+  <group table="net_conns" element="linkpair">
+    <match column="from_link_id" child="link_a"/>
+    <match column="to_link_id" child="link_b"/>
+  </group>
+	<group element="DestinationNetworks">
+		<match child="destination_network"/>
+	</group>
+  <group table="dest_networks" element="destination_network">
+    <match column="id" child="id"/>
+    <match column="dest_link_id" child="destination_link_id"/>
+    <match column="project_id"/>
+		<match child="link_references"/>
+  </group>
+  <group table="dest_network_links" element="link_reference">
+    <match column="link_id" child="id"/>
+    <match column="dest_network_id"/>
+  </group>
+	<group element="Routes">
+		<match child="route"/>
+	</group>
+  <group table="routes" element="route">
+    <match column="id" child="id"/>
+    <match column="project_id"/>
+    <match column="name" child="name"/>
+		<match child="link_references"/>
+  </group>
+  <group table="route_links" element="link_reference">
+    <match column="route_id"/>
+    <match column="link_id" child="id"/>
+    <match column="link_order"/>
+  </group>
+  <group table="veh_type_sets" element="VehicleTypes">
+    <match column="id"/>
+    <match column="project_id"/>
+		<match child="vehicle_type"/>
+  </group>
+  <group table="veh_types" element="vehicle_type">
+    <match column="id"/>
+    <match column="size_factor" child="weight"/>
+    <match column="description" child="name"/>
+  </group>
+  <group table="veh_set_det" element="">
+    <match column="veh_type_set_id" child=""/>
+    <match column="veh_type_id" child=""/>
+  </group>
+  <group table="init_dens_sets" element="InitialDensitySet">
+    <match column="id" child="id"/>
+    <match column="project_id"/>
+    <match column="name" child="name"/>
+    <match column="description" child="description"/>
+    <match column="action_time" child="tstamp"/>
+		<match child="VehicleTypeOrder"/>
+		<match child="density"/>
+  </group>
+  <group table="init_dens" element="density">
+    <match column="init_dens_set_id"/>
+    <match column="link_id" child="link_id"/>
+    <match column="veh_type_id"/>
+    <match column="dest_network_id" child="destination_network_id"/>
+    <match column="density"/>
+  </group>
+  <group table="weave_sets" element="WeavingFactorSet">
+    <match column="id" child="id"/>
+    <match column="project_id"/>
+    <match column="name" child="name"/>
+    <match column="description" child="description"/>
+		<match child="VehicleTypeOrder"/>
+		<match child="weavingfactors"/>
+  </group>
+  <group table="weaving_factors" element="weavingfactors">
+    <match column="weave_set_id"/>
+    <match column="in_link_id" child="link_in"/>
+    <match column="out_link_id" child="link_out"/>
+    <match column="veh_type_id"/>
+    <match column="value"/>
+  </group>
+  <group table="split_ratio_sets" element="SplitRatioProfileSet">
+    <match column="id" child="id"/>
+    <match column="project_id"/>
+    <match column="name" child="name"/>
+    <match column="description" child="description"/>
+		<match child="VehicleTypeOrder"/>
+		<match child="splitratioProfile"/>
+  </group>
+  <group table="split_ratio_profs" element="splitratioProfile">
+    <match column="id"/>
+    <match column="split_ratio_set_id"/>
+    <match column="node_id" child="node_id"/>
+    <match column="dest_network_id" child="destination_network_id"/>
+    <match column="sample_rate" child="dt"/>
+    <match column="start_time" child="start_time"/>
+		<match child="splitratio"/>
+  </group>
+  <group table="split_ratios" element="splitratio">
+    <match column="split_ratio_prof_id"/>
+    <match column="in_link_id" child="link_in"/>
+    <match column="out_link_id" child="link_out"/>
+    <match column="veh_type_id"/>
+    <match column="ratio_order"/>
+    <match column="ratio"/>
+  </group>
+	<!--
+  <group table="fund_diag_types" element="">
+    <match column="ID" child=""/>
+    <match column="description" child=""/>
+  </group>
+	-->
+  <group table="fund_diag_sets" element="FundamentalDiagramProfileSet">
+    <match column="id" child="id"/>
+    <match column="project_id"/>
+    <match column="name" child="name"/>
+    <match column="description" child="description"/>
+		<match child="fundamentalDiagramProfile"/>
+  </group>
+  <group table="fund_diag_profiles" element="fundamentalDiagramProfile">
+    <match column="id"/>
+    <match column="fund_diag_set_id"/>
+    <match column="link_id" child="link_id"/>
+    <match column="sample_rate" child="dt"/>
+    <match column="start_time" child="start_time"/>
+		<match child="fundamentalDiagram"/>
+  </group>
+  <group table="fund_diagrams" element="fundamentalDiagram">
+    <match column="fund_diag_prof_id"/>
+    <match column="diag_order"/>
+    <match column="free_flow_speed" child="free_flow_speed"/>
+    <match column="critical_speed" child="critical_speed"/>
+    <match column="cong_wave_speed" child="congestion_speed"/>
+    <match column="capacity" child="capacity"/>
+    <match column="jam_density" child="jam_density"/>
+    <match column="capacity_drop" child="capacity_drop"/>
+    <match column="capacity_std" child="std_dev_capacity"/>
+    <match column="free_flow_speed_std" child="std_dev_free_flow_speed"/>
+    <match column="cong_wave_speed_std" child="std_dev_congestion_speed"/>
+  </group>
+  <group table="demand_prof_sets" element="DemandProfileSet">
+    <match column="id" child="id"/>
+    <match column="project_id"/>
+    <match column="name" child="name"/>
+    <match column="description" child="description"/>
+		<match child="VehicleTypeOrder"/>
+		<match child="demandProfile"/>
+  </group>
+  <group table="demand_profiles" element="demandProfile">
+    <match column="id"/>
+    <match column="demand_prof_set_id"/>
+    <match column="orig_link_id" child="link_id_origin"/>
+    <match column="dest_network_id" child="destination_network_id"/>
+    <match column="sample_rate" child="dt"/>
+    <match column="start_time" child="start_time"/>
+    <match column="knob" child="knob"/>
+    <match column="std_dev_add" child="std_dev_add"/>
+    <match column="std_dev_mult" child="std_dev_mult"/>
+  </group>
+  <group table="demands" element="">
+    <match column="demand_prof_id" child=""/>
+    <match column="veh_type_id" child=""/>
+    <match column="number" child=""/>
+    <match column="demand" child=""/>
+  </group>
+  <group table="ds_bndry_cap_sets" element="DownstreamBoundaryCapacityProfileSet">
+    <match column="id" child="id"/>
+    <match column="project_id"/>
+    <match column="name" child="name"/>
+    <match column="description" child="description"/>
+		<match child="capacityProfile"/>
+  </group>
+  <group table="ds_bndry_cap_profiles" element="capacityProfile">
+    <match column="id"/>
+    <match column="ds_bndry_cap_set_id"/>
+    <match column="link_id" child="link_id"/>
+    <match column="sample_rate" child="dt"/>
+    <match column="start_time" child="start_time"/>
+  </group>
+  <group table="ds_bndry_caps" element="">
+    <match column="ds_bndry_cap_prof_id" child=""/>
+    <match column="ds_bndry_cap_order" child=""/>
+    <match column="ds_bndry_cap" child=""/>
+  </group>
+  <group table="sensor_sets" element="SensorList">
+    <match column="id"/>
+    <match column="project_id"/>
+		<match child="sensor"/>
+  </group>
+  <group table="sensor_types" element="">
+    <match column="id" child=""/>
+    <match column="description" child=""/>
+    <match column="in_use" child=""/>
+  </group>
+  <group table="sensors" element="sensor">
+    <match column="id" child="id"/>
+    <match column="sensor_set_id"/>
+    <match column="sensor_type_id" child="type"/>
+    <match column="entity_id" child="sensor_id_original"/>
+    <match column="display_geometry" child="display_position"/>
+    <match column="link_id" child="link_reference"/>
+    <match column="link_offset" child="link_position"/>
+    <match column="lane_num" child="lane_number"/>
+    <match column="health_status" child="health_status"/>
+		<match child="table"/>
+		<match child="parameters"/>
+  </group>
+  <group table="signal_sets" element="SignalList">
+    <match column="id"/>
+    <match column="project_id"/>
+    <match column="name" child="name"/>
+    <match column="description" child="description"/>
+		<match child="signal"/>
+  </group>
+  <group table="signals" element="signal">
+    <match column="id" child="id"/>
+    <match column="set_id"/>
+    <match column="node_id" child="node_id"/>
+		<match child="phase"/>
+  </group>
+  <group table="signal_phases" element="phase">
+    <match column="signal_id"/>
+    <match column="phase_id" child="nema"/>
+    <match column="is_protected" child="protected"/>
+    <match column="is_permissive" child="permissive"/>
+    <match column="is_lagged" child="lag"/>
+    <match column="do_recall" child="recall"/>
+    <match column="min_green_time" child="min_green_time"/>
+    <match column="yellow_time" child="yellow_time"/>
+    <match column="red_clear_time" child="red_clear_time"/>
+		<match child="link_references"/>
+  </group>
+  <group table="phase_links" element="link_reference">
+    <match column="signal_id"/>
+    <match column="phase_id"/>
+    <match column="link_id" child="id"/>
+  </group>
+  <group table="controller_sets" element="ControllerSet">
+    <match column="id" child="id"/>
+    <match column="project_id"/>
+    <match column="name" child="name"/>
+    <match column="description" child="description"/>
+		<match child="controller"/>
+  </group>
+  <group table="controller_types"><!-- controller/@type -->
+    <match column="id"/>
+    <match column="description"/>
+    <match column="in_use" child=""/>
+  </group>
+  <group table="controllers" element="controller">
+    <match column="id" child="id"/>
+    <match column="controller_set_id"/>
+    <match column="controller_type_id" child="type"/>
+    <match column="java_class" child="java_class"/>
+    <match column="dt" child="dt"/>
+    <match column="display_geometry" child="display_position"/>
+		<match child="targetElements"/>
+		<match child="feedbackElements"/>
+		<match child="queue_controller"/>
+		<match child="parameters"/>
+		<match child="table"/>
+		<match child="ActivationIntervals"/>
+  </group>
+	<group element="ActivationIntervals">
+		<match child="interval"/>
+	</group>
+  <group table="controller_activation_intervals" element="interval">
+    <match column="controller_id"/>
+    <match column="start_time" child="start_time"/>
+    <match column="duration" child="end_time"/><!-- not exactly -->
+  </group>
+  <group table="queue_controller_types"><!-- queue_controller/@type -->
+    <match column="id"/>
+    <match column="description"/>
+    <match column="in_use" child=""/>
+  </group>
+  <group table="queue_controllers" element="queue_controller">
+    <match column="id"/>
+    <match column="qcontroller_type_id" child="type"/>
+    <match column="controller_id"/>
+    <match column="java_class" child="java_class"/>
+		<match child="parameters"/>
+  </group>
+  <group table="event_sets" element="EventSet">
+    <match column="id" child="id"/>
+    <match column="project_id"/>
+    <match column="name" child="name"/>
+    <match column="description" child="description"/>
+		<match child="event"/>
+  </group>
+  <group table="event_types"><!-- event/@type -->
+    <match column="id"/>
+    <match column="description"/>
+    <match column="in_use" child=""/>
+  </group>
+  <group table="events" element="event">
+    <match column="id" child="id"/>
+    <match column="event_set_id"/>
+    <match column="action_time" child="tstamp"/>
+    <match column="event_type_id" child="type"/>
+    <match column="java_class" child="java_class"/>
+    <match column="description" child="description"/>
+    <match column="disp_geom" child="display_position"/>
+    <match column="enabled" child="enabled"/>
+		<match child="targetElements"/>
+		<match child="parameters"/>
+		<match child="splitratioEvent"/>
+  </group>
+  <group table="event_split_ratios" element="splitratioEvent">
+    <match column="event_id"/>
+    <match column="in_link_id"/>
+    <match column="out_link_id"/>
+    <match column="veh_type_id"/>
+    <match column="split_ratio" child="splitratio"/>
+		<match child="VehicleTypeOrder"/>
+  </group>
+  <group table="scenario_element_types" element="">
+    <match column="id" child=""/>
+    <match column="description" child=""/>
+    <match column="in_use" child=""/>
+  </group>
+  <group table="parameters" element="parameter">
+    <match column="element_id" child=""/>
+    <match column="element_type_id" child=""/>
+    <match column="name" child="name"/>
+    <match column="value" child="value"/>
+  </group>
+  <group table="tables" element="table">
+    <match column="id" child=""/>
+    <match column="element_id" child=""/>
+    <match column="element_type_id" child=""/>
+    <match column="name" child="name"/>
+		<match child="column_names"/>
+		<match child="row"/>
+  </group>
+  <group table="tabular_data" element="row">
+    <match column="table_id"/>
+    <match column="column_name"/>
+    <match column="row_number"/>
+    <match column="value" child="column"/>
+  </group>
+	<group element="column_names">
+		<match child="column_name"/>
+	</group>
+  <group table="tabular_data_keys" element="column_name">
+    <match column="table_id"/>
+    <match column="column_name" child="name"/>
+    <match column="column_number"/>
+    <match column="is_key" child="key"/>
+  </group>
+	<group element="targetElements">
+		<match child="scenarioElement"/>
+	</group>
+	<group element="feedbackElements">
+		<match child="scenarioElement"/>
+	</group>
+  <group table="referenced_scenario_elements" element="scenarioElement">
+    <match column="parent_element_id"/>
+    <match column="parent_element_type_id"/>
+    <match column="type" child="type"/>
+    <match column="element_id" child="id"/>
+    <match column="element_type_id"/>
+    <match column="usage" child="usage"/>
+  </group>
+  <group table="scenarios" element="scenario">
+    <match column="id" child="id"/>
+    <match column="project_id"/>
+    <match column="name" child="name"/>
+    <match column="description" child="description"/>
+    <match column="net_conn_set_id" child="NetworkConnections"/>
+    <match column="veh_type_set_id" child="settings"/><!-- not exactly -->
+    <match column="signal_set_id" child="SignalList"/>
+    <match column="sensor_set_id" child="SensorList"/>
+    <match column="split_ratio_set_id" child="SplitRatioProfileSet"/>
+    <match column="weave_set_id" child="WeavingFactorSet"/>
+    <match column="init_dens_set_id" child="InitialDensitySet"/>
+    <match column="fund_diag_set_id" child="FundamentalDiagramProfileSet"/>
+    <match column="demand_prof_set_id" child="DemandProfileSet"/>
+    <match column="ds_bndry_cap_set_id" child="DownstreamBoundaryCapacityProfileSet"/>
+    <match column="controller_set_id" child="ControllerSet"/>
+    <match column="event_set_id" child="EventSet"/>
+		<match child="NetworkList"/>
+		<match child="DestinationNetworks"/>
+		<match child="Routes"/>
+		<match child="schemaVersion"/>
+  </group>
+	<group element="settings">
+		<match child="units"/>
+		<match child="VehicleTypes"/>
+	</group>
+  <group table="network_sets" element="">
+    <match column="scenario_id" child=""/>
+    <match column="network_id" child=""/>
+  </group>
+  <group table="dest_network_sets" element="">
+    <match column="scenario_id" child=""/>
+    <match column="dest_network_id" child=""/>
+  </group>
+  <group table="route_sets" element="">
+    <match column="scenario_id" child=""/>
+    <match column="route_id" child=""/>
+  </group>
+  <group table="application_types" element="">
+    <match column="id" child=""/>
+    <match column="description" child=""/>
+    <match column="in_use" child=""/>
+  </group>
+  <group table="simulation_runs" element="">
+    <match column="id" child=""/>
+    <match column="scenario_id" child=""/>
+    <match column="run_number" child=""/>
+    <match column="version" child=""/>
+    <match column="sim_start_time" child=""/>
+    <match column="sim_duration" child=""/>
+    <match column="sim_dt" child=""/>
+    <match column="output_dt" child=""/>
+    <match column="execution_start_time" child=""/>
+    <match column="execution_end_time" child=""/>
+    <match column="status" child=""/>
+  </group>
+  <group table="def_sim_settings" element="">
+    <match column="scenario_id" child=""/>
+    <match column="sim_start_time" child=""/>
+    <match column="sim_duration" child=""/>
+    <match column="sim_dt" child=""/>
+    <match column="output_dt" child=""/>
+  </group>
+  <group table="estimation_runs" element="">
+    <match column="id" child=""/>
+    <match column="scenario_id" child=""/>
+    <match column="run_number" child=""/>
+    <match column="version" child=""/>
+    <match column="estim_start_time" child=""/>
+    <match column="estim_duration" child=""/>
+    <match column="estim_dt" child=""/>
+    <match column="output_dt" child=""/>
+    <match column="run_mode" child=""/>
+    <match column="model_type" child=""/>
+    <match column="data_source" child=""/>
+    <match column="enkf_mean" child=""/>
+    <match column="enkf_stdev" child=""/>
+    <match column="execution_start_time" child=""/>
+    <match column="execution_end_time" child=""/>
+    <match column="status" child=""/>
+  </group>
+  <group table="def_estim_settings" element="">
+    <match column="scenario_id" child=""/>
+    <match column="estim_start_time" child=""/>
+    <match column="estim_duration" child=""/>
+    <match column="estim_dt" child=""/>
+    <match column="output_dt" child=""/>
+    <match column="run_mode" child=""/>
+    <match column="model_type" child=""/>
+    <match column="data_source" child=""/>
+    <match column="enkf_mean" child=""/>
+    <match column="enkf_stdev" child=""/>
+  </group>
+  <group table="quantity_types" element="">
+    <match column="id" child=""/>
+    <match column="description" child=""/>
+    <match column="in_use" child=""/>
+  </group>
+  <group table="aggregation_types" element="">
+    <match column="id" child=""/>
+    <match column="description" child=""/>
+    <match column="in_use" child=""/>
+  </group>
+  <group table="link_data_total" element="">
+    <match column="network_id" child=""/>
+    <match column="link_id" child=""/>
+    <match column="app_run_id" child=""/>
+    <match column="app_type_id" child=""/>
+    <match column="ts" child=""/>
+    <match column="agg_type_id" child=""/>
+    <match column="value_type_id" child=""/>
+    <match column="in_flow" child=""/>
+    <match column="out_flow" child=""/>
+    <match column="density" child=""/>
+    <match column="speed" child=""/>
+    <match column="free_flow_speed" child=""/>
+    <match column="critical_speed" child=""/>
+    <match column="congestion_wave_speed" child=""/>
+    <match column="capacity" child=""/>
+    <match column="jam_density" child=""/>
+    <match column="capacity_drop" child=""/>
+  </group>
+  <group table="link_data_detailed" element="">
+    <match column="network_id" child=""/>
+    <match column="link_id" child=""/>
+    <match column="app_run_id" child=""/>
+    <match column="app_type_id" child=""/>
+    <match column="dest_network_id" child=""/>
+    <match column="veh_type_id" child=""/>
+    <match column="ts" child=""/>
+    <match column="agg_type_id" child=""/>
+    <match column="value_type_id" child=""/>
+    <match column="in_flow" child=""/>
+    <match column="out_flow" child=""/>
+    <match column="density" child=""/>
+    <match column="speed" child=""/>
+  </group>
+  <group table="link_performance_total" element="">
+    <match column="network_id" child=""/>
+    <match column="link_id" child=""/>
+    <match column="app_run_id" child=""/>
+    <match column="app_type_id" child=""/>
+    <match column="ts" child=""/>
+    <match column="agg_type_id" child=""/>
+    <match column="value_type_id" child=""/>
+    <match column="vmt" child=""/>
+    <match column="vht" child=""/>
+    <match column="delay" child=""/>
+    <match column="travel_time" child=""/>
+    <match column="productivity_loss" child=""/>
+    <match column="los" child=""/>
+    <match column="vc_ratio" child=""/>
+  </group>
+  <group table="link_performance_detailed" element="">
+    <match column="network_id" child=""/>
+    <match column="link_id" child=""/>
+    <match column="app_run_id" child=""/>
+    <match column="app_type_id" child=""/>
+    <match column="dest_network_id" child=""/>
+    <match column="veh_type_id" child=""/>
+    <match column="ts" child=""/>
+    <match column="agg_type_id" child=""/>
+    <match column="value_type_id" child=""/>
+    <match column="vmt" child=""/>
+    <match column="vht" child=""/>
+    <match column="delay" child=""/>
+  </group>
+  <group table="route_performance_total" element="">
+    <match column="route_id" child=""/>
+    <match column="app_run_id" child=""/>
+    <match column="app_type_id" child=""/>
+    <match column="ts" child=""/>
+    <match column="agg_type_id" child=""/>
+    <match column="value_type_id" child=""/>
+    <match column="travel_time" child=""/>
+  </group>
+  <group table="signal_data" element="">
+    <match column="network_id" child=""/>
+    <match column="signal_id" child=""/>
+    <match column="app_run_id" child=""/>
+    <match column="app_type_id" child=""/>
+    <match column="phase" child=""/>
+    <match column="ts" child=""/>
+    <match column="agg_type_id" child=""/>
+    <match column="value_type_id" child=""/>
+    <match column="begin_green" child=""/>
+    <match column="duration" child=""/>
+  </group>
+  <group table="signal_phase_performance" element="">
+    <match column="network_id" child=""/>
+    <match column="signal_id" child=""/>
+    <match column="app_run_id" child=""/>
+    <match column="app_type_id" child=""/>
+    <match column="phase" child=""/>
+    <match column="ts" child=""/>
+    <match column="agg_type_id" child=""/>
+    <match column="value_type_id" child=""/>
+    <match column="phase_utilization" child=""/>
+    <match column="progression_quality" child=""/>
+    <match column="delay_per_cycle" child=""/>
+    <match column="queue_size" child=""/>
+    <match column="number_of_stops" child=""/>
+  </group>
+</matches>
