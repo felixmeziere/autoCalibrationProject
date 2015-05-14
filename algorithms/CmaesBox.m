@@ -55,8 +55,6 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
         end  % set a field of inopts.
         
         function [] = run_algorithm(obj)
-              format SHORTG;
-              format LONGG;
               obj.inopts.MaxFunEvals = obj.maxEval;
               obj.inopts.MaxIter = obj.maxIter;
               obj.inopts.StopFitness = obj.stopFValue;
@@ -67,8 +65,7 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
               obj.bestEverPoint=obj.rescale_knobs(bestPoint,0);
               bestEver.x=obj.rescale_knobs(bestEver.x,0);
               obj.bestEver=bestEver;
-        end   % defined in AlgorithmBox   
-  
+        end   % defined in AlgorithmBox      
         
         function [] = set_result_for_xls(obj)
             %This function should be changed manually to fit the format
