@@ -64,16 +64,18 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
               obj.inopts.LBounds = zeros(size(obj.knobs.knob_link_ids,1),1);
               xstart=obj.rescale_knobs(obj.starting_point,1);
               [bestPoint, last, obj.numberOfEvaluations, obj.stopFlag, obj.out, bestEver]=cmaes(@(x)obj.errorFunction(x,1), xstart, obj.insigma, obj.inopts);  
-              bestEver.x=obj.rescale_knobs(bestEver.x,0);
-              obj.bestEverPoint=bestEver.x;
-              obj.bestEver=bestEver;
+              load variablescmaes.mat
+              bestever.x=obj.rescale_knobs(bestever.x,0);
+              obj.bestEverPoint=bestever.x;
+              obj.bestEver=bestever;
               obj.res_history=reshape(obj.res_history,[],1);
               obj.res_history=obj.res_history/obj.TVM_reference_values.pems;
               for i=1:size(obj.knobs_history,2)
                   temp(i,:)=obj.knobs_history(:,i);
               end
-              obj.bestEverErrorFunctionValue=bestEver.f;
+              obj.bestEverErrorFunctionValue=bestever.f;
               obj.knobs_history=temp;
+              obj.numberOfIterations=countiter;
         end   % defined in AlgorithmBox   
   
         
@@ -97,7 +99,7 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
             obj.result_for_xls{14}=Utilities.double2char(obj.bestEverPoint);
             obj.result_for_xls{15}=obj.bestEverErrorFunctionValue;
             obj.result_for_xls{16}=Utilities.cellArray2char(obj.stopFlag);
-            obj.result_for_xls{17}=obj.numberOfFlops;
+            obj.result_for_xls{17}=obj.numberOfIterations;
             obj.result_for_xls{18}=obj.numberOfEvaluations;
             obj.result_for_xls{19}=obj.convergence;
         end % defined in AlgorithmBox
