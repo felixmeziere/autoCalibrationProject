@@ -55,16 +55,25 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
         end  % set a field of inopts.
         
         function [] = run_algorithm(obj)
+              obj.res_history=[];
+              obj.knobs_history=[];
               obj.inopts.MaxFunEvals = obj.maxEval;
               obj.inopts.MaxIter = obj.maxIter;
               obj.inopts.StopFitness = obj.stopFValue;
               obj.inopts.UBounds = ones(size(obj.knobs.knob_link_ids,1),1)*10;
               obj.inopts.LBounds = zeros(size(obj.knobs.knob_link_ids,1),1);
               xstart=obj.rescale_knobs(obj.starting_point,1);
-              [bestPoint, obj.bestEverErrorFunctionValue, obj.numberOfEvaluations, obj.stopFlag, obj.out, bestEver]=cmaes(@(x)obj.errorFunction(x,1), xstart, obj.insigma, obj.inopts);
-              obj.bestEverPoint=obj.rescale_knobs(bestPoint,0);
+              [bestPoint, last, obj.numberOfEvaluations, obj.stopFlag, obj.out, bestEver]=cmaes(@(x)obj.errorFunction(x,1), xstart, obj.insigma, obj.inopts);  
               bestEver.x=obj.rescale_knobs(bestEver.x,0);
+              obj.bestEverPoint=bestEver.x;
               obj.bestEver=bestEver;
+              obj.res_history=reshape(obj.res_history,[],1);
+              obj.res_history=obj.res_history/obj.TVM_reference_values.pems;
+              for i=1:size(obj.knobs_history,2)
+                  temp(i,:)=obj.knobs_history(:,i);
+              end
+              obj.bestEverErrorFunctionValue=bestEver.f;
+              obj.knobs_history=temp;
         end   % defined in AlgorithmBox   
   
         

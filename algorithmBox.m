@@ -344,12 +344,15 @@ classdef (Abstract) AlgorithmBox < handle
         function [] = send_result_to_xls(obj, filename)
             %the legend in the xls file should be written manually.
             %the counter for current cell should be in cell AZ1.
+            if (nargin<2)
+                filename=obj.xls_results;
+            end    
             obj.set_result_for_xls;
             [useless1,useless2,xls]=xlsread(filename, obj.algorithm_name);
-            id=xls{1,52};
-            xlswrite(filename,id,obj.algorithm_name, strcat('A',num2str(id+1)));
-            xlswrite(filename, obj.result_for_xls, obj.algorithm_name, strcat('B',num2str(id+1)));
-            xlswrite(filename, id+1,obj.algorithm_name,'AZ1');
+            id=xls{2,1};
+            xlswrite(filename,id,obj.algorithm_name, strcat('B',num2str(id+1)));
+            xlswrite(filename, obj.result_for_xls, obj.algorithm_name, strcat('C',num2str(id+1)));
+            xlswrite(filename, id+1,obj.algorithm_name,'A2');
             disp('RESULTS OF THE RUN SENT TO XLS FILE :');
             disp(filename);
         end  % send result of an execution of the algorithm to the output Excel file.
@@ -368,28 +371,30 @@ classdef (Abstract) AlgorithmBox < handle
     
     methods (Access = public)
         
-        function [result] = errorFunction(obj, knob_values, isCmaes) % the error function used by the algorithm. Compares the beats simulation result and pems data.
+        function [result] = errorFunction(obj, knob_values, isZeroToTenScale) % the error function used by the algorithm. Compares the beats simulation result and pems data.
             %knob_values : n x 1 array where n is the number of knobs
             %to tune, containing the new values of the knobs.
             format SHORTG;
             format LONGG;
             if (size(knob_values,1)==size(obj.knobs.knob_link_ids,1))
-                if exist('isCmaes','var') && isCmaes==1
+                if exist('isZeroToTenScale','var') && isZeroToTenScale==1
                     knob_values=obj.rescale_knobs(knob_values,0);
                 end
                 knob_values=obj.project_on_correct_TVM_subspace(knob_values);
-                obj.knobs_history(:,end+1)=knob_values;
+%                 obj.knobs_history(:,end+1)=knob_values;
                 disp('Knobs vector and values being tested:');
                 disp(' ');
                 disp(['               ','Demand Id :','                 ', 'Link Id :','                   ', 'Value and max:']);
                 disp(' ');
                 disp([obj.knobs.knob_demand_ids,obj.knobs.knob_link_ids, knob_values,obj.knobs.knob_boundaries_max]);
                 obj.beats_simulation.beats.reset();
-                obj.set_knobs(knob_values);
+                obj.set_knobs_persistent(knob_values);
                 obj.beats_simulation.run_beats_persistent;
                 obj.performance_calculator.calculate_from_beats(obj);
                 result = obj.error_calculator.calculate(obj.performance_calculator.result_from_beats, obj.performance_calculator.result_from_pems);
-                obj.res_history(:,end+1)=result;
+                disp('Error function value :');
+                disp(result);
+%                 obj.res_history(:,end+1)=result;
             else
                 error('The matrix with knobs values given does not match the number of knobs to tune or is not a column vector.');
             end    
@@ -590,17 +595,18 @@ classdef (Abstract) AlgorithmBox < handle
 
         %other useful stuff...............................................
         
-        function [result_vector] = rescale_knobs(obj, input_vector, isRealScaleToZeroTenScale) % rescales the knobs from 0:10 to their actual respective range (used by cmaes for 'uniform sensitivity' reasons) or the opposite operation.
-            Knobs=obj.knobs;
+        function [result_matrix] = rescale_knobs(obj, input_matrix, isRealScaleToZeroTenScale) % rescales the knobs from 0:10 to their actual respective range (used by cmaes for 'uniform sensitivity' reasons) or the opposite operation.
+            min=repmat(obj.knobs.knob_boundaries_min,1,size(input_matrix,2));
+            range=repmat(obj.knobs.knob_boundaries_max-obj.knobs.knob_boundaries_min,1,size(input_matrix,2));
             if isRealScaleToZeroTenScale==1
-                result_vector=((input_vector-Knobs.knob_boundaries_min)./(Knobs.knob_boundaries_max-Knobs.knob_boundaries_min))*10;
+                result_matrix=((input_matrix-min)./range)*10;
             elseif isRealScaleToZeroTenScale==0
-                result_vector=(input_vector/10).*(Knobs.knob_boundaries_max-Knobs.knob_boundaries_min)+Knobs.knob_boundaries_min;
+                result_matrix=((input_matrix/10).*range)+min;
             else error ('The second parameter must be zero or one');
             end        
         end
         
-        function [] = set_knobs(obj, knobs_vector)
+        function [] = set_knobs_persistent(obj, knobs_vector)
             for i= 1:size(obj.knobs.knob_link_ids)
                 if (ismember(obj.knobs.knob_link_ids(i),obj.link_ids_beats(obj.source_mask_beats)))
                     obj.beats_simulation.beats.set.demand_knob_for_link_id(obj.knobs.knob_link_ids(i),knobs_vector(i));
