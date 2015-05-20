@@ -33,11 +33,13 @@ classdef (Abstract) AlgorithmBox < handle
         
         beats_simulation@BeatsSimulation % the BeatsSimulation object that will run and be overwritten at each algorithm iteration.
         pems=struct; % the pems data to compare with the beats results. Input fields : 'days' (e.g. datenum(2014,10,1):datenum(2014,10,10)); 'district' (e.g. 7); 'processed_folder'(e.g. C:\Code). Output Fields : 'data' 
-        performance_calculator@PerformanceCalculator % a PerformanceCalculator subclass, which is a quantity measured in pems or outputed by beats (e.g. TVMpH).
+        performance_calculator@PerformanceCalculator % a PerformanceCalculator subclass, which is a quantity measured in pems or outputed by beats (e.g. TVM).
         error_calculator@ErrorCalculator % an ErrorCalculator subclass, which is a way of comparing two performance calculator values (e.g. L1 norm).
         initialization_method@char % initialization method must be 'normal', 'uniform' or 'manual'.
-        TVMpH_reference_values=struct; %TVMpH values from pems and beats with all knobs set to one.
+        TVM_reference_values=struct; %TVM values from pems and beats with all knobs set to one.
         flow_reference_values=struct;
+        knobs_history
+        res_history
         
         result_for_xls@cell % result of the algorithm to be outputed to the xls file.
         out % struct with various histories and solutions.
@@ -58,6 +60,8 @@ classdef (Abstract) AlgorithmBox < handle
         beats_loaded=0; % flag to indicate if the beats simulation and parameters have been correctly loaded.
         pems_loaded=0; % flag to indicate if pems data has been correctly loaded.
         is_program_first_run=1; %flag to indicate if long loading time data has been already loaded.
+        linear_link_ids
+        
         
         %masks pointing at the links with working sensors used on beats 
         %output or on pems data.
@@ -250,16 +254,20 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.beats_parameters.RUN_MODE = 'fw_fr_split_output'; 
                 display('RUNNING BEATS A FIRST TIME FOR REFERENCE DATA.');
                 obj.beats_simulation = BeatsSimulation;
+                obj.beats_simulation.import_beats_classes;
                 obj.beats_simulation.load_scenario(obj.scenario_ptr);
+                obj.beats_simulation.create_beats_object(obj.beats_parameters);
                 obj.link_ids_beats=obj.beats_simulation.scenario_ptr.get_link_ids;
-                obj.beats_simulation.run_beats(obj.beats_parameters);
+                obj.beats_simulation.run_beats_persistent;
                 if obj.pems_loaded==1
                     TVmiles=TVM;
-                    obj.TVMpH_reference_values.beats=TVmiles.calculate_from_beats(obj);
+                    obj.TVM_reference_values.beats=TVmiles.calculate_from_beats(obj);
                     obj.performance_calculator.calculate_from_beats(obj);
                     refflw=DailyExitFlow;
                     obj.flow_reference_values.beats=refflw.calculate_from_beats(obj);
-                end    
+                end
+                obj.linear_link_ids=obj.link_ids_beats(obj.beats_simulation.scenario_ptr.extract_linear_fwy_indices);
+                obj.knobs_history=zeros(size(obj.knobs.knob_link_ids,1),1);
                 disp('BEATS SETTINGS LOADED.')
                 obj.beats_loaded=1;
             else error('Beats scenario xml file adress and beats parameters must be set before loading beats.');   
@@ -271,11 +279,11 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.pems_loaded=0;
                 obj.pems.peMS5minData= PeMS5minData;
                 obj.set_masks_and_pems_data;
-                TVmiles=TVMpH;
-                obj.TVMpH_reference_values.beats=TVmiles.calculate_from_beats(obj);
+                TVmiles=TVM;
+                obj.TVM_reference_values.beats=TVmiles.calculate_from_beats(obj);
                 obj.performance_calculator.calculate_from_pems(obj);
                 obj.performance_calculator.calculate_from_beats(obj);
-                obj.TVMpH_reference_values.pems = TVmiles.calculate_from_pems(obj);
+                obj.TVM_reference_values.pems = TVmiles.calculate_from_pems(obj);
                 refflw=DailyExitFlow;
                 obj.flow_reference_values.beats=refflw.calculate_from_beats(obj);
                 obj.pems_loaded=1;
@@ -363,19 +371,25 @@ classdef (Abstract) AlgorithmBox < handle
         function [result] = errorFunction(obj, knob_values, isCmaes) % the error function used by the algorithm. Compares the beats simulation result and pems data.
             %knob_values : n x 1 array where n is the number of knobs
             %to tune, containing the new values of the knobs.
+            format SHORTG;
+            format LONGG;
             if (size(knob_values,1)==size(obj.knobs.knob_link_ids,1))
                 if exist('isCmaes','var') && isCmaes==1
                     knob_values=obj.rescale_knobs(knob_values,0);
-                end    
+                end
+                knob_values=obj.project_on_correct_TVM_subspace(knob_values);
+                obj.knobs_history(:,end+1)=knob_values;
                 disp('Knobs vector and values being tested:');
                 disp(' ');
-                disp(['               ','Demand Id :','                 ', 'Link Id :','                   ', 'Value :']);
+                disp(['               ','Demand Id :','                 ', 'Link Id :','                   ', 'Value and max:']);
                 disp(' ');
-                disp([obj.knobs.knob_demand_ids,obj.knobs.knob_link_ids, knob_values,'/',obj.knobs.knob_boundaries_max]);
-                obj.beats_simulation.scenario_ptr.set_knob_values(obj.knobs.knob_demand_ids, knob_values);
-                obj.beats_simulation.run_beats(obj.beats_parameters);
+                disp([obj.knobs.knob_demand_ids,obj.knobs.knob_link_ids, knob_values,obj.knobs.knob_boundaries_max]);
+                obj.beats_simulation.beats.reset();
+                obj.set_knobs(knob_values);
+                obj.beats_simulation.run_beats_persistent;
                 obj.performance_calculator.calculate_from_beats(obj);
                 result = obj.error_calculator.calculate(obj.performance_calculator.result_from_beats, obj.performance_calculator.result_from_pems);
+                obj.res_history(:,end+1)=result;
             else
                 error('The matrix with knobs values given does not match the number of knobs to tune or is not a column vector.');
             end    
@@ -407,33 +421,16 @@ classdef (Abstract) AlgorithmBox < handle
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
     
     methods (Access = public) %supposed to be private but public for debug reasons
-    
-        function [lengths] = get_link_lengths_miles_pems(obj,link_mask_pems, same_link_mask_beats)
-            all_lengths=obj.beats_simulation.scenario_ptr.get_link_lengths('us')*0.0001893935;
-            lengths=zeros(1,sum(link_mask_pems));
-            ordered_link_ids=obj.link_ids_pems(link_mask_pems);
-            k=1;
-            for i=1:size(ordered_link_ids,2)
-                link_mask=ismember(obj.link_ids_beats,ordered_link_ids(1,i));
-                if ~isempty(find(link_mask.*same_link_mask_beats))
-                    lengths(1,k)=all_lengths(1,logical(link_mask.*same_link_mask_beats));
-                    k=k+1;
-                end    
-            end
-        end
         
-        function [lengths] = get_link_lengths_miles_beats(obj,link_mask_beats)
-            link_length_miles = obj.beats_simulation.scenario_ptr.get_link_lengths('us')*0.0001893935;
-            lengths = link_length_miles(link_mask_beats);
-        end
+        %check and set stuff..............................................
         
-        function [bool] = is_set_knobs(obj) %check if the knobs struct is set.
+         function [bool] = is_set_knobs(obj) %check if the knobs struct is set.
 
             bool = 0;
             if (size(obj.knobs.knob_link_ids,2)~=0 && size(obj.knobs.knob_boundaries_max,2)~=0 && size(obj.knobs.knob_boundaries_min,2)~=0 && size(obj.knobs.knob_demand_ids,2)~=0)
                 bool=1;
             end    
-        end 
+         end 
         
         function [] = set_masks_and_pems_data(obj)
             %sets the masks for further link selection and smoothens pems 
@@ -477,24 +474,7 @@ classdef (Abstract) AlgorithmBox < handle
             obj.good_sink_mask_pems=logical(obj.good_sensor_mask_pems.*obj.sink_mask_pems);
             
         end    %sets the masks for further link selection and smoothens pems flow values.
-       
-        function [knobs_on_correct_subspace] = project_on_correct_TVMpH_subspace(obj,vector) % Project vector on the hyperplan of vectors that will make beats output have the same TVMpH as pems.
-            equation_coefficients_tuple=[]; 
-            %N tuple that will contain the coefficients of the equation of 
-            %the hyperplan. We will call them alpha(i) : alpha(i)= (sum over time of the template values of the demand profile of knob(i))*(remaining mainline length from the corresponding link) 
-            %The equation is [(knob1)*alpha(1)+(knob2)*alpha(2)+...+(knobN)*alpha(N)]+[(TVMpH value given by beats output when all knobs are set to one)-(alpha(1)+...+alpha(N))(this last sum removes the extra contribution of the links tuned in beats TVMpH))]=pems TVMpH value
-            for i=1:size(obj.knobs.knob_link_ids) %fill the tuple
-                if (ismember(obj.knobs.knob_link_ids(i),obj.link_ids_beats(obj.source_mask_beats)))
-                    sign=1;
-                else
-                    sign=-1;
-                end
-                equation_coefficients_tuple(1,i)=sign*sum(obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.knobs.knob_link_ids(i,1)).demand)*obj.get_remaining_mainline_length(obj.get_next_mainline_link_id(obj.knobs.knob_link_ids(i))); 
-            end
-            equation_rest_of_left_side=obj.TVMpH_reference_values.beats-sum(equation_coefficients_tuple); %second term between brackets of the left side
-            [knobs_on_correct_subspace,fval]=fmincon(@(x)Utilities.euclidianDistance(x,vector),vector,[],[],equation_coefficients_tuple, obj.TVMpH_reference_values.pems-equation_rest_of_left_side,obj.knobs.knob_boundaries_min,obj.knobs.knob_boundaries_max); % minimization program
-        end    
-            
+        
         function []=set_knob_demand_ids(obj) % set demand profile ids in obj.knobs.knob_demand_ids corresponding to obj.knobs.knob_link_ids.
             obj.knobs.knob_demand_ids=[];
             for i=1:size(obj.knobs.knob_link_ids,1)
@@ -502,6 +482,30 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.knobs.knob_demand_ids(i,1)=dps(i).id;
             end
         end
+
+
+        %get link lengths in beats or pems data matching format............
+    
+        function [lengths] = get_link_lengths_miles_pems(obj,link_mask_pems, same_link_mask_beats)
+            all_lengths=obj.beats_simulation.scenario_ptr.get_link_lengths('us')*0.0001893935;
+            lengths=zeros(1,sum(link_mask_pems));
+            ordered_link_ids=obj.link_ids_pems(link_mask_pems);
+            k=1;
+            for i=1:size(ordered_link_ids,2)
+                link_mask=ismember(obj.link_ids_beats,ordered_link_ids(1,i));
+                if ~isempty(find(link_mask.*same_link_mask_beats))
+                    lengths(1,k)=all_lengths(1,logical(link_mask.*same_link_mask_beats));
+                    k=k+1;
+                end    
+            end
+        end %get an array with the lengths of the links pointed by link_mask_pems, when applied to a 'pems format' link ids array. Same_link_mask_beats must be the the same link mask for beats foramt.
+        
+        function [lengths] = get_link_lengths_miles_beats(obj,link_mask_beats)
+            link_length_miles = obj.beats_simulation.scenario_ptr.get_link_lengths('us')*0.0001893935;
+            lengths = link_length_miles(link_mask_beats);
+        end %get an array with the lengths of the links pointed by link_mask_pems, when applied to a 'beats format' link ids array.
+        
+        %get remaining monitored mainline link ids.........................
         
         function [mainline_link_id]=get_next_mainline_link_id(obj,input_link_id)
             if ismember(input_link_id,obj.link_ids_beats(logical(obj.source_mask_beats.*~obj.mainline_mask_beats)))
@@ -527,32 +531,86 @@ classdef (Abstract) AlgorithmBox < handle
             else error('Input link must be non-mainline sink or source');        
             end    
         end % gets the id of the mainline link just after the node connecting the input_link_id ramp to the freeway.
-        
+
         function [remaining_mainline_length]=get_remaining_monitored_mainline_length(obj, first_mainline_link_id)
-            linear_link_ids=obj.link_ids_beats(obj.beats_simulation.scenario_ptr.extract_linear_fwy_indices);
             k=1;
-            while linear_link_ids(k)~=first_mainline_link_id && k<=size(linear_link_ids,2)
+            while obj.linear_link_ids(k)~=first_mainline_link_id && k<=size(obj.linear_link_ids,2)
                 k=k+1;
             end
-            remaining_link_ids=linear_link_ids(k:size(linear_link_ids,2));
+            remaining_link_ids=obj.linear_link_ids(k:size(obj.linear_link_ids,2));
             remaining_link_ids_mask=ismember(obj.link_ids_beats,remaining_link_ids);
             remaining_monitored_mainline_links_mask=logical(remaining_link_ids_mask.*obj.good_mainline_mask_beats);
             remaining_mainline_length=sum(obj.get_link_lengths_miles_beats(remaining_monitored_mainline_links_mask));
         end  %gets the remaining mainline length after the mainline link first_mainline_link_id.
+
+        %project the algorithm input to correct TVM subspace...............
         
-        function [res] = compute_TVMpH_with_knobs_vector(obj,vector)
-            %assumes units are in SI
-            alphaIs_tuple=[];
-            for i=1:size(obj.knobs.knob_link_ids) %fill the tuple
+        function [sum_of_template] = get_sum_of_template_in_veh(obj,knob_link_id) 
+            dp=obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(knob_link_id);
+            sum_of_template=sum(dp.demand)*dp.dt;
+        end   %returns the sum over time of the template of the link id, in vehicles.
+        
+%         function [knobs_on_correct_subspace] = project_on_correct_TVM_subspace(obj,vector) % Project vector on the hyperplan of vectors that will make beats output have the same TVM as pems.
+%             equation_coefficients_tuple=[]; 
+%             %N tuple that will contain the coefficients of the equation of 
+%             %the hyperplan. We will call them alpha(i) : alpha(i)= (sum over time of the template values of the demand profile of knob(i))*(remaining mainline length from the corresponding link) 
+%             %The equation is [(knob1)*alpha(1)+(knob2)*alpha(2)+...+(knobN)*alpha(N)-sum(alpha(i))]+[TVM value given by beats output when all knobs are set to one]=pems TVM value
+%             %(the substraction of sum of alphaIs removes the extra contribution of the links tuned in beats TVM)
+%             for i=1:size(obj.knobs.knob_link_ids) %fill the tuple
+%                 if (ismember(obj.knobs.knob_link_ids(i),obj.link_ids_beats(obj.source_mask_beats)))
+%                     sign=1;
+%                 else
+%                     sign=-1;
+%                 end
+%                 equation_coefficients_tuple(1,i)=sign*obj.get_sum_of_template_in_veh(obj.knobs.knob_link_ids(i,1))*obj.get_remaining_monitored_mainline_length(obj.get_next_mainline_link_id(obj.knobs.knob_link_ids(i)));  
+%             end
+%             equation_rest_of_left_side=obj.TVM_reference_values.beats-sum(equation_coefficients_tuple); %second term between brackets of the left side
+%             [knobs_on_correct_subspace,fval]=fmincon(@(x)Utilities.euclidianDistance(x,vector),vector,[],[],equation_coefficients_tuple, obj.TVM_reference_values.pems-equation_rest_of_left_side,obj.knobs.knob_boundaries_min,obj.knobs.knob_boundaries_max); % minimization program
+%         end  
+            
+        
+        function [knobs_on_correct_subspace] = project_on_correct_TVM_subspace(obj,vector) % Project vector on the hyperplan of vectors that will make beats output have the same TVM as pems.
+            equation_coefficients_tuple=[]; 
+            %N tuple that will contain the coefficients of the equation of 
+            %the hyperplan. We will call them alpha(i) : alpha(i)= (sum over time of the template values of the demand profile of knob(i))*(remaining mainline length from the corresponding link) 
+            %The equation is [(knob1)*alpha(1)+(knob2)*alpha(2)+...+(knobN)*alpha(N)-sum(alpha(i))]+[TVM value given by beats output when all knobs are set to one]=pems TVM value
+            %(the substraction of sum of alphaIs removes the extra contribution of the links tuned in beats TVM)
+            sze=size(obj.knobs.knob_link_ids,1);
+            for i=1:sze %fill the tuple
                 if (ismember(obj.knobs.knob_link_ids(i),obj.link_ids_beats(obj.source_mask_beats)))
                     sign=1;
                 else
                     sign=-1;
                 end
-                alphaIs_tuple(1,i)=sign*obj.get_sum_of_template_in_veh(obj.knobs.knob_link_ids(i,1))*obj.get_remaining_monitored_mainline_length(obj.get_next_mainline_link_id(obj.knobs.knob_link_ids(i))); 
+                equation_coefficients_tuple(1,i)=sign*obj.get_sum_of_template_in_veh(obj.knobs.knob_link_ids(i,1))*obj.get_remaining_monitored_mainline_length(obj.get_next_mainline_link_id(obj.knobs.knob_link_ids(i)));  
             end
-            res=obj.TVMpH_reference_values.beats+alphaIs_tuple*(vector-1)/(obj.beats_parameters.DURATION/3600);
-        end   % Computes TVMpH with the knobs vector.
+            equation_rest_of_left_side=obj.TVM_reference_values.beats-sum(equation_coefficients_tuple); %second term between brackets of the left side
+            [knobs_on_correct_subspace,fval]=quadprog(eye(sze),-reshape(vector,1,[]),[],[],equation_coefficients_tuple, obj.TVM_reference_values.pems-equation_rest_of_left_side,obj.knobs.knob_boundaries_min,obj.knobs.knob_boundaries_max); % minimization program
+        end    
+
+        %other useful stuff...............................................
+        
+        function [result_vector] = rescale_knobs(obj, input_vector, isRealScaleToZeroTenScale) % rescales the knobs from 0:10 to their actual respective range (used by cmaes for 'uniform sensitivity' reasons) or the opposite operation.
+            Knobs=obj.knobs;
+            if isRealScaleToZeroTenScale==1
+                result_vector=((input_vector-Knobs.knob_boundaries_min)./(Knobs.knob_boundaries_max-Knobs.knob_boundaries_min))*10;
+            elseif isRealScaleToZeroTenScale==0
+                result_vector=(input_vector/10).*(Knobs.knob_boundaries_max-Knobs.knob_boundaries_min)+Knobs.knob_boundaries_min;
+            else error ('The second parameter must be zero or one');
+            end        
+        end
+        
+        function [] = set_knobs(obj, knobs_vector)
+            for i= 1:size(obj.knobs.knob_link_ids)
+                if (ismember(obj.knobs.knob_link_ids(i),obj.link_ids_beats(obj.source_mask_beats)))
+                    obj.beats_simulation.beats.set.demand_knob_for_link_id(obj.knobs.knob_link_ids(i),knobs_vector(i));
+                else
+                    obj.beats_simulation.beats.set.knob_for_offramp_link_id(obj.knobs.knob_link_ids(i),knobs_vector(i));
+            end    
+            end
+        end
+        
+        %temporary.........................................................
         
         function [res] = compute_exit_outflow_with_knobs_vector(obj,vector)
             sum_of_templates_tuple=[];
@@ -567,21 +625,20 @@ classdef (Abstract) AlgorithmBox < handle
             res=obj.flow_reference_values.beats + sum_of_templates_tuple*(vector-1);
         end   % Computes the outflow of the exit mainline link with the knobs vector.
         
-        function [sum_of_template] = get_sum_of_template_in_veh(obj,knob_link_id)
-            dp=obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(knob_link_id);
-            sum_of_template=sum(dp.demand)*dp.dt;
-        end   
-        
-        function [result_vector] = rescale_knobs(obj, input_vector, isRealScaleToZeroTenScale) % rescales the knobs from 0:10 to their actual respective range (used by cmaes for 'uniform sensitivity' reasons) or the opposite operation.
-            Knobs=obj.knobs;
-            if isRealScaleToZeroTenScale==1
-                result_vector=((input_vector-Knobs.knob_boundaries_min)./(Knobs.knob_boundaries_max-Knobs.knob_boundaries_min))*10;
-            elseif isRealScaleToZeroTenScale==0
-                result_vector=(input_vector/10).*(Knobs.knob_boundaries_max-Knobs.knob_boundaries_min)+Knobs.knob_boundaries_min;
-            else error ('The second parameter must be zero or one');
-            end        
-        end
-                    
+       function [res] = compute_TVM_with_knobs_vector(obj,vector)
+            %assumes units are in SI
+            alphaIs_tuple=[];
+            for i=1:size(obj.knobs.knob_link_ids) %fill the tuple
+                if (ismember(obj.knobs.knob_link_ids(i),obj.link_ids_beats(obj.source_mask_beats)))
+                    sign=1;
+                else
+                    sign=-1;
+                end
+                alphaIs_tuple(1,i)=sign*obj.get_sum_of_template_in_veh(obj.knobs.knob_link_ids(i,1))*obj.get_remaining_monitored_mainline_length(obj.get_next_mainline_link_id(obj.knobs.knob_link_ids(i))); 
+            end
+            res=obj.TVM_reference_values.beats+alphaIs_tuple*(vector-1);
+       end   % Computes TVM with the knobs vector.
+
      end
  
 end    
