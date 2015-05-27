@@ -1,12 +1,17 @@
-Implement TVH
+talk about TVM
 
-How do I get contour plot of pems data to compare (and for congestion pattern)	
+Implement TVH : why not multiply by number of hours ?
+
+How do I get contour plot of pems data to compare (and for congestion pattern)
+/are flw and occ smoothened ? Oo
+/ 288 in pems5data => pb if duration different than one day ?
+/ use real scenario instead of "matching beats" scenario now 
+
 
 Pb with several sensors in one link in pems "unique..."=> errors in TVM and others maybe => I checked, two sensors on a same link have different values ex : columns 3-45, 64-66, 63-67.
 
 equilibrium popsize/time
-
-add numiter and numeval to xls results												
+										
 
 0770 0260 	
 

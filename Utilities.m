@@ -63,7 +63,7 @@ classdef Utilities
         function [distance]= euclidianDistance(fvector, svector)
             distance=norm(fvector-svector,2);
         end
-        
+               
     end
     
     

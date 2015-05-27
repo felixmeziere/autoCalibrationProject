@@ -55,6 +55,8 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
         end  % set a field of inopts.
         
         function [] = run_algorithm(obj)
+              obj.numberOfIterations=1;
+              obj.numberOfEvaluations=1;
               obj.res_history=[];
               obj.knobs_history=[];
               obj.inopts.MaxFunEvals = obj.maxEval;
@@ -65,15 +67,15 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
               xstart=obj.rescale_knobs(obj.starting_point,1);
               [bestPoint, last, obj.numberOfEvaluations, obj.stopFlag, obj.out, bestEver]=cmaes(@(x)obj.errorFunction(x,1), xstart, obj.insigma, obj.inopts);  
               load variablescmaes.mat
-              bestever.x=obj.rescale_knobs(bestever.x,0);
-              obj.bestEverPoint=bestever.x;
-              obj.bestEver=bestever;
+              bestEver.x=obj.rescale_knobs(bestEver.x,0);
+              obj.bestEverPoint=bestEver.x;
+              obj.bestEver=bestEver;
               obj.res_history=reshape(obj.res_history,[],1);
-              obj.res_history=obj.res_history/obj.TVM_reference_values.pems;
+              obj.res_history=obj.res_history/obj.performance_calculator.result_from_pems;
               for i=1:size(obj.knobs_history,2)
                   temp(i,:)=obj.knobs_history(:,i);
               end
-              obj.bestEverErrorFunctionValue=bestever.f;
+              obj.bestEverErrorFunctionValue=bestEver.f;
               obj.knobs_history=temp;
               obj.numberOfIterations=countiter;
         end   % defined in AlgorithmBox   

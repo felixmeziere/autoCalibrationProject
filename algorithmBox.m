@@ -29,7 +29,7 @@ classdef (Abstract) AlgorithmBox < handle
         
     end
                 
-    properties (SetAccess = public)
+    properties (SetAccess = protected)
         
         beats_simulation@BeatsSimulation % the BeatsSimulation object that will run and be overwritten at each algorithm iteration.
         pems=struct; % the pems data to compare with the beats results. Input fields : 'days' (e.g. datenum(2014,10,1):datenum(2014,10,10)); 'district' (e.g. 7); 'processed_folder'(e.g. C:\Code). Output Fields : 'data' 
@@ -37,18 +37,19 @@ classdef (Abstract) AlgorithmBox < handle
         error_calculator@ErrorCalculator % an ErrorCalculator subclass, which is a way of comparing two performance calculator values (e.g. L1 norm).
         initialization_method@char % initialization method must be 'normal', 'uniform' or 'manual'.
         TVM_reference_values=struct; %TVM values from pems and beats with all knobs set to one.
-        flow_reference_values=struct;
-        knobs_history
-        res_history
+%         flow_reference_values=struct;
+
         
         result_for_xls@cell % result of the algorithm to be outputed to the xls file.
         out % struct with various histories and solutions.
         bestEverErrorFunctionValue % smallest error_calculator value reached during the execution. Extracted from out.
         bestEverPoint % vector of knob values that gave the best (smallest) ever function value.
-        numberOfIterations % number of iterations of the algorithm (different than the number of evaluations for evolutionnary algorithms for example).
-        numberOfEvaluations % number of times beats ran a simulation. Extracted from out.
+        numberOfIterations=0; % number of iterations of the algorithm (different than the number of evaluations for evolutionnary algorithms for example).
+        numberOfEvaluations=0; % number of times beats ran a simulation. Extracted from out.
         stopFlag; % reason why the algorithm stopped. Extracted from out.
         convergence % convergence speed.
+        knobs_history % consecutive values of the knobs during last run 
+        res_history % consecutive values of the errorfunction during last run
         
     end
     
@@ -237,9 +238,8 @@ classdef (Abstract) AlgorithmBox < handle
             if (obj.pems_loaded==1)
                 obj.performance_calculator=input(['Enter the name of a "PerformanceCalculator" subclass (like TVH) : ']);
                 obj.error_calculator=input(['Enter the name of an "ErrorCalculator" subclass (like L1) : ']);
+                obj.load_beats;
                 obj.performance_calculator.calculate_from_pems(obj);
-                obj.performance_calculator.calculate_from_beats(obj);
-
             else
                 error('Pems data must be loaded first.')
             end    
@@ -264,8 +264,8 @@ classdef (Abstract) AlgorithmBox < handle
                     TVmiles=TVM;
                     obj.TVM_reference_values.beats=TVmiles.calculate_from_beats(obj);
                     obj.performance_calculator.calculate_from_beats(obj);
-                    refflw=DailyExitFlow;
-                    obj.flow_reference_values.beats=refflw.calculate_from_beats(obj);
+%                     refflw=DailyExitFlow;
+%                     obj.flow_reference_values.beats=refflw.calculate_from_beats(obj);
                 end
                 obj.linear_link_ids=obj.link_ids_beats(obj.beats_simulation.scenario_ptr.extract_linear_fwy_indices);
                 obj.knobs_history=zeros(size(obj.knobs.knob_link_ids,1),1);
@@ -285,8 +285,8 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.performance_calculator.calculate_from_pems(obj);
                 obj.performance_calculator.calculate_from_beats(obj);
                 obj.TVM_reference_values.pems = TVmiles.calculate_from_pems(obj);
-                refflw=DailyExitFlow;
-                obj.flow_reference_values.beats=refflw.calculate_from_beats(obj);
+%                 refflw=DailyExitFlow;
+%                 obj.flow_reference_values.beats=refflw.calculate_from_beats(obj);
                 obj.pems_loaded=1;
                 disp('PeMS DATA LOADED.');
             else
@@ -386,7 +386,7 @@ classdef (Abstract) AlgorithmBox < handle
                 knob_values=obj.project_on_correct_TVM_subspace(knob_values);
                 zeroten_knob_values=obj.rescale_knobs(knob_values,1);
                 obj.knobs_history(:,end+1)=knob_values;
-                disp('Knobs vector and values being tested:');
+                disp(['Knobs vector and values being tested for evaluation # ',num2str(obj.numberOfEvaluations),' :']);
                 disp(' ');
                 disp(['               Demand Id :','                 Link Id :','                      Value and max:','            Value on a scale from 0 to 10:']);
                 disp(' ');
@@ -399,6 +399,7 @@ classdef (Abstract) AlgorithmBox < handle
                 disp(['    Error function value :','       Error in percentage:']);
                 disp([result, (result/obj.performance_calculator.result_from_pems)*100]);
                 obj.res_history(:,end+1)=result;
+                obj.numberOfEvaluations=obj.numberOfEvaluations+1;
             else
                 error('The matrix with knobs values given does not match the number of knobs to tune or is not a column vector.');
             end    
@@ -450,7 +451,7 @@ classdef (Abstract) AlgorithmBox < handle
             obj.pems.peMS5minData.load(obj.pems.processed_folder,  vds2id(:,1), obj.pems.days);
             obj.pems.data=obj.pems.peMS5minData.get_data_batch_aggregate(vds2id(:,1), obj.pems.days(obj.current_day), 'smooth', true);
             obj.pems.data.flw=obj.pems.data.flw/12;
-            obj.pems.data.occ=obj.pems.data.occ/12;
+            obj.pems.data.occ=obj.pems.data.occ;
             good_sensor_mask_pems_r = all(~isnan(obj.pems.data.flw), 1);
             good_sensor_ids_r=vds2id(good_sensor_mask_pems_r,2);
             good_sensor_link_r=sensor_link(ismember(sensor_link(:,1), good_sensor_ids_r),:);
@@ -493,7 +494,6 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.knobs.knob_demand_ids(i,1)=dps(i).id;
             end
         end
-
 
         %get link lengths in beats or pems data matching format............
     
@@ -605,18 +605,18 @@ classdef (Abstract) AlgorithmBox < handle
         
         %temporary.........................................................
         
-        function [res] = compute_exit_outflow_with_knobs_vector(obj,vector)
-            sum_of_templates_tuple=[];
-            for i=1:size(obj.knobs.knob_link_ids) %fill the tuple
-                if (ismember(obj.knobs.knob_link_ids(i),obj.link_ids_beats(obj.source_mask_beats)))
-                    sign=1;
-                else
-                    sign=-1;
-                end
-                sum_of_templates_tuple(1,i)=sign*obj.get_sum_of_template_in_veh(obj.knobs.knob_link_ids(i,1)); 
-            end
-            res=obj.flow_reference_values.beats + sum_of_templates_tuple*(vector-1);
-        end   % Computes the outflow of the exit mainline link with the knobs vector.
+%         function [res] = compute_exit_outflow_with_knobs_vector(obj,vector)
+%             sum_of_templates_tuple=[];
+%             for i=1:size(obj.knobs.knob_link_ids) %fill the tuple
+%                 if (ismember(obj.knobs.knob_link_ids(i),obj.link_ids_beats(obj.source_mask_beats)))
+%                     sign=1;
+%                 else
+%                     sign=-1;
+%                 end
+%                 sum_of_templates_tuple(1,i)=sign*obj.get_sum_of_template_in_veh(obj.knobs.knob_link_ids(i,1)); 
+%             end
+%             res=obj.flow_reference_values.beats + sum_of_templates_tuple*(vector-1);
+%         end   % Computes the outflow of the exit mainline link with the knobs vector.
         
         function [res] = compute_TVM_with_knobs_vector(obj,vector)
             %assumes units are in SI

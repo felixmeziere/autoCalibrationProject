@@ -8,11 +8,11 @@ classdef (Abstract) PerformanceCalculator < handle
        
    end 
    
-   properties (Abstract, Constant)
+   properties (Abstract, SetAccess = protected)
        
        name
        
-   end
+   end    
    
    methods(Abstract, Access = public)
        

@@ -1,0 +1,12 @@
+rectangles=cell(2,1);
+d.left_absciss=1;
+d.right_absciss=10;
+d.up_ordinate=1;
+d.down_ordinate=12;
+e.left_absciss=50;
+e.right_absciss=130;
+e.up_ordinate=144;
+e.down_ordinate=228;
+rectangles{1,1}=d;
+rectangles{2,1}=e;
+b= CongestionPattern(a,rectangles);
