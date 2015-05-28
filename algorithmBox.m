@@ -514,7 +514,7 @@ classdef (Abstract) AlgorithmBox < handle
         function [lengths] = get_link_lengths_miles_beats(obj,link_mask_beats)
             link_length_miles = obj.beats_simulation.scenario_ptr.get_link_lengths('us')*0.0001893935;
             lengths = link_length_miles(link_mask_beats);
-        end %get an array with the lengths of the links pointed by link_mask_pems, when applied to a 'beats format' link ids array.
+        end %get an array with the lengths of the links pointed by link_mask_beats, when applied to a 'beats format' link ids array.
         
         %get remaining monitored mainline link ids.........................
         
@@ -649,8 +649,32 @@ classdef (Abstract) AlgorithmBox < handle
             equation_rest_of_left_side=obj.TVM_reference_values.beats-sum(equation_coefficients_tuple); %second term between brackets of the left side
             [knobs_on_correct_subspace,fval]=fmincon(@(x)Utilities.euclidianDistance(x,vector),vector,[],[],equation_coefficients_tuple, obj.TVM_reference_values.pems-equation_rest_of_left_side,obj.knobs.knob_boundaries_min,obj.knobs.knob_boundaries_max); % minimization program
         end 
-
-     end
+        %temp.................
+        function [linear_mask_in_mainline_space] = send_mask_beats_to_linear_mainline_space(obj, algoBox,mask_beats)
+            linear_mask_in_mainline_space=obj.send_linear_mask_beats_to_mainline_space(algoBox, obj.send_mask_beats_to_linear_space(algoBox, mask_beats));
+        end  
+        
+    end
+     %temp...........................   
+    methods (Static, Access = public)
+    
+        function [linear_mask] = send_mask_beats_to_linear_space(algoBox, mask_beats)
+            linear_mask=ismember(algoBox.linear_link_ids,algoBox.link_ids_beats(mask_beats));
+        end    
+        
+        function [linear_mask_in_mainline_space] = send_linear_mask_beats_to_mainline_space(algoBox, linear_mask_beats)
+            mainline_link_ids=algoBox.link_ids_beats(algoBox.mainline_mask_beats);
+            linear_mask_in_mainline_space = ismember(mainline_link_ids,algoBox.linear_link_ids(linear_mask_beats));
+        end    
+        
+          
+        
+        function [linear_mask_in_mainline_space] = send_mask_pems_to_linear_mainline_space(algoBox, mask_pems)
+            mainline_link_ids=algoBox.link_ids_beats(algoBox.mainline_mask_beats);
+            mainline_masked_link_ids=algoBox.link_ids_pems(mask_pems);
+            linear_mask_in_mainline_space = ismember(mainline_link_ids,mainline_masked_link_ids);
+        end    
+    end    
  
 end    
 

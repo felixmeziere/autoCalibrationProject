@@ -9,8 +9,9 @@ classdef CongestionPattern < PerformanceCalculator
         vertical_size
         horizontal_size
         linear_mainline_links
-        jam_densities
+        critical_densities
         linear_mainline_indices
+        linear_link_lengths_miles
         
     end    
     
@@ -30,26 +31,42 @@ classdef CongestionPattern < PerformanceCalculator
                 obj.vertical_size=size(algoBox.pems.data.flw,1);
                 obj.horizontal_size=sum(algoBox.mainline_mask_beats);
                 obj.linear_mainline_links=algoBox.linear_link_ids(obj.send_mask_beats_to_linear_space(algoBox,algoBox.mainline_mask_beats));
-                obj.set_jam_densities(algoBox);
                 linear_fwy_indices=algoBox.beats_simulation.scenario_ptr.extract_linear_fwy_indices;
-                obj.linear_mainline_indices=linear_fwy_indices(obj.send_mask_beats_to_linear_mainline_space(algoBox,algoBox.mainline_mask_beats));
-            else error('Argument rectangles not in the right format. Please see code comments.');     
+                obj.linear_mainline_indices=linear_fwy_indices(obj.send_mask_beats_to_linear_space(algoBox,algoBox.mainline_mask_beats));
+                obj.set_critical_densities(algoBox);
+                else error('Argument rectangles not in the right format. Please see code comments.');     
             end
         end    
         
+%         function [result] = calculate_from_beats(obj, algoBox)
+%             %CHECK ONLY ON MONITORED LINKS (SIMPLIFIES ALL THIS).
+%             result=zeros(obj.vertical_size, obj.horizontal_size);
+%             for i=1:size(obj.rectangles,1)
+%                 uo=obj.rectangles{i}.up_ordinate;
+%                 do=obj.rectangles{i}.down_ordinate;
+%                 la=obj.rectangles{i}.left_absciss;
+%                 ra=obj.rectangles{i}.right_absciss;
+%                 densities=algoBox.beats_simulation.density_veh{1,1}(uo:do,obj.linear_mainline_indices(la:ra));
+%                 rectangle=zeros(do-uo+1,ra-la+1);
+%                 rectangle(densities>obj.critical_densities{i,1})=-1;
+%                 result(uo:do,la:ra)=rectangle;
+%             end    
+%             obj.result_from_beats=result;
+%         end
+
         function [result] = calculate_from_beats(obj, algoBox)
             %CHECK ONLY ON MONITORED LINKS (SIMPLIFIES ALL THIS).
             result=zeros(obj.vertical_size, obj.horizontal_size);
-            for i=1:size(obj.rectangles,1)
-                uo=obj.rectangles{i}.up_ordinate;
-                do=obj.rectangles{i}.down_ordinate;
-                la=obj.rectangles{i}.left_absciss;
-                ra=obj.rectangles{i}.right_absciss;
-                densities=algoBox.beats_simulation.density_veh{1,1}(uo:do,obj.linear_mainline_indices(la:ra));
-                rectangle=zeros(do-uo+1,ra-la+1);
-                rectangle(densities>obj.jam_densities{i,1})=-1;
-                result(uo:do,la:ra)=rectangle;
-            end    
+%             for i=1:size(obj.rectangles,1)
+%                 uo=obj.rectangles{i}.up_ordinate;
+%                 do=obj.rectangles{i}.down_ordinate;
+%                 la=obj.rectangles{i}.left_absciss;
+%                 ra=obj.rectangles{i}.right_absciss;
+                densities=algoBox.beats_simulation.density_veh{1,1}(2:end,obj.linear_mainline_indices);
+%                 rectangle=zeros(do-uo+1,ra-la+1);
+                result(densities>obj.critical_densities+6)=-1;
+%             end    
+            obj.result_from_beats=result;
         end
         
         function [result] = calculate_from_pems(obj, algoBox)
@@ -70,24 +87,52 @@ classdef CongestionPattern < PerformanceCalculator
     methods (Access = public) %public for debug reasons
        
         
-        
-        function [] = set_jam_densities(obj, algoBox)
-            obj.jam_densities=cell(size(obj.rectangles));
-            for i=1:size(obj.rectangles,1)
-                this_jam_densities=[];
-                uo=obj.rectangles{i}.up_ordinate;
-                do=obj.rectangles{i}.down_ordinate;
-                la=obj.rectangles{i}.left_absciss;
-                ra=obj.rectangles{i}.right_absciss;
-                fds=algoBox.beats_simulation.scenario_ptr.get_fds_with_linkIDs(obj.linear_mainline_links(1,la:ra));
-                for p=1:size(fds,2)
-                    this_jam_densities(1,p)=fds(1,p).jam_density;
+%         function [] = set_critical_densities(obj, algoBox)
+%             obj.critical_densities=cell(size(obj.rectangles));
+%             link_lengths_meters=algoBox.beats_simulation.scenario_ptr.get_link_lengths('si');
+%             link_lengths_meters=link_lengths_meters(obj.linear_mainline_indices);
+%             links=algoBox.beats_simulation.scenario_ptr.get_link_byID(obj.linear_mainline_links);
+%             for i=1:size(obj.linear_mainline_links,2)
+%                 number_lanes(1,i)=links(1,i).ATTRIBUTE.lanes;
+%             end    
+%             for i=1:size(obj.rectangles,1)
+%                 this_critical_densities=[];
+%                 uo=obj.rectangles{i}.up_ordinate;
+%                 do=obj.rectangles{i}.down_ordinate;
+%                 la=obj.rectangles{i}.left_absciss;
+%                 ra=obj.rectangles{i}.right_absciss;
+%                 fds=algoBox.beats_simulation.scenario_ptr.get_fds_with_linkIDs(obj.linear_mainline_links(1,la:ra));
+%                 this_number_lanes=number_lanes(1,la:ra);
+%                 this_number_lanes=repmat(this_number_lanes,do-uo+1,1);
+%                 this_link_lengths_meters=repmat(link_lengths_meters(1,la:ra),do-uo+1,1);
+%                 for p=1:size(fds,2)
+%                     this_critical_densities(1,p)=fds(1,p).capacity/fds(1,p).free_flow_speed;
+%                 end    
+%                 this_critical_densities=repmat(this_critical_densities,do-uo+1,1);
+%                 this_critical_densities=this_critical_densities.*this_link_lengths_meters.*this_number_lanes;
+%                 obj.critical_densities{i,1}=this_critical_densities;
+%             end    
+%         end      
+
+          function [] = set_critical_densities(obj, algoBox)
+                obj.critical_densities=zeros(obj.vertical_size,obj.horizontal_size);
+                link_lengths_meters=algoBox.beats_simulation.scenario_ptr.get_link_lengths('si');
+                link_lengths_meters=link_lengths_meters(obj.linear_mainline_indices);
+                link_lengths_meters=repmat(link_lengths_meters,obj.vertical_size,1);
+                links=algoBox.beats_simulation.scenario_ptr.get_link_byID(obj.linear_mainline_links);
+                for i=1:size(obj.linear_mainline_links,2)
+                    number_lanes(1,i)=links(1,i).ATTRIBUTE.lanes;
                 end    
-                this_jam_densities=repmat(this_jam_densities,do-uo+1,1);
-                obj.jam_densities{i,1}=this_jam_densities;
-            end    
-        end    
-        
+                number_lanes=repmat(number_lanes,obj.vertical_size,1);
+                fds=algoBox.beats_simulation.scenario_ptr.get_fds_with_linkIDs(obj.linear_mainline_links);
+                for p=1:size(fds,2)
+                    critical_densities(1,p)=fds(1,p).capacity/fds(1,p).free_flow_speed;
+                end    
+                critical_densities=repmat(critical_densities,obj.vertical_size,1);
+                critical_densities=critical_densities.*link_lengths_meters.*number_lanes;
+                obj.critical_densities=critical_densities;   
+        end            
+
         
         function [linear_mask_in_mainline_space] = send_mask_beats_to_linear_mainline_space(obj, algoBox,mask_beats)
             linear_mask_in_mainline_space=obj.send_linear_mask_beats_to_mainline_space(algoBox, obj.send_mask_beats_to_linear_space(algoBox, mask_beats));

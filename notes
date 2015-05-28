@@ -10,7 +10,14 @@ How do I get contour plot of pems data to compare (and for congestion pattern)
 
 Pb with several sensors in one link in pems "unique..."=> errors in TVM and others maybe => I checked, two sensors on a same link have different values ex : columns 3-45, 64-66, 63-67.
 
+TVM/TVH too global to tune 11 knobs precisely : take into account local variations ? 
+
+why don't I compare with the actual congestion instead of a square ? I define a rectangle, and then compare pems congestion with beats congestion in it.
+criteria for density treshold+epsilon
+unify error_calculator in only one class... or not
 equilibrium popsize/time
+
+
 										
 
 0770 0260 	
