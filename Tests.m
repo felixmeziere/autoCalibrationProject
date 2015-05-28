@@ -12,5 +12,6 @@ rectangles{2,1}=e;
 b= CongestionPattern(a,rectangles); 
 b.calculate_from_beats(a);
 b.calculate_from_pems(a);
-d=b.result_from_beats+b.result_from_pems;
-imagesc(d)
+d=-b.result_from_beats+b.result_from_pems;
+imagesc(d);
+    

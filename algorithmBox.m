@@ -5,6 +5,12 @@ classdef (Abstract) AlgorithmBox < handle
     %   sink knobs). This allows you to run a program set in an excel
     %   file and automaticlly registers the results in another excel file.
     
+    %CHECK THAT MONITORED TEMPLATES ARE THE EXACT SAME AS PEMS DATA.
+    %I AM USING BEATS OUTPUT WITH KNOBS SET TO ONE INSTEAD OF TEMPLATES FOR
+    %REFINING THE KNOB BOUNDARIES.
+    %IS THERE A WAY TO RUN BEATS PERSISTENT WHITHOUT RESETING ? ITS SO
+    %FAST.
+    
     properties (Abstract, Constant)
         
         algorithm_name %name used sometimes.
@@ -63,6 +69,8 @@ classdef (Abstract) AlgorithmBox < handle
         is_program_first_run=1; %flag to indicate if long loading time data has been already loaded.
         linear_link_ids
         two_sensors_links
+        knob_sensor_map
+        knob_groups
         
         
         %masks pointing at the links with working sensors used on beats 
@@ -294,16 +302,20 @@ classdef (Abstract) AlgorithmBox < handle
             end
         end   
         
-        function [] = set_auto_knob_boundaries(obj) %sets automatically the knob minimums to zero and maximums to [link's FD max capacity*number of lanes]/[max value of the link's demand template]
+        function [] = set_auto_knob_boundaries(obj,isnaive) %sets automatically the knob minimums to zero and maximums to [link's FD max capacity*number of lanes]/[max value of the link's demand template]
             disp('Knob boundaries set automatically :');
-            for i=1:size(obj.knobs.knob_link_ids)    
-                maxTemplateValue=max(obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.knobs.knob_link_ids(i)).demand);       
-                lanes=obj.beats_simulation.scenario_ptr.get_link_byID(obj.knobs.knob_link_ids(i)).ATTRIBUTE.lanes;
-                FDcapacity=obj.beats_simulation.scenario_ptr.get_fds_with_linkIDs(obj.knobs.knob_link_ids(i)).capacity*lanes;
-                obj.knobs.knob_boundaries_min(i,1)=0;
-                obj.knobs.knob_boundaries_max(i,1)=FDcapacity/maxTemplateValue;
-                disp(['Knob ', num2str(obj.knobs.knob_demand_ids(i,1)), ' | ', num2str(obj.knobs.knob_link_ids(i,1)), ' minimum value : ','0']);
-                disp(['Knob ', num2str(obj.knobs.knob_demand_ids(i,1)), ' | ', num2str(obj.knobs.knob_link_ids(i,1)), ' maximum value : ',num2str(FDcapacity/maxTemplateValue)]);
+            if (nargin>2 && isnaive==1)
+                for i=1:size(obj.knobs.knob_link_ids)    
+                    maxTemplateValue=max(obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.knobs.knob_link_ids(i)).demand);       
+                    lanes=obj.beats_simulation.scenario_ptr.get_link_byID(obj.knobs.knob_link_ids(i)).ATTRIBUTE.lanes;
+                    FDcapacity=obj.beats_simulation.scenario_ptr.get_fds_with_linkIDs(obj.knobs.knob_link_ids(i)).capacity*lanes;
+                    obj.knobs.knob_boundaries_min(i,1)=0;
+                    obj.knobs.knob_boundaries_max(i,1)=FDcapacity/maxTemplateValue;
+                    disp(['Knob ', num2str(obj.knobs.knob_demand_ids(i,1)), ' | ', num2str(obj.knobs.knob_link_ids(i,1)), ' minimum value : ','0']);
+                    disp(['Knob ', num2str(obj.knobs.knob_demand_ids(i,1)), ' | ', num2str(obj.knobs.knob_link_ids(i,1)), ' maximum value : ',num2str(FDcapacity/maxTemplateValue)]);
+                end
+            else
+                
             end    
         end
         
@@ -383,7 +395,7 @@ classdef (Abstract) AlgorithmBox < handle
                 else
                     zeroten_knob_values=repmat([],size(knob_values,1),1);
                 end
-                knob_values=obj.project_on_correct_TVM_subspace(knob_values);
+%                 knob_values=obj.project_on_correct_TVM_subspace(knob_values);
                 zeroten_knob_values=obj.rescale_knobs(knob_values,1);
                 obj.knobs_history(:,end+1)=knob_values;
                 disp(['Knobs vector and values being tested for evaluation # ',num2str(obj.numberOfEvaluations),' :']);
@@ -542,6 +554,7 @@ classdef (Abstract) AlgorithmBox < handle
             else error('Input link must be non-mainline sink or source');        
             end    
         end % gets the id of the mainline link just after the node connecting the input_link_id ramp to the freeway.
+        %MUST BE SIMPLIFIED USING EXTRACT_LINEAR_FREEWAY_INDICES
 
         function [remaining_mainline_length]=get_remaining_monitored_mainline_length(obj, first_mainline_link_id)
             k=1;
@@ -556,8 +569,8 @@ classdef (Abstract) AlgorithmBox < handle
 
         %project the algorithm input to correct TVM subspace...............
         
-        function [sum_of_template] = get_sum_of_template_in_veh(obj,knob_link_id) 
-            dp=obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(knob_link_id);
+        function [sum_of_template] = get_sum_of_template_in_veh(obj,link_id) 
+            dp=obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(link_id);
             sum_of_template=sum(dp.demand)*dp.dt;
         end   %returns the sum over time of the template of the link id, in vehicles.
         
@@ -602,6 +615,67 @@ classdef (Abstract) AlgorithmBox < handle
             end    
             end
         end
+        
+        %functions to refine the boundaries to realistic ones, taking local
+        %monitored flows for each knob into account.......................
+        
+        function [] = set_knob_groups(obj) %assumes the first (entry) mainline link is monitored
+            knob_sensor_map=zeros(size(obj.linear_link_ids));
+            knob_sensor_map(ismember(obj.linear_link_ids,obj.link_ids_beats(obj.good_mainline_mask_beats)))=1;
+            knob_sensor_map(ismember(obj.linear_link_ids,obj.knobs.knob_link_ids))=-1;
+            obj.knob_sensor_map=knob_sensor_map;
+            last_monitored_is_mainline=1;
+            index=1;
+            subindex=1;
+            knob_groups=cell(1,size(obj.knobs.knob_link_ids,1));
+            for i=1:size(knob_sensor_map,2)
+                if knob_sensor_map(i)==1
+                    if last_monitored_is_mainline==0
+                        index=index+1;
+                        subindex=1;
+                        last_monitored_is_mainline=1;
+                    end    
+                elseif knob_sensor_map(i)==-1
+                    last_monitored_is_mainline=0;
+                    array=cell2mat(knob_groups{1,index});
+                    array(subindex,1)=obj.linear_link_ids(i);
+                    knob_groups{1,index}=num2cell(array);
+                    subindex=subindex+1;
+                end                    
+            end
+            obj.knob_groups=knob_groups(1,1:index-1);
+        end
+        
+        function [local_flow_difference] = get_unmonitored_flow_difference(obj, monitored_source_mainline_link_id, monitored_sink_mainline_link_id)
+            source_index=find(obj.linear_link_ids==monitored_source_mainline_link_id);
+            sink_index=find(obj.linear_link_ids==monitored_sink_mainline_link_id);
+            local_segment_link_ids=obj.linear_link_ids(1,source_index:sink_index);
+            all_monitored_sources=obj.link_ids_beats(obj.good_source_mask_beats);
+            all_monitored_sinks=obj.link_ids_beats(obj.good_sink_mask_beats);
+            local_monitored_sources(1,1)=monitored_source_mainline_link_id;
+            number_local_monitored_sources=sum(ismember(local_segment_link_ids,all_monitored_sources))+1;
+            local_monitored_sources(1,2:number_local_monitored_sources)=local_segment_link_ids(ismember(local_segment_link_ids,all_monitored_sources));
+            local_monitored_sinks=local_segment_link_ids(ismember(local_segment_link_ids,all_monitored_sinks));
+            local_monitored_sinks(1,end+1)=monitored_sink_mainline_link_id;
+            local_flow_difference=0;
+            for i=1:size(local_monitored_sources,2)
+                local_flow_difference=local_flow_difference+sum(obj.beats_simulation.get_output_for_link_id(local_monitored_sources(1,i)).flw_in_veh);
+            end
+            for i=1:size(local_monitored_sinks,2)
+                local_flow_difference=local_flow_difference-sum(obj.beats_simulation.get_output_for_link_id(local_monitored_sinks(1,i)).flw_in_veh);
+            end   
+        end    
+        
+        function [monitored_closer_mainline_source,monitored_closer_mainline_sink]= get_monitored_segment_for_knob_group(obj, knob_group)
+            is_monitored_mainline_link=0;    
+            first_knob_index=find(obj.linear_link_ids,knob_group{1,1});
+            last_knob_index=find(obj.linear_link_ids(knob_groups{end,1}));
+            while (is_monitored_mainline_link==0)
+                monitored_closer_mainline_sink=obj.linear_link_ids(
+                close_to_sink=obj.get_next_mainline_link_id(
+            
+        end    
+        
         
         %temporary.........................................................
         
@@ -649,13 +723,15 @@ classdef (Abstract) AlgorithmBox < handle
             equation_rest_of_left_side=obj.TVM_reference_values.beats-sum(equation_coefficients_tuple); %second term between brackets of the left side
             [knobs_on_correct_subspace,fval]=fmincon(@(x)Utilities.euclidianDistance(x,vector),vector,[],[],equation_coefficients_tuple, obj.TVM_reference_values.pems-equation_rest_of_left_side,obj.knobs.knob_boundaries_min,obj.knobs.knob_boundaries_max); % minimization program
         end 
-        %temp.................
+        %transform masks to fit linear freeway...........................
         function [linear_mask_in_mainline_space] = send_mask_beats_to_linear_mainline_space(obj, algoBox,mask_beats)
             linear_mask_in_mainline_space=obj.send_linear_mask_beats_to_mainline_space(algoBox, obj.send_mask_beats_to_linear_space(algoBox, mask_beats));
         end  
         
     end
-     %temp...........................   
+    
+      %transform masks to fit linear freeway...............................
+    
     methods (Static, Access = public)
     
         function [linear_mask] = send_mask_beats_to_linear_space(algoBox, mask_beats)
@@ -666,8 +742,6 @@ classdef (Abstract) AlgorithmBox < handle
             mainline_link_ids=algoBox.link_ids_beats(algoBox.mainline_mask_beats);
             linear_mask_in_mainline_space = ismember(mainline_link_ids,algoBox.linear_link_ids(linear_mask_beats));
         end    
-        
-          
         
         function [linear_mask_in_mainline_space] = send_mask_pems_to_linear_mainline_space(algoBox, mask_pems)
             mainline_link_ids=algoBox.link_ids_beats(algoBox.mainline_mask_beats);

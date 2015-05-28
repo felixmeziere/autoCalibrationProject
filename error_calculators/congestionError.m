@@ -1,7 +1,7 @@
-classdef congestionError < ErrorCalculator
+classdef CongestionError < ErrorCalculator
 
     properties (Constant)
-        name='congestionError';
+        name='Congestion error';
     end
     
     properties (SetAccess = private)
@@ -13,7 +13,7 @@ classdef congestionError < ErrorCalculator
     
     methods (Access = public)
         
-        function [obj] = congestionError(normErrorCalculator, false_positive_coefficient, false_negative_coefficient)
+        function [obj] = CongestionError(normErrorCalculator, false_positive_coefficient, false_negative_coefficient)
             obj.norm=normErrorCalculator;
             obj.norm_name=obj.norm.name;
             obj.false_positive_coefficient=false_positive_coefficient;
@@ -21,7 +21,7 @@ classdef congestionError < ErrorCalculator
         end    
 
         function [result] = calculate(obj, beatsPerformance, pemsPerformance)
-            contour=beatsPerformance+pemsPerformance;
+            contour=pemsPerformance-beatsPerformance;
             for i=1:size(contour,2)
                 for j=1:size(contour,1)
                     if contour(j,i)==1

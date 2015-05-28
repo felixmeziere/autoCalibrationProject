@@ -64,7 +64,7 @@ classdef CongestionPattern < PerformanceCalculator
 %                 ra=obj.rectangles{i}.right_absciss;
                 densities=algoBox.beats_simulation.density_veh{1,1}(2:end,obj.linear_mainline_indices);
 %                 rectangle=zeros(do-uo+1,ra-la+1);
-                result(densities>obj.critical_densities+6)=-1;
+                result(densities>obj.critical_densities+6)=1;
 %             end    
             obj.result_from_beats=result;
         end
