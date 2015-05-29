@@ -57,8 +57,6 @@ disp('Why, in this case, the values are so different (1/3) ? I have observed tha
 %It should be 1 for all. We see that the problem happens to some offramps and no onramps.
 %These two lists are plotted in the same graph.
 
-disp ('Below shows the sum of output divided by the sum of template for all on ramps and off ramps. It should be 1 for all. We see that the problem happens to some offramps and no onramps.');
-
 %create onramps and offramps with AlgorithmBox data
 
 a=CmaesBox;
@@ -92,6 +90,7 @@ hold on;
 plot(d);
 %red is onramps and blue is offramps.
 
+disp ('Below shows the sum of output divided by the sum of template for all on ramps and off ramps. It should be 1 for all. We see that the problem happens to some offramps and no onramps.');
 disp('offramps');
 disp(c);
 
