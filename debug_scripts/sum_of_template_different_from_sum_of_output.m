@@ -124,7 +124,7 @@ hold on;
 plot(on_knobs_set_to_3);
 
 
-disp ('Below shows the sum of output divided by the sum of template for all on ramps and off ramps. It should be 1 and 3 for all. We see that the problem happens to some offramps and no onramps.');
+disp ('Below shows the sum of output divided by the sum of template for all on ramps and off ramps. It should be 1 and 3 for all. The knobs do not seem to act on the output of the links, so I dont think I understand how they work');
 disp('offramps knobs=1');
 disp(c);
 disp('offramps knobs=3');
