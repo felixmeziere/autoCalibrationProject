@@ -1,12 +1,12 @@
-% clear all
-% close all
-% scenario_ptr='C:\Users\Felix\code\autoCalibrationProject\config\210E_joined_frmode_beats.xml';
-% beats_parameters=struct('OUTPUT_DT','300','SIM_DT','4','RUN_MODE','fw_fr_split_output','DURATION','86400');
-% f=BeatsSimulation;
-% f.import_beats_classes;
-% f.load_scenario(scenario_ptr);
-% f.create_beats_object(beats_parameters);
-% f.run_beats_persistent;
+clear all
+close all
+scenario_ptr='C:\Users\Felix\code\autoCalibrationProject\config\210E_joined_frmode_beats.xml';
+beats_parameters=struct('OUTPUT_DT','300','SIM_DT','4','RUN_MODE','fw_fr_split_output','DURATION','86400');
+f=BeatsSimulation;
+f.import_beats_classes;
+f.load_scenario(scenario_ptr);
+f.create_beats_object(beats_parameters);
+f.run_beats_persistent;
 
 
 %this is an offramp
@@ -61,14 +61,11 @@ disp('Why, in this case, the values are so different (1/6) ? I have observed tha
 
 %create onramps and offramps with AlgorithmBox data
 
-% a=CmaesBox;
-% a.load_xls('C:\Users\Felix\code\autoCalibrationProject\xls\Cmaes_210E_program.xlsx','C:\Users\Felix\code\autoCalibrationProject\xls\Cmaes_210E_Results.xlsx');
-% onramps=a.link_ids_beats(logical(a.source_mask_beats.*~a.mainline_mask_beats));
-% offramps=a.link_ids_beats(logical(a.sink_mask_beats.*~a.mainline_mask_beats));
+a=CmaesBox;
+a.load_xls('C:\Users\Felix\code\autoCalibrationProject\xls\Cmaes_210E_program.xlsx','C:\Users\Felix\code\autoCalibrationProject\xls\Cmaes_210E_Results.xlsx');
+onramps=a.link_ids_beats(logical(a.source_mask_beats.*~a.mainline_mask_beats));
+offramps=a.link_ids_beats(logical(a.sink_mask_beats.*~a.mainline_mask_beats));
 
-
-
-%assumes onramps and offramps containing the onramps and offramps link ids has been created
 
 for i=1:size(offramps,2)
 dp=f.scenario_ptr.get_demandprofiles_with_linkIDs(offramps(i));
@@ -124,7 +121,7 @@ hold on;
 plot(on_knobs_set_to_3);
 
 
-disp ('Below shows the sum of output divided by the sum of template for all on ramps and off ramps. It should be 1 and 3 for all. The knobs do not seem to act on the output of the links, so I dont think I understand how they work');
+disp ('Below shows the sum of output divided by the sum of template for all on ramps and off ramps, when knobs are set to one ore three. It should be 1 and 3 for all. The knobs do not seem to act on the output of the links, so I dont think I understand how they work. Also, some offramp values when knobs=1 are not 1, which is surprising');
 disp('offramps knobs=1');
 disp(c);
 disp('offramps knobs=3');
