@@ -7,7 +7,8 @@ classdef (Abstract) AlgorithmBox < handle
     
     %CHECK THAT MONITORED TEMPLATES ARE THE EXACT SAME AS PEMS DATA.
     %I AM USING BEATS OUTPUT WITH KNOBS SET TO ONE INSTEAD OF TEMPLATES FOR
-    %REFINING THE KNOB BOUNDARIES.
+    %REFINING THE KNOB BOUNDARIES (IN THEORY, THEIR SUM SHOULD BE THE
+    %SAME).
     %IS THERE A WAY TO RUN BEATS PERSISTENT WHITHOUT RESETING ? ITS SO
     %FAST.
     
@@ -229,8 +230,8 @@ classdef (Abstract) AlgorithmBox < handle
                     obj.knobs.knob_boundaries_max=[];
                     obj.knobs.knob_boundaries_min=[];
                     for i=1:size(obj.knobs.knob_link_ids,1)
-                        obj.knobs.knob_boundaries_min(i,1)=input(['Knob ', num2str(obj.knobs.knob_demand_ids(i,1)), ' | ', num2str(obj.knobs.knob_link_ids(i,1)), ' minimum value : ']);
-                        obj.knobs.knob_boundaries_max(i,1)=input(['Knob ', num2str(obj.knobs.knob_demand_ids(i,1)), ' | ', num2str(obj.knobs.knob_link_ids(i,1)), ' maximum value : ']);
+                        obj.knobs.knob_boundaries_min(i,1)=input(['Knob ', num2str(obj.knobs.knob_demand_ids(i,1)), ' | ', num2str(obj.knobs.knob_link_ids(i,1)), ' minimum : ']);
+                        obj.knobs.knob_boundaries_max(i,1)=input(['Knob ', num2str(obj.knobs.knob_demand_ids(i,1)), ' | ', num2str(obj.knobs.knob_link_ids(i,1)), ' maximum : ']);
                     end
                 else     
                 end
@@ -401,7 +402,7 @@ classdef (Abstract) AlgorithmBox < handle
                     zeroten_knob_values=repmat([],size(knob_values,1),1);
                 end
 %                 knob_values=obj.project_on_correct_TVM_subspace(knob_values);
-                knob_values=obj.project_involved_knob_groups_on_correct_flow_subspace(knob_values);
+%                 knob_values=obj.project_involved_knob_groups_on_correct_flow_subspace(knob_values);
                 zeroten_knob_values=obj.rescale_knobs(knob_values,1);
                 obj.knobs_history(:,end+1)=knob_values;
                 disp(['Knobs vector and values being tested for evaluation # ',num2str(obj.numberOfEvaluations),' :']);
@@ -536,32 +537,42 @@ classdef (Abstract) AlgorithmBox < handle
         
         %get remaining monitored mainline link ids.........................
         
-        function [mainline_link_id]=get_next_mainline_link_id(obj,input_link_id)
-            if ismember(input_link_id,obj.link_ids_beats(logical(obj.source_mask_beats.*~obj.mainline_mask_beats)))
-                output_node_id=obj.beats_simulation.scenario_ptr.get_link_byID(input_link_id).end.ATTRIBUTE.node_id;
-                output_node=obj.beats_simulation.scenario_ptr.get_node_byID(output_node_id);
-                mainline_link_ids=obj.link_ids_beats(obj.mainline_mask_beats);
-                output_link_ids=output_node.outputs.output;
-                node_output_links=[];
-                for i=1:size(output_link_ids,2)
-                    node_output_links=output_node.outputs.output(i).ATTRIBUTE.link_id;
-                end
-                mainline_link_id=node_output_links(ismember(node_output_links,mainline_link_ids));
-            elseif ismember(input_link_id,obj.link_ids_beats(logical(obj.sink_mask_beats.*~obj.mainline_mask_beats)))
-                input_node_id=obj.beats_simulation.scenario_ptr.get_link_byID(input_link_id).begin.ATTRIBUTE.node_id;
-                input_node=obj.beats_simulation.scenario_ptr.get_node_byID(input_node_id);
-                mainline_link_ids=obj.link_ids_beats(obj.mainline_mask_beats);
-                output_link_ids=input_node.outputs.output;
-                node_output_links=[];
-                for i=1:size(output_link_ids,2)
-                    node_output_links=input_node.outputs.output(i).ATTRIBUTE.link_id;
-                end
-                mainline_link_id=node_output_links(ismember(node_output_links,mainline_link_ids));
-            else error('Input link must be non-mainline sink or source');        
-            end    
-        end % gets the id of the mainline link just after the node connecting the input_link_id ramp to the freeway.
-        %MUST BE SIMPLIFIED USING EXTRACT_LINEAR_FREEWAY_INDICES
+        function [mainline_link_id]=get_next_mainline_link_id_deprecated(obj, input_link_id)
+%             if ismember(input_link_id,obj.link_ids_beats(logical(obj.source_mask_beats.*~obj.mainline_mask_beats)))
+%                 output_node_id=obj.beats_simulation.scenario_ptr.get_link_byID(input_link_id).end.ATTRIBUTE.node_id;
+%                 output_node=obj.beats_simulation.scenario_ptr.get_node_byID(output_node_id);
+%                 mainline_link_ids=obj.link_ids_beats(obj.mainline_mask_beats);
+%                 output_link_ids=output_node.outputs.output;
+%                 node_output_links=[];
+%                 for i=1:size(output_link_ids,2)
+%                     node_output_links=output_node.outputs.output(i).ATTRIBUTE.link_id;
+%                 end
+%                 mainline_link_id=node_output_links(ismember(node_output_links,mainline_link_ids));
+%             elseif ismember(input_link_id,obj.link_ids_beats(logical(obj.sink_mask_beats.*~obj.mainline_mask_beats)))
+%                 input_node_id=obj.beats_simulation.scenario_ptr.get_link_byID(input_link_id).begin.ATTRIBUTE.node_id;
+%                 input_node=obj.beats_simulation.scenario_ptr.get_node_byID(input_node_id);
+%                 mainline_link_ids=obj.link_ids_beats(obj.mainline_mask_beats);
+%                 output_link_ids=input_node.outputs.output;
+%                 node_output_links=[];
+%                 for i=1:size(output_link_ids,2)
+%                     node_output_links=input_node.outputs.output(i).ATTRIBUTE.link_id;
+%                 end
+%                 mainline_link_id=node_output_links(ismember(node_output_links,mainline_link_ids));
+%             else error('Input link must be non-mainline sink or source');        
+%             end    
+         end % gets the id of the mainline link just after the node connecting the input_link_id ramp to the freeway.
 
+        function [mainline_link_id]=get_next_mainline_link_id(obj, input_link_id)
+            index=find(obj.linear_link_ids==input_link_id);
+            is_mainline=0;
+            i=0;
+            while (is_mainline==0)
+                i=i+1;
+                mainline_link_id=obj.linear_link_ids(index+i);
+                is_mainline=ismember(mainline_link_id, obj.link_ids_beats(obj.mainline_mask_beats));
+            end
+        end
+        
         function [remaining_mainline_length]=get_remaining_monitored_mainline_length(obj, first_mainline_link_id)
             k=1;
             while obj.linear_link_ids(k)~=first_mainline_link_id && k<=size(obj.linear_link_ids,2)
@@ -573,7 +584,7 @@ classdef (Abstract) AlgorithmBox < handle
             remaining_mainline_length=sum(obj.get_link_lengths_miles_beats(remaining_monitored_mainline_links_mask));
         end  %gets the remaining mainline length after the mainline link first_mainline_link_id.
 
-        %project the algorithm input to correct TVM subspace...............
+        %project the algorithm input to correct total TVM subspace.........
         
         function [sum_of_template] = get_sum_of_template_in_veh(obj,link_id) 
             dp=obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(link_id);
@@ -754,7 +765,6 @@ classdef (Abstract) AlgorithmBox < handle
             end    
         end    
         
-        
         %temporary.........................................................
                 
         function [res] = compute_TVM_with_knobs_vector(obj,vector)
@@ -796,11 +806,11 @@ classdef (Abstract) AlgorithmBox < handle
         end  
         
     end
-    
-    %transform masks to fit linear freeway...............................
-    
+        
     methods (Static, Access = public)
     
+        %transform masks to fit linear freeway.............................
+        
         function [linear_mask] = send_mask_beats_to_linear_space(algoBox, mask_beats)
             linear_mask=ismember(algoBox.linear_link_ids,algoBox.link_ids_beats(mask_beats));
         end    
@@ -814,7 +824,8 @@ classdef (Abstract) AlgorithmBox < handle
             mainline_link_ids=algoBox.link_ids_beats(algoBox.mainline_mask_beats);
             mainline_masked_link_ids=algoBox.link_ids_pems(mask_pems);
             linear_mask_in_mainline_space = ismember(mainline_link_ids,mainline_masked_link_ids);
-        end    
+        end  
+        
     end    
  
 end    

@@ -17,6 +17,15 @@ criteria for density treshold+epsilon
 unify error_calculator in only one class... or not
 equilibrium popsize/time
 
+ %CHECK THAT MONITORED TEMPLATES ARE THE EXACT SAME AS PEMS DATA.
+    %I AM USING BEATS OUTPUT WITH KNOBS SET TO ONE INSTEAD OF TEMPLATES FOR
+    %REFINING THE KNOB BOUNDARIES (IN THEORY, THEIR SUM SHOULD BE THE
+    %SAME).
+    %IS THERE A WAY TO RUN BEATS PERSISTENT WHITHOUT RESETING ? ITS SO
+    %FAST.
+    
+    fix the zeros not smoothened in PeMS data
+
 
 										
 
