@@ -320,8 +320,8 @@ classdef (Abstract) AlgorithmBox < handle
 
             end
             for i=1:size(obj.knobs.knob_link_ids)
-                disp(['Knob ', num2str(obj.knobs.knob_demand_ids(i,1)), ' | ', num2str(obj.knobs.knob_link_ids(i,1)), ' minimum value : ',num2str(obj.knobs.knob_boundaries_min(i,1))]);
-                disp(['Knob ', num2str(obj.knobs.knob_demand_ids(i,1)), ' | ', num2str(obj.knobs.knob_link_ids(i,1)), ' maximum value : ',num2str(obj.knobs.knob_boundaries_max(i,1))]);
+                disp(['Knob ', num2str(obj.knobs.knob_demand_ids(i,1)), ' | ', num2str(obj.knobs.knob_link_ids(i,1)), ' minimum : ',num2str(obj.knobs.knob_boundaries_min(i,1))]);
+                disp(['Knob ', num2str(obj.knobs.knob_demand_ids(i,1)), ' | ', num2str(obj.knobs.knob_link_ids(i,1)), ' maximum : ',num2str(obj.knobs.knob_boundaries_max(i,1))]);
             end     
         end
         
