@@ -35,7 +35,7 @@ classdef (Abstract) AlgorithmBox < handle
         
     end
                 
-    properties (SetAccess = protected)
+    properties (SetAccess = public)
         
         beats_simulation@BeatsSimulation % the BeatsSimulation object that will run and be overwritten at each algorithm iteration.
         pems=struct; % the pems data to compare with the beats results. Input fields : 'days' (e.g. datenum(2014,10,1):datenum(2014,10,10)); 'district' (e.g. 7); 'processed_folder'(e.g. C:\Code). Output Fields : 'data' 

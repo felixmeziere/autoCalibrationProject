@@ -3,13 +3,14 @@ classdef (Abstract) PerformanceCalculator < handle
     %   Detailed explanation goes here
    properties (SetAccess = protected)
        
-       result_from_beats
-       result_from_pems
-       error_in_percentage
+       result_from_beats=0;
+       result_from_pems=0;
+       error_in_percentage=0;
+       algorithm_box
        
    end 
    
-   properties (Abstract, SetAccess = protected)
+   properties (Abstract, Constant)
        
        name
        
@@ -17,8 +18,10 @@ classdef (Abstract) PerformanceCalculator < handle
    
    methods(Abstract, Access = public)
        
-        [result] = calculate_from_beats(obj, algoBox)
-        [result] = calculate_from_pems(obj, algoBox)   
+       %the constructor must have one argument, algoBox, which will be
+       %affected to obj.algorithm_box
+        [result] = calculate_from_beats(obj)
+        [result] = calculate_from_pems(obj)   
         
    end
    
