@@ -13,7 +13,10 @@ classdef TVH < PerformanceCalculator
         function [result] = calculate_from_beats(obj, algoBox)
             dt_hr=algoBox.beats_parameters.OUTPUT_DT/3600;
             result = sum(algoBox.beats_simulation.compute_performance(algoBox.good_mainline_mask_beats).tot_veh)*dt_hr; %sum over time
-            obj.result_from_beats = result; 
+            obj.result_from_beats = result;
+            if (obj.result_from_pems~=[] && obj.result_from_beats~=[])
+                obj.error_in_percentage=100*(obj.result_from_beats-obj.result_from_pems)/obj.result_from_pems;
+            end
         end
         
         function [result] = calculate_from_pems(obj, algoBox)
@@ -21,7 +24,10 @@ classdef TVH < PerformanceCalculator
 %             obj.result_from_pems = result;
               dt_hr=algoBox.beats_parameters.OUTPUT_DT/3600;
               result = sum(algoBox.beats_simulation.compute_performance(algoBox.good_mainline_mask_beats).tot_veh)*dt_hr; %sum over time
-              obj.result_from_pems = result; 
+              obj.result_from_pems = result;
+              if (obj.result_from_pems~=[] && obj.result_from_beats~=[])
+                obj.error_in_percentage=100*(obj.result_from_beats-obj.result_from_pems)/obj.result_from_pems;
+              end
         end    
         
     end

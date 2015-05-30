@@ -11,31 +11,34 @@ classdef CongestionPattern < PerformanceCalculator
         linear_mainline_links
         critical_densities
         linear_mainline_indices
-        linear_link_lengths_miles
+        %linear_link_lengths_meters
         
     end    
     
     methods (Access = public)
         
-        function [obj] = CongestionPattern(algoBox, rectangles) 
-            %rectangles is a single column cell array of structs whose fields are 'left_absciss', 'left_absciss','up_ordinate' and 'down_ordinate'. 
+        function [obj] = CongestionPattern(algoBox) 
+            %algoBox.temp.congestion_patterns is a single column cell array of structs whose fields are 'left_absciss', 'left_absciss','up_ordinate' and 'down_ordinate'. 
             %They correspond to the coordinates of the corners of  rectangles of the congestion patterns
             %These coordinates are included.
             %The space in which this is expressed is the linear mainline
             %space (135x288 in the case of 210E during one day with
             %OUTPUT_DT set to 5 minutes).
             %RECTANGLES HAVE TO BE DISJOINED
-            if isfield(rectangles{1,1},'left_absciss') && isfield(rectangles{1,1},'right_absciss') && isfield(rectangles{1,1},'up_ordinate') && isfield(rectangles{1,1},'down_ordinate')
+            if (nargin<1)
+                error('You must enter the name of an AlgorithmBox instance as argument of the constructor of CongestionPattern');
+            end    
+            if isfield(algoBox.temp.congestion_patterns{1,1},'left_absciss') && isfield(algoBox.temp.congestion_patterns{1,1},'right_absciss') && isfield(algoBox.temp.congestion_patterns{1,1},'up_ordinate') && isfield(algoBox.temp.congestion_patterns{1,1},'down_ordinate')
                 obj.name='Congestion Pattern';
-                obj.rectangles=rectangles;
-                obj.vertical_size=size(algoBox.pems.data.flw,1);
+                obj.rectangles=algoBox.temp.congestion_patterns;
+                obj.vertical_size=size(algoBox.beats_simulation.outflow_veh{1,1},1);
                 obj.horizontal_size=sum(algoBox.mainline_mask_beats);
                 obj.linear_mainline_links=algoBox.linear_link_ids(obj.send_mask_beats_to_linear_space(algoBox,algoBox.mainline_mask_beats));
                 linear_fwy_indices=algoBox.beats_simulation.scenario_ptr.extract_linear_fwy_indices;
                 obj.linear_mainline_indices=linear_fwy_indices(obj.send_mask_beats_to_linear_space(algoBox,algoBox.mainline_mask_beats));
                 obj.set_critical_densities(algoBox);
-                else error('Argument rectangles not in the right format. Please see code comments.');     
-            end
+                else error('Argument congestion_patterns not in the right format. Please see code comments.');     
+            end    
         end    
         
 %         function [result] = calculate_from_beats(obj, algoBox)
@@ -67,6 +70,9 @@ classdef CongestionPattern < PerformanceCalculator
                 result(densities>obj.critical_densities+6)=1;
 %             end    
             obj.result_from_beats=result;
+            if (obj.result_from_pems~=[] && obj.result_from_beats~=[])
+                obj.error_in_percentage=100*(obj.result_from_beats-obj.result_from_pems)/obj.result_from_pems;
+            end
         end
         
         function [result] = calculate_from_pems(obj, algoBox)
@@ -80,6 +86,9 @@ classdef CongestionPattern < PerformanceCalculator
                 result(uo:do,la:ra)=ones(do-uo+1,ra-la+1);
             end    
             obj.result_from_pems=result;
+            if (obj.result_from_pems~=[] && obj.result_from_beats~=[])
+                obj.error_in_percentage=100*(obj.result_from_beats-obj.result_from_pems)/obj.result_from_pems;
+            end
         end    
         
     end

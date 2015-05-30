@@ -113,6 +113,7 @@ off_knobs_set_to_3=reshape(off_knobs_set_to_3,[],1);
 plot(c);
 hold on;
 plot(d);
+hold on;
 %red is onramps and blue is offramps.
 
 %all knobs set to three

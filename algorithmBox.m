@@ -39,7 +39,7 @@ classdef (Abstract) AlgorithmBox < handle
         
         beats_simulation@BeatsSimulation % the BeatsSimulation object that will run and be overwritten at each algorithm iteration.
         pems=struct; % the pems data to compare with the beats results. Input fields : 'days' (e.g. datenum(2014,10,1):datenum(2014,10,10)); 'district' (e.g. 7); 'processed_folder'(e.g. C:\Code). Output Fields : 'data' 
-        performance_calculator@PerformanceCalculator % a PerformanceCalculator subclass, which is a quantity measured in pems or outputed by beats (e.g. TVM).
+        performance_calculator=struct;   %@PerformanceCalculator % a PerformanceCalculator subclass, which is a quantity measured in pems or outputed by beats (e.g. TVM).
         error_calculator@ErrorCalculator % an ErrorCalculator subclass, which is a way of comparing two performance calculator values (e.g. L1 norm).
         initialization_method@char % initialization method must be 'normal', 'uniform' or 'manual'.
         TVM_reference_values=struct; %TVM values from pems and beats with all knobs set to one.
@@ -65,10 +65,10 @@ classdef (Abstract) AlgorithmBox < handle
         xls_program % cell array corresponding to the excel file containing configs in the columns, with the same format as given in the template.
         beats_loaded=0; % flag to indicate if the beats simulation and parameters have been correctly loaded.
         pems_loaded=0; % flag to indicate if pems data has been correctly loaded.
-        is_program_first_run=1; %flag to indicate if long loading time data has been already loaded.
-        linear_link_ids
-        two_sensors_links
-        knob_sensor_map
+        current_day=1; %current day used in the pems data loaded.
+        temp=struct;
+        force_manual_knob_boundaries=0; % 1 if knob boundaries are set manually, 0 if they are set to [link's FD max capacity*number of lanes]/[max value of the link's demand template].
+        isnaive_knob_boundaries=0;
         
         %masks pointing at the links with working sensors used on beats 
         %output or on pems data.
@@ -87,11 +87,13 @@ classdef (Abstract) AlgorithmBox < handle
         good_sink_mask_pems
         good_sensor_mask_pems
         
-        current_day=1; %current day used in the pems data loaded.
-        force_manual_knob_boundaries=0; % 1 if knob boundaries are set manually, 0 if they are set to [link's FD max capacity*number of lanes]/[max value of the link's demand template].
-        isnaive_knob_boundaries=0;
+        is_program_first_run=1; %flag to indicate if long loading time data has been already loaded.
+        two_sensors_links
+        knob_sensor_map
         link_ids_beats % all the link ids of the scenario. For practical reasons.
         link_ids_pems % list of the link ids corresponding to the pems data columns, in the right order.
+        linear_link_ids      
+
         
     end    
    
@@ -144,6 +146,7 @@ classdef (Abstract) AlgorithmBox < handle
                 end
                 obj.load_beats;
                 obj.load_pems;
+                obj.load_performance_calculator(obj.temp.perfStruct);
             end
             if ~exist('is_program_first_run','var') || is_program_first_run~=1
                 obj.set_knob_demand_ids;
@@ -242,10 +245,10 @@ classdef (Abstract) AlgorithmBox < handle
                
         function [] = ask_for_errorFunction (obj) % set the performance calculator and error calculator in the command window.
             if (obj.pems_loaded==1)
-                obj.performance_calculator=input(['Enter the name of a "PerformanceCalculator" subclass (like TVH) : ']);
                 obj.error_calculator=input(['Enter the name of an "ErrorCalculator" subclass (like L1) : ']);
                 obj.load_beats;
-                obj.performance_calculator.calculate_from_pems(obj);
+                obj.load_performance_calculator;
+                obj.calculate_pc_from_pems;
             else
                 error('Pems data must be loaded first.')
             end    
@@ -269,7 +272,6 @@ classdef (Abstract) AlgorithmBox < handle
                 if obj.pems_loaded==1
                     TVmiles=TVM;
                     obj.TVM_reference_values.beats=TVmiles.calculate_from_beats(obj);
-                    obj.performance_calculator.calculate_from_beats(obj);
 %                     refflw=DailyExitFlow;
 %                     obj.flow_reference_values.beats=refflw.calculate_from_beats(obj);
                 end
@@ -288,8 +290,6 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.set_masks_and_pems_data;
                 TVmiles=TVM;
                 obj.TVM_reference_values.beats=TVmiles.calculate_from_beats(obj);
-                obj.performance_calculator.calculate_from_pems(obj);
-                obj.performance_calculator.calculate_from_beats(obj);
                 obj.TVM_reference_values.pems = TVmiles.calculate_from_pems(obj);
 %                 refflw=DailyExitFlow;
 %                 obj.flow_reference_values.beats=refflw.calculate_from_beats(obj);
@@ -413,10 +413,10 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.beats_simulation.beats.reset();
                 obj.set_knobs_persistent(knob_values);
                 obj.beats_simulation.run_beats_persistent;
-                obj.performance_calculator.calculate_from_beats(obj);
-                result = obj.error_calculator.calculate(obj.performance_calculator.result_from_beats, obj.performance_calculator.result_from_pems);
+                obj.calculate_pc_from_beats;
+                [result,error_in_percentage] = obj.calculate_error;
                 disp(['    Error function value :','       Error in percentage:']);
-                disp([result, (result/obj.performance_calculator.result_from_pems)*100]);
+                disp([result, error_in_percentage]);
                 obj.res_history(:,end+1)=result;
                 obj.numberOfEvaluations=obj.numberOfEvaluations+1;
             else
@@ -801,9 +801,63 @@ classdef (Abstract) AlgorithmBox < handle
         
         %transform masks to fit linear freeway...........................
         
-        function [linear_mask_in_mainline_space] = send_mask_beats_to_linear_mainline_space(obj, algoBox,mask_beats)
-            linear_mask_in_mainline_space=obj.send_linear_mask_beats_to_mainline_space(algoBox, obj.send_mask_beats_to_linear_space(algoBox, mask_beats));
+        function [linear_mask_in_mainline_space] = send_mask_beats_to_linear_mainline_space(obj,mask_beats)
+            linear_mask_in_mainline_space=obj.send_linear_mask_beats_to_mainline_space(obj, obj.send_mask_beats_to_linear_space(obj, mask_beats));
         end  
+        
+        %several performance calculators.........................................
+        
+        function [] = load_performance_calculator(obj, perfStruct) %perfStruct : struct which fields are the names of the performance calculator classes, associated with their respective weight.                
+            obj.performance_calculator.weights=[];
+            if (nargin<2)
+                npc=input(['Enter the number of different performance calculators that will be involved : ']);
+                perfStruct=struct;
+                for i=1:npc
+                    name=input(['Enter the name of the "PerformanceCalculator" subclass number ', num2str(i),' : '],'s');
+                    weight=input(['Enter its weight (sum of weights must be one) : '],'s');
+                    eval(strcat('perfStruct.',name,'=',weight,';'));
+                end    
+            end    
+            names=fieldnames(perfStruct);
+            for i = 1:size(names,1)
+                obj.performance_calculator.weights(1,i)=getfield(perfStruct,char(names(i)));
+                if (strcmpi(names(i),'CongestionPattern'))
+                    obj.performance_calculator.pcs{i}=CongestionPattern(obj);
+                else    
+                    obj.performance_calculator.pcs{i}=eval(char(names(i)));
+                end
+                if (i==1)
+                    obj.performance_calculator.name=strcat(num2str(obj.performance_calculator.weights(1,i)),'*',names(1));
+                else    
+                    obj.performance_calculator.name=strcat(obj.performance_calculator.name,'+', num2str(obj.performance_calculator.weights(1,i)),'*',names(i));
+                end
+            end
+            if sum(obj.performance_calculator.weights)~=1
+                error('The sum of the weights of the performance calculators must be 1.');
+            end  
+            obj.calculate_pc_from_pems;
+        end
+        
+        function [] = calculate_pc_from_beats(obj)
+            for i=1:size(obj.performance_calculator.pcs,2)
+                obj.performance_calculator.pcs{i}.calculate_from_beats(obj);
+            end
+        end    
+            
+        function [] = calculate_pc_from_pems(obj)
+             for i=1:size(obj.performance_calculator.pcs,2)
+                obj.performance_calculator.pcs{i}.calculate_from_pems(obj);
+             end
+        end    
+        
+        function [result,error_in_percentage] = calculate_error(obj)
+            for i=1:size(obj.performance_calculator.pcs,2)
+                res(i,1)=obj.error_calculator.calculate(obj.performance_calculator.pcs{i}.result_from_beats,obj.performance_calculator.pcs{i}.result_from_pems);
+                err_in_percentage(i,1)=obj.performance_calculator.pcs{i}.error_in_percentage;
+            end    
+            result=obj.performance_calculator.weights*res;
+            error_in_percentage=obj.performance_calculator.weights*err_in_percentage;
+        end    
         
     end
         
@@ -811,18 +865,18 @@ classdef (Abstract) AlgorithmBox < handle
     
         %transform masks to fit linear freeway.............................
         
-        function [linear_mask] = send_mask_beats_to_linear_space(algoBox, mask_beats)
-            linear_mask=ismember(algoBox.linear_link_ids,algoBox.link_ids_beats(mask_beats));
+        function [linear_mask] = send_mask_beats_to_linear_space(obj, mask_beats)
+            linear_mask=ismember(obj.linear_link_ids,obj.link_ids_beats(mask_beats));
         end    
         
-        function [linear_mask_in_mainline_space] = send_linear_mask_beats_to_mainline_space(algoBox, linear_mask_beats)
-            mainline_link_ids=algoBox.link_ids_beats(algoBox.mainline_mask_beats);
-            linear_mask_in_mainline_space = ismember(mainline_link_ids,algoBox.linear_link_ids(linear_mask_beats));
+        function [linear_mask_in_mainline_space] = send_linear_mask_beats_to_mainline_space(obj, linear_mask_beats)
+            mainline_link_ids=obj.link_ids_beats(obj.mainline_mask_beats);
+            linear_mask_in_mainline_space = ismember(mainline_link_ids,obj.linear_link_ids(linear_mask_beats));
         end    
         
-        function [linear_mask_in_mainline_space] = send_mask_pems_to_linear_mainline_space(algoBox, mask_pems)
-            mainline_link_ids=algoBox.link_ids_beats(algoBox.mainline_mask_beats);
-            mainline_masked_link_ids=algoBox.link_ids_pems(mask_pems);
+        function [linear_mask_in_mainline_space] = send_mask_pems_to_linear_mainline_space(obj, mask_pems)
+            mainline_link_ids=obj.link_ids_beats(obj.mainline_mask_beats);
+            mainline_masked_link_ids=obj.link_ids_pems(mask_pems);
             linear_mask_in_mainline_space = ismember(mainline_link_ids,mainline_masked_link_ids);
         end  
         

@@ -5,6 +5,7 @@ classdef (Abstract) PerformanceCalculator < handle
        
        result_from_beats
        result_from_pems
+       error_in_percentage
        
    end 
    
