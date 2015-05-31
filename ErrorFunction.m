@@ -7,6 +7,9 @@ classdef ErrorFunction <handle
         performance_calculators  % a cell array containing instances of the PerformanceCalculator subclass, which is a quantity measured in pems or outputed by beats (e.g. TVM).
         weights
         name
+        result
+        error_in_percentage
+        %res_history
         
     end    
 
@@ -72,6 +75,8 @@ classdef ErrorFunction <handle
             end    
             result=obj.weights*res;
             error_in_percentage=obj.weights*errors_in_percentage;
+            obj.result=result;
+            obj.error_in_percentage=error_in_percentage;
         end  
             
     end

@@ -135,7 +135,6 @@ classdef (Abstract) AlgorithmBox < handle
         
         
         %load for single run from xls file.................................
-        
         function [] = load_properties_from_xls(obj,is_program,is_program_first_run) % load the properties from an excel file in the format described underneath.
             %properties file : an xls file containing the AlgorithmBox
             %properties to set in the first column and the corresponding
@@ -167,7 +166,6 @@ classdef (Abstract) AlgorithmBox < handle
         
         %load for single run from initial loading assistant and its 
         %standalone dependencies...........................................
-        
         function [] = run_assistant(obj) % assistant to set all the parameters for a single run in the command window.
 %             obj.ask_for_beats_simulation;
 %             obj.ask_for_pems_data;
@@ -277,7 +275,6 @@ classdef (Abstract) AlgorithmBox < handle
         end
 
         %setting auto knob boundaries......................................
-        
         function [] = set_auto_knob_boundaries(obj, isnaive) %sets automatically the knob minimums to zero and maximums to [link's FD max capacity*number of lanes]/[max value of the link's demand template]
             for i=1:size(obj.knobs.knob_link_ids)    
                 maxTemplateValue=max(obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.knobs.knob_link_ids(i)).demand);       
@@ -368,7 +365,7 @@ classdef (Abstract) AlgorithmBox < handle
     
     methods (Access = public)
         
-        function [result] = errorFunction(obj, knob_values, isZeroToTenScale) % the error function used by the algorithm. Compares the beats simulation result and pems data.
+        function [result] = evaluate_error_function(obj, knob_values, isZeroToTenScale) % the error function used by the algorithm. Compares the beats simulation result and pems data.
             %knob_values : n x 1 array where n is the number of knobs
             %to tune, containing the new values of the knobs.
             format SHORTG;
