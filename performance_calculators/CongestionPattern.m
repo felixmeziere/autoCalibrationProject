@@ -21,23 +21,33 @@ classdef CongestionPattern < PerformanceCalculator
     
     methods (Access = public)
         
-        function [obj] = CongestionPattern(algoBox) 
-            %obj.algorithm_box.temp.congestion_patterns is a single column cell array of structs whose fields are 'left_absciss', 'left_absciss','up_ordinate' and 'down_ordinate'. 
+        function [obj] = CongestionPattern(algoBox, congestion_patterns) 
+            %congestion_patterns is a single column cell array of structs whose fields are 'left_absciss', 'left_absciss','up_ordinate' and 'down_ordinate'. 
             %They correspond to the coordinates of the corners of  rectangles of the congestion patterns
             %These coordinates are included.
             %The space in which this is expressed is the linear mainline
             %space (135x288 in the case of 210E during one day with
             %OUTPUT_DT set to 5 minutes).
             %RECTANGLES HAVE TO BE DISJOINED
-            obj.algorithm_box=algoBox;    
-            if isfield(obj.algorithm_box.temp.congestion_patterns{1,1},'left_absciss') && isfield(obj.algorithm_box.temp.congestion_patterns{1,1},'right_absciss') && isfield(obj.algorithm_box.temp.congestion_patterns{1,1},'up_ordinate') && isfield(obj.algorithm_box.temp.congestion_patterns{1,1},'down_ordinate')
-                obj.rectangles=obj.algorithm_box.temp.congestion_patterns;
+            obj.algorithm_box=algoBox;
+            if nargin<2
+                nrectangles=input(['How many rectangles will this "CongestionPattern" have ? : ']);
+                congestion_patterns=cell(nrectangles,1);
+                for i=1:nrectangles
+                    congestion_patterns{i,1}.left_absciss=input(['Left absciss of rectangle number ', num2str(i),' (absciss of linear mainline id) : ']);
+                    congestion_patterns{i,1}.right_absciss=input(['Right absciss of rectangle number ' , num2str(i), '(absciss of linear mainline id) : ']);
+                    congestion_patterns{i,1}.up_ordinate=input(['Up (earliest) ordinate of rectangle number ' , num2str(i), '(beginning time) : ']);
+                    congestion_patterns{i,1}.down_ordinate=input(['Down (latest) absciss of rectangle number ' , num2str(i), '(end time) : '] );
+                end    
+            end    
+            if isfield(congestion_patterns{1,1},'left_absciss') && isfield(congestion_patterns{1,1},'right_absciss') && isfield(congestion_patterns{1,1},'up_ordinate') && isfield(congestion_patterns{1,1},'down_ordinate')
+                obj.rectangles=congestion_patterns;
                 obj.vertical_size=size(obj.algorithm_box.beats_simulation.outflow_veh{1,1},1);
                 obj.horizontal_size=sum(obj.algorithm_box.mainline_mask_beats);
-                obj.linear_mainline_links=obj.algorithm_box.linear_link_ids(obj.send_mask_beats_to_linear_space(obj.algorithm_box,obj.algorithm_box.mainline_mask_beats));
+                obj.linear_mainline_links=obj.algorithm_box.linear_link_ids(obj.send_mask_beats_to_linear_space(obj.algorithm_box.mainline_mask_beats));
                 linear_fwy_indices=obj.algorithm_box.beats_simulation.scenario_ptr.extract_linear_fwy_indices;
-                obj.linear_mainline_indices=linear_fwy_indices(obj.send_mask_beats_to_linear_space(obj.algorithm_box,obj.algorithm_box.mainline_mask_beats));
-                obj.set_critical_densities(obj.algorithm_box);
+                obj.linear_mainline_indices=linear_fwy_indices(obj.send_mask_beats_to_linear_space(obj.algorithm_box.mainline_mask_beats));
+                obj.set_critical_densities;
                 else error('Argument congestion_patterns not in the right format. Please see code comments.');     
             end    
         end    
@@ -47,7 +57,7 @@ classdef CongestionPattern < PerformanceCalculator
             densities=obj.algorithm_box.beats_simulation.density_veh{1,1}(2:end,obj.linear_mainline_indices);
             result(densities>obj.critical_densities+6)=1; 
             obj.result_from_beats=result;
-            obj.error_in_percentage=100*(obj.result_from_beats-obj.result_from_pems)/obj.result_from_pems;
+            obj.error_in_percentage=100*sum(sum((obj.result_from_beats-obj.result_from_pems)))/sum(sum(obj.result_from_pems));
         end
         
         function [result] = calculate_from_pems(obj)
@@ -61,7 +71,7 @@ classdef CongestionPattern < PerformanceCalculator
                 result(uo:do,la:ra)=ones(do-uo+1,ra-la+1);
             end    
             obj.result_from_pems=result;
-            obj.error_in_percentage=100*(obj.result_from_beats-obj.result_from_pems)/obj.result_from_pems;
+            obj.error_in_percentage=100*sum(sum((obj.result_from_beats-obj.result_from_pems)))/sum(sum(obj.result_from_pems));
         end    
         
     end

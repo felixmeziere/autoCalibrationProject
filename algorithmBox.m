@@ -26,7 +26,10 @@ classdef (Abstract) AlgorithmBox < handle
     
     properties (Access = public)
         
+        %modificable properties............................................
+        
         beats_parameters=struct; % the parameters passed to BeatsSimulation.run_beats(beats_parameters).
+        error_function@ErrorFunction % instance of ErrorFunction class, containing all the properties and methods to compute the difference between pems and beats output (this is the fitness function to minimize).
         number_runs=1; % the number of times the algorithm will run before going to the next column if an xls program is run. 
         maxEval=90; % maximum number of times that beats will run.
         maxIter=30; % maximum number of iterations of the algorithm (can be different in Evolutionnary Algorithms for example).
@@ -37,13 +40,16 @@ classdef (Abstract) AlgorithmBox < handle
                 
     properties (SetAccess = public)
         
+        %visible input porperties..........................................
+        
         beats_simulation@BeatsSimulation % the BeatsSimulation object that will run and be overwritten at each algorithm iteration.
         pems=struct; % the pems data to compare with the beats results. Input fields : 'days' (e.g. datenum(2014,10,1):datenum(2014,10,10)); 'district' (e.g. 7); 'processed_folder'(e.g. C:\Code). Output Fields : 'data' 
-        performance_calculator=struct;   %@PerformanceCalculator % a PerformanceCalculator subclass, which is a quantity measured in pems or outputed by beats (e.g. TVM).
-        error_calculator@ErrorCalculator % an ErrorCalculator subclass, which is a way of comparing two performance calculator values (e.g. L1 norm).
+        error_calculator@ErrorCalculator 
         initialization_method@char % initialization method must be 'normal', 'uniform' or 'manual'.
         TVM_reference_values=struct; %TVM values from pems and beats with all knobs set to one.
         knobs=struct; % struct with four array fields : (nx1) 'knob_link_ids' containing the ids of the n knobs to tune, (nx1) 'knob_demand_ids' containing their respective demand profile ids, (nx1) 'knob_boundaries_min' containing the value of the minimum and (n x 1) 'knob_boundaries_max' containing the values of the maximum value allowed for each knob (in the same order as in 'knob_link_ids').
+        
+        %visible output properties.........................................
         
         result_for_xls@cell % result of the algorithm to be outputed to the xls file.
         out % struct with various histories and solutions.
@@ -60,6 +66,8 @@ classdef (Abstract) AlgorithmBox < handle
     
     properties (Hidden, SetAccess = protected)
         
+        %loading properties...............................................
+        
         scenario_ptr=''; % adress of the beats scenario xml file.
         xls_results@char % address of the excel file containing the results, with a format that fits to the method obj.send_result_to_xls.
         xls_program % cell array corresponding to the excel file containing configs in the columns, with the same format as given in the template.
@@ -69,9 +77,12 @@ classdef (Abstract) AlgorithmBox < handle
         temp=struct;
         force_manual_knob_boundaries=0; % 1 if knob boundaries are set manually, 0 if they are set to [link's FD max capacity*number of lanes]/[max value of the link's demand template].
         isnaive_knob_boundaries=0;
+        is_program_first_run=1; %flag to indicate if long loading time data has been already loaded.
+
         
         %masks pointing at the links with working sensors used on beats 
-        %output or on pems data.
+        %output or on pems data............................................
+        
         mainline_mask_beats
         good_mainline_mask_beats
         source_mask_beats
@@ -87,7 +98,8 @@ classdef (Abstract) AlgorithmBox < handle
         good_sink_mask_pems
         good_sensor_mask_pems
         
-        is_program_first_run=1; %flag to indicate if long loading time data has been already loaded.
+        %properties with infos on the scenario.............................
+        
         two_sensors_links
         knob_sensor_map
         link_ids_beats % all the link ids of the scenario. For practical reasons.
@@ -113,6 +125,7 @@ classdef (Abstract) AlgorithmBox < handle
     
     methods (Access= public)    
         
+        %create object....................................................
         function [obj] = AlgorithmBox()
             obj.knobs.knob_link_ids=[];
             obj.knobs.knob_boundaries_min = [];
@@ -120,15 +133,8 @@ classdef (Abstract) AlgorithmBox < handle
             obj.knobs.knob_demand_ids = [];
         end % useless constructor.
         
-        function [] = run_assistant(obj) % assistant to set all the parameters for a single run in the command window.
-            obj.ask_for_beats_simulation;
-            obj.ask_for_pems_data;
-            obj.ask_for_errorFunction;
-            obj.ask_for_knobs;
-            obj.ask_for_algorithm_parameters;
-            obj.ask_for_starting_point;
-            disp('ALL SETTINGS LOADED, ALGORITHM READY TO RUN');
-        end
+        
+        %load for single run from xls file.................................
         
         function [] = load_properties_from_xls(obj,is_program,is_program_first_run) % load the properties from an excel file in the format described underneath.
             %properties file : an xls file containing the AlgorithmBox
@@ -146,7 +152,7 @@ classdef (Abstract) AlgorithmBox < handle
                 end
                 obj.load_beats;
                 obj.load_pems;
-                obj.load_performance_calculator(obj.temp.perfStruct);
+                obj.error_function=ErrorFunction(obj,obj.temp.erfStruct);
             end
             if ~exist('is_program_first_run','var') || is_program_first_run~=1
                 obj.set_knob_demand_ids;
@@ -156,8 +162,22 @@ classdef (Abstract) AlgorithmBox < handle
                 end    
                 obj.set_starting_point(obj.initialization_method);
             end
-        end    
-               
+        end
+
+        
+        %load for single run from initial loading assistant and its 
+        %standalone dependencies...........................................
+        
+        function [] = run_assistant(obj) % assistant to set all the parameters for a single run in the command window.
+%             obj.ask_for_beats_simulation;
+%             obj.ask_for_pems_data;
+%             obj.ask_for_knobs;
+            obj.ask_for_errorFunction;
+            obj.ask_for_algorithm_parameters;
+            obj.ask_for_starting_point;
+            disp('ALL SETTINGS LOADED, ALGORITHM READY TO RUN');
+        end
+       
         function [] = ask_for_beats_simulation(obj) % ask the user to enter a beats scenario and beats run parameters.
             scptr= input(['Address of the scenario xml file : '], 's');
             obj.scenario_ptr=scptr;
@@ -228,6 +248,10 @@ classdef (Abstract) AlgorithmBox < handle
                     mode=input('How should the knob boundaries be set ? (auto/manual)','s');
                 end    
                 if (strcmp(mode,'auto'))
+                    obj.isnaive_knob_boundaries=2;
+                    while (obj.isnaive_knob_boundaries~=0 && obj.isnaive_knob_boundaries~=1)
+                        obj.isnaive_knob_boundaries=input(['Should the knobs be naively set (i.e. leading to potentially absurd daily flows) ? yes =1, no=0 : ']);
+                    end
                     obj.set_auto_knob_boundaries(obj.isnaive_knob_boundaries);
                 elseif (strcmp(mode,'manual'))     
                     obj.knobs.knob_boundaries_max=[];
@@ -245,62 +269,16 @@ classdef (Abstract) AlgorithmBox < handle
                
         function [] = ask_for_errorFunction (obj) % set the performance calculator and error calculator in the command window.
             if (obj.pems_loaded==1)
-                obj.error_calculator=input(['Enter the name of an "ErrorCalculator" subclass (like L1) : ']);
-                obj.load_beats;
-                obj.load_performance_calculator;
-                obj.calculate_pc_from_pems;
+                obj.error_function=ErrorFunction(obj);
+                obj.error_function.calculate_pc_from_pems;
             else
                 error('Pems data must be loaded first.')
             end    
         end
-          
-    end
-    
-    methods (Access = public)
+
+        %setting auto knob boundaries......................................
         
-        function [] = load_beats(obj)
-            if (~strcmp(obj.scenario_ptr,''))
-                obj.beats_loaded=0;
-                obj.beats_parameters.RUN_MODE = 'fw_fr_split_output'; 
-                display('RUNNING BEATS A FIRST TIME FOR REFERENCE DATA.');
-                obj.beats_simulation = BeatsSimulation;
-                obj.beats_simulation.import_beats_classes;
-                obj.beats_simulation.load_scenario(obj.scenario_ptr);
-                obj.beats_simulation.create_beats_object(obj.beats_parameters);
-                obj.link_ids_beats=obj.beats_simulation.scenario_ptr.get_link_ids;
-                obj.beats_simulation.run_beats_persistent;
-                if obj.pems_loaded==1
-                    TVmiles=TVM;
-                    obj.TVM_reference_values.beats=TVmiles.calculate_from_beats(obj);
-%                     refflw=DailyExitFlow;
-%                     obj.flow_reference_values.beats=refflw.calculate_from_beats(obj);
-                end
-                obj.linear_link_ids=obj.link_ids_beats(obj.beats_simulation.scenario_ptr.extract_linear_fwy_indices);
-                obj.knobs_history=zeros(size(obj.knobs.knob_link_ids,1),1);
-                disp('BEATS SETTINGS LOADED.')
-                obj.beats_loaded=1;
-            else error('Beats scenario xml file adress and beats parameters must be set before loading beats.');   
-            end    
-        end    %loads beats simulation and computes first TVM reference value.
-        
-        function [] = load_pems(obj)   %loads pems data once all the inputs have been given to the object
-            if (obj.beats_loaded==1)
-                obj.pems_loaded=0;
-                obj.pems.peMS5minData= PeMS5minData;
-                obj.set_masks_and_pems_data;
-                TVmiles=TVM;
-                obj.TVM_reference_values.beats=TVmiles.calculate_from_beats(obj);
-                obj.TVM_reference_values.pems = TVmiles.calculate_from_pems(obj);
-%                 refflw=DailyExitFlow;
-%                 obj.flow_reference_values.beats=refflw.calculate_from_beats(obj);
-                obj.pems_loaded=1;
-                disp('PeMS DATA LOADED.');
-            else
-                error('Beats simulation must be loaded before loading pems data.');
-            end
-        end   
-        
-        function [] = set_auto_knob_boundaries(obj,isnaive) %sets automatically the knob minimums to zero and maximums to [link's FD max capacity*number of lanes]/[max value of the link's demand template]
+        function [] = set_auto_knob_boundaries(obj, isnaive) %sets automatically the knob minimums to zero and maximums to [link's FD max capacity*number of lanes]/[max value of the link's demand template]
             for i=1:size(obj.knobs.knob_link_ids)    
                 maxTemplateValue=max(obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.knobs.knob_link_ids(i)).demand);       
                 lanes=obj.beats_simulation.scenario_ptr.get_link_byID(obj.knobs.knob_link_ids(i)).ATTRIBUTE.lanes;
@@ -404,7 +382,7 @@ classdef (Abstract) AlgorithmBox < handle
 %                 knob_values=obj.project_on_correct_TVM_subspace(knob_values);
 %                 knob_values=obj.project_involved_knob_groups_on_correct_flow_subspace(knob_values);
                 zeroten_knob_values=obj.rescale_knobs(knob_values,1);
-                obj.knobs_history(:,end+1)=knob_values;
+                obj.knobs_history(end+1,:)=reshape(knob_values,1,[]);
                 disp(['Knobs vector and values being tested for evaluation # ',num2str(obj.numberOfEvaluations),' :']);
                 disp(' ');
                 disp(['               Demand Id :','                 Link Id :','                                    Value, min and max:','           Value on a scale from 0 to 10:']);
@@ -413,11 +391,11 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.beats_simulation.beats.reset();
                 obj.set_knobs_persistent(knob_values);
                 obj.beats_simulation.run_beats_persistent;
-                obj.calculate_pc_from_beats;
-                [result,error_in_percentage] = obj.calculate_error;
+                obj.error_function.calculate_pc_from_beats;
+                [result,error_in_percentage] = obj.error_function.calculate_error;
                 disp(['    Error function value :','       Error in percentage:']);
                 disp([result, error_in_percentage]);
-                obj.res_history(:,end+1)=result;
+                obj.res_history(end+1,[1,2])=[result,error_in_percentage];
                 obj.numberOfEvaluations=obj.numberOfEvaluations+1;
             else
                 error('The matrix with knobs values given does not match the number of knobs to tune or is not a column vector.');
@@ -446,20 +424,54 @@ classdef (Abstract) AlgorithmBox < handle
     end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %  Utilities                                                          %
+    %  Privates                                                           %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
     
     methods (Access = public) %supposed to be private but public for debug reasons
         
-        %check and set stuff..............................................
+        %initial loading...................................................
         
-        function [bool] = is_set_knobs(obj) %check if the knobs struct is set.
-
-            bool = 0;
-            if (size(obj.knobs.knob_link_ids,2)~=0 && size(obj.knobs.knob_boundaries_max,2)~=0 && size(obj.knobs.knob_boundaries_min,2)~=0 && size(obj.knobs.knob_demand_ids,2)~=0)
-                bool=1;
+        function [] = load_beats(obj)
+            if (~strcmp(obj.scenario_ptr,''))
+                obj.beats_loaded=0;
+                obj.beats_parameters.RUN_MODE = 'fw_fr_split_output'; 
+                display('RUNNING BEATS A FIRST TIME FOR REFERENCE DATA.');
+                obj.beats_simulation = BeatsSimulation;
+                obj.beats_simulation.import_beats_classes;
+                obj.beats_simulation.load_scenario(obj.scenario_ptr);
+                obj.beats_simulation.create_beats_object(obj.beats_parameters);
+                obj.link_ids_beats=obj.beats_simulation.scenario_ptr.get_link_ids;
+                obj.beats_simulation.run_beats_persistent;
+                if obj.pems_loaded==1
+                    TVmiles=TVM(obj);
+                    obj.TVM_reference_values.beats=TVmiles.calculate_from_beats;
+%                     refflw=DailyExitFlow;
+%                     obj.flow_reference_values.beats=refflw.calculate_from_beats;
+                end
+                obj.linear_link_ids=obj.link_ids_beats(obj.beats_simulation.scenario_ptr.extract_linear_fwy_indices);
+                obj.knobs_history=zeros(size(obj.knobs.knob_link_ids,1),1);
+                disp('BEATS SETTINGS LOADED.')
+                obj.beats_loaded=1;
+            else error('Beats scenario xml file adress and beats parameters must be set before loading beats.');   
             end    
-         end 
+        end    %loads beats simulation and computes first TVM reference value.
+        
+        function [] = load_pems(obj)   %loads pems data once all the inputs have been given to the object
+            if (obj.beats_loaded==1)
+                obj.pems_loaded=0;
+                obj.pems.peMS5minData= PeMS5minData;
+                obj.set_masks_and_pems_data;
+                TVmiles=TVM(obj);
+                obj.TVM_reference_values.beats=TVmiles.calculate_from_beats;
+                obj.TVM_reference_values.pems = TVmiles.calculate_from_pems;
+%                 refflw=DailyExitFlow;
+%                 obj.flow_reference_values.beats=refflw.calculate_from_beats;
+                obj.pems_loaded=1;
+                disp('PeMS DATA LOADED.');
+            else
+                error('Beats simulation must be loaded before loading pems data.');
+            end
+        end
         
         function [] = set_masks_and_pems_data(obj)
             %sets the masks for further link selection and smoothens pems 
@@ -505,7 +517,7 @@ classdef (Abstract) AlgorithmBox < handle
             obj.good_sink_mask_pems=logical(obj.good_sensor_mask_pems.*obj.sink_mask_pems);
             
         end    %sets the masks for further link selection and smoothens pems flow values.
-        
+
         function []=set_knob_demand_ids(obj) % set demand profile ids in obj.knobs.knob_demand_ids corresponding to obj.knobs.knob_link_ids.
             obj.knobs.knob_demand_ids=[];
             for i=1:size(obj.knobs.knob_link_ids,1)
@@ -514,6 +526,142 @@ classdef (Abstract) AlgorithmBox < handle
             end
         end
 
+        %functions to refine the auto boundaries to realistic ones, taking 
+        %local monitored flows for each knob into account..................
+        
+        function [] = set_knob_groups(obj) %assumes a mainline link is monitored before the first unknown knob
+            knob_sensor_map=zeros(size(obj.linear_link_ids));
+            knob_sensor_map(ismember(obj.linear_link_ids,obj.link_ids_beats(obj.good_mainline_mask_beats)))=1;
+            knob_sensor_map(ismember(obj.linear_link_ids,obj.link_ids_beats(logical(obj.good_source_mask_beats+obj.good_sink_mask_beats))))=0.5;
+            knob_sensor_map(ismember(obj.linear_link_ids,obj.knobs.knob_link_ids))=-1;
+            obj.knob_sensor_map=knob_sensor_map;
+            last_monitored_is_mainline=1;
+            index=1;
+            subindex=1;
+            knob_groups=cell(1,size(obj.knobs.knob_link_ids,1));
+            for i=1:size(knob_sensor_map,2)
+                if knob_sensor_map(i)==1
+                    if last_monitored_is_mainline==0
+                        index=index+1;
+                        subindex=1;
+                        last_monitored_is_mainline=1;
+                    end    
+                elseif knob_sensor_map(i)==-1
+                    last_monitored_is_mainline=0;
+                    array=cell2mat(knob_groups{1,index});
+                    array(subindex,1)=obj.linear_link_ids(i);
+                    knob_groups{1,index}=num2cell(array);
+                    subindex=subindex+1;
+                end                    
+            end
+            obj.knobs.knob_groups=knob_groups(1,1:index-1);
+        end
+        
+        function [monitored_closer_mainline_source,monitored_closer_mainline_sink]= get_monitored_segment_for_knob_group(obj, knob_group) 
+            first_knob_index=find(obj.linear_link_ids==knob_group{1,1});
+            last_knob_index=find(obj.linear_link_ids==knob_group{size(knob_group,1),1});
+            is_monitored_mainline_link=0;  
+            i=1;
+            while (is_monitored_mainline_link==0)
+                if (obj.knob_sensor_map(last_knob_index+i)==1)
+                    is_monitored_mainline_link=1;
+                end    
+                monitored_closer_mainline_sink=obj.linear_link_ids(last_knob_index+i);
+                i=i+1;
+            end
+            is_monitored_mainline_link=0;
+            i=-1;
+            while(is_monitored_mainline_link==0)
+                if (obj.knob_sensor_map(first_knob_index+i)==1)
+                    is_monitored_mainline_link=1;
+                end    
+                monitored_closer_mainline_source=obj.linear_link_ids(first_knob_index+i);
+                i=i-1;
+            end    
+        end
+        
+        function [local_flow_difference] = get_unmonitored_flow_difference(obj, monitored_source_mainline_link_id, monitored_sink_mainline_link_id)
+            source_index=find(obj.linear_link_ids==monitored_source_mainline_link_id);
+            sink_index=find(obj.linear_link_ids==monitored_sink_mainline_link_id);
+            local_segment_link_ids=obj.linear_link_ids(1,source_index:sink_index);
+            all_monitored_sources=obj.link_ids_beats(obj.good_source_mask_beats);
+            all_monitored_sinks=obj.link_ids_beats(obj.good_sink_mask_beats);
+            local_monitored_sources(1,1)=monitored_source_mainline_link_id;
+            number_local_monitored_sources=sum(ismember(local_segment_link_ids,all_monitored_sources))+1;
+            local_monitored_sources(1,2:number_local_monitored_sources)=local_segment_link_ids(ismember(local_segment_link_ids,all_monitored_sources));
+            local_monitored_sinks=local_segment_link_ids(ismember(local_segment_link_ids,all_monitored_sinks));
+            local_monitored_sinks(1,end+1)=monitored_sink_mainline_link_id;
+            local_flow_difference=0;
+            for i=1:size(local_monitored_sources,2)
+                local_flow_difference=local_flow_difference+sum(obj.beats_simulation.get_output_for_link_id(local_monitored_sources(1,i)).flw_in_veh);
+            end
+            for i=1:size(local_monitored_sinks,2)
+                local_flow_difference=local_flow_difference-sum(obj.beats_simulation.get_output_for_link_id(local_monitored_sinks(1,i)).flw_in_veh);
+            end   
+        end    
+        
+        function [] = set_knob_group_flow_differences(obj)
+            for i=1:size(obj.knobs.knob_groups,2)
+                [source,sink]=obj.get_monitored_segment_for_knob_group(obj.knobs.knob_groups{1,i});
+                obj.knobs.knob_group_flow_differences(1,i)=obj.get_unmonitored_flow_difference(source,sink);
+            end
+        end
+        
+        function [] = set_auto_knob_boundaries_refined(obj)
+            if (~isfield(obj.knobs,'underevaluation_tolerance_coefficient') || ~isfield(obj.knobs, 'overevaluation_tolerance_coefficient'))
+                obj.knobs.underevaluation_tolerance_coefficient=input(['Enter the underevaluation tolerance coefficient for the flow going throw the knob links : ']);
+                obj.knobs.overevaluation_tolerance_coefficient=input(['Enter the overevaluation tolerance coefficient for the flow going throw the knob links : ']);
+            end    
+            knob_groups_to_project=[];
+            for i=1:size(obj.knobs.knob_groups,2)
+                for j=1:size(obj.knobs.knob_groups{1,i},1)
+                    knob_link_id=cell2mat(obj.knobs.knob_groups{1,i}(j,1));
+                    knob_index=find(obj.knobs.knob_link_ids==knob_link_id);
+                    sum_of_template=obj.get_sum_of_template_in_veh(knob_link_id);
+                    if ismember(knob_link_id,obj.link_ids_beats(obj.source_mask_beats))
+                        coeff=-1;
+                    else
+                        coeff=1;
+                    end
+                    if (size(obj.knobs.knob_groups{1,i},1)==1)
+                        knob_perfect_value=coeff*obj.knobs.knob_group_flow_differences(i)/sum_of_template;
+                        obj.knobs.knob_perfect_values(knob_index,1)=knob_perfect_value;
+                        obj.knobs.knob_boundaries_min(knob_index,1)=knob_perfect_value*obj.knobs.underevaluation_tolerance_coefficient;
+                        obj.knobs.knob_boundaries_max(knob_index,1)=knob_perfect_value*obj.knobs.overevaluation_tolerance_coefficient;
+                    else
+                        knob_groups_to_project(end+1)=i;
+                    end    
+                end    
+            end
+            obj.knobs.knob_groups_to_project=unique(knob_groups_to_project);
+        end    
+        
+        function [knobs_on_correct_subspace]= project_involved_knob_groups_on_correct_flow_subspace(obj, knobs_vector)
+            knobs_on_correct_subspace=knobs_vector;
+            for i=1:size(obj.knobs.knob_groups_to_project)
+                knob_group=cell2mat(obj.knobs.knob_groups{1,obj.knobs.knob_groups_to_project(i)});
+                indices=[];
+                constraint_equation_coeffs=[];
+                for j=1:size(knob_group)
+                    index=find(obj.knobs.knob_link_ids==knob_group(j));
+                    indices(end+1,1)=index;
+                    subvector=knobs_vector(indices,1);
+                    sum_of_template=obj.get_sum_of_template_in_veh(obj.knobs.knob_link_ids(index));
+                    if ismember(obj.knobs.knob_link_ids(index),obj.link_ids_beats(obj.source_mask_beats))
+                        coeff=-1;
+                    else
+                        coeff=1;
+                    end    
+                    constraint_equation_coeffs(1,end+1)=coeff*sum_of_template;
+                end
+                flowdiff=obj.knobs.knob_group_flow_differences(1,obj.knobs.knob_groups_to_project(i));
+                otc=obj.knobs.overevaluation_tolerance_coefficient;
+                utc=obj.knobs.underevaluation_tolerance_coefficient;
+                [subvector_on_correct_subspace,fval]=quadprog(eye(size(knob_group,1)),-reshape(subvector,1,[]),[constraint_equation_coeffs;-constraint_equation_coeffs],[otc*flowdiff;-utc*flowdiff],[],[],obj.knobs.naive_knob_boundaries_min(indices,1),obj.knobs.naive_knob_boundaries_max(indices,1)); % minimization program
+                knobs_on_correct_subspace(indices,1)=subvector_on_correct_subspace;
+            end    
+        end
+        
         %get link lengths in beats or pems data matching format............
     
         function [lengths] = get_link_lengths_miles_pems(obj,link_mask_pems, same_link_mask_beats)
@@ -610,7 +758,15 @@ classdef (Abstract) AlgorithmBox < handle
             [knobs_on_correct_subspace,fval]=quadprog(eye(sze),-reshape(vector,1,[]),[],[],equation_coefficients_tuple, obj.TVM_reference_values.pems-equation_rest_of_left_side,obj.knobs.knob_boundaries_min,obj.knobs.knob_boundaries_max); % minimization program
         end    
 
-        %other useful stuff...............................................
+        %utilities..............................................
+        
+        function [bool] = is_set_knobs(obj) %check if the knobs struct is set.
+
+            bool = 0;
+            if (size(obj.knobs.knob_link_ids,2)~=0 && size(obj.knobs.knob_boundaries_max,2)~=0 && size(obj.knobs.knob_boundaries_min,2)~=0 && size(obj.knobs.knob_demand_ids,2)~=0)
+                bool=1;
+            end    
+         end 
         
         function [result_matrix] = rescale_knobs(obj, input_matrix, isRealScaleToZeroTenScale) % rescales the knobs from 0:10 to their actual respective range (used by cmaes for 'uniform sensitivity' reasons) or the opposite operation.
             min=repmat(obj.knobs.knob_boundaries_min,1,size(input_matrix,2));
@@ -633,138 +789,6 @@ classdef (Abstract) AlgorithmBox < handle
             end
         end
         
-        %functions to refine the boundaries to realistic ones, taking local
-        %monitored flows for each knob into account.......................
-        
-        function [] = set_knob_groups(obj) %assumes a mainline link is monitored before the first unknown knob
-            knob_sensor_map=zeros(size(obj.linear_link_ids));
-            knob_sensor_map(ismember(obj.linear_link_ids,obj.link_ids_beats(obj.good_mainline_mask_beats)))=1;
-            knob_sensor_map(ismember(obj.linear_link_ids,obj.link_ids_beats(logical(obj.good_source_mask_beats+obj.good_sink_mask_beats))))=0.5;
-            knob_sensor_map(ismember(obj.linear_link_ids,obj.knobs.knob_link_ids))=-1;
-            obj.knob_sensor_map=knob_sensor_map;
-            last_monitored_is_mainline=1;
-            index=1;
-            subindex=1;
-            knob_groups=cell(1,size(obj.knobs.knob_link_ids,1));
-            for i=1:size(knob_sensor_map,2)
-                if knob_sensor_map(i)==1
-                    if last_monitored_is_mainline==0
-                        index=index+1;
-                        subindex=1;
-                        last_monitored_is_mainline=1;
-                    end    
-                elseif knob_sensor_map(i)==-1
-                    last_monitored_is_mainline=0;
-                    array=cell2mat(knob_groups{1,index});
-                    array(subindex,1)=obj.linear_link_ids(i);
-                    knob_groups{1,index}=num2cell(array);
-                    subindex=subindex+1;
-                end                    
-            end
-            obj.knobs.knob_groups=knob_groups(1,1:index-1);
-        end
-        
-        function [monitored_closer_mainline_source,monitored_closer_mainline_sink]= get_monitored_segment_for_knob_group(obj, knob_group) 
-            first_knob_index=find(obj.linear_link_ids==knob_group{1,1});
-            last_knob_index=find(obj.linear_link_ids==knob_group{size(knob_group,1),1});
-            is_monitored_mainline_link=0;  
-            i=1;
-            while (is_monitored_mainline_link==0)
-                if (obj.knob_sensor_map(last_knob_index+i)==1)
-                    is_monitored_mainline_link=1;
-                end    
-                monitored_closer_mainline_sink=obj.linear_link_ids(last_knob_index+i);
-                i=i+1;
-            end
-            is_monitored_mainline_link=0;
-            i=-1;
-            while(is_monitored_mainline_link==0)
-                if (obj.knob_sensor_map(first_knob_index+i)==1)
-                    is_monitored_mainline_link=1;
-                end    
-                monitored_closer_mainline_source=obj.linear_link_ids(first_knob_index+i);
-                i=i-1;
-            end    
-        end
-        
-        function [local_flow_difference] = get_unmonitored_flow_difference(obj, monitored_source_mainline_link_id, monitored_sink_mainline_link_id)
-            source_index=find(obj.linear_link_ids==monitored_source_mainline_link_id);
-            sink_index=find(obj.linear_link_ids==monitored_sink_mainline_link_id);
-            local_segment_link_ids=obj.linear_link_ids(1,source_index:sink_index);
-            all_monitored_sources=obj.link_ids_beats(obj.good_source_mask_beats);
-            all_monitored_sinks=obj.link_ids_beats(obj.good_sink_mask_beats);
-            local_monitored_sources(1,1)=monitored_source_mainline_link_id;
-            number_local_monitored_sources=sum(ismember(local_segment_link_ids,all_monitored_sources))+1;
-            local_monitored_sources(1,2:number_local_monitored_sources)=local_segment_link_ids(ismember(local_segment_link_ids,all_monitored_sources));
-            local_monitored_sinks=local_segment_link_ids(ismember(local_segment_link_ids,all_monitored_sinks));
-            local_monitored_sinks(1,end+1)=monitored_sink_mainline_link_id;
-            local_flow_difference=0;
-            for i=1:size(local_monitored_sources,2)
-                local_flow_difference=local_flow_difference+sum(obj.beats_simulation.get_output_for_link_id(local_monitored_sources(1,i)).flw_in_veh);
-            end
-            for i=1:size(local_monitored_sinks,2)
-                local_flow_difference=local_flow_difference-sum(obj.beats_simulation.get_output_for_link_id(local_monitored_sinks(1,i)).flw_in_veh);
-            end   
-        end    
-        
-        function [] = set_knob_group_flow_differences(obj)
-            for i=1:size(obj.knobs.knob_groups,2)
-                [source,sink]=obj.get_monitored_segment_for_knob_group(obj.knobs.knob_groups{1,i});
-                obj.knobs.knob_group_flow_differences(1,i)=obj.get_unmonitored_flow_difference(source,sink);
-            end
-        end
-        
-        function [] = set_auto_knob_boundaries_refined(obj)
-            knob_groups_to_project=[];
-            for i=1:size(obj.knobs.knob_groups,2)
-                for j=1:size(obj.knobs.knob_groups{1,i},1)
-                    knob_link_id=cell2mat(obj.knobs.knob_groups{1,i}(j,1));
-                    knob_index=find(obj.knobs.knob_link_ids==knob_link_id);
-                    sum_of_template=obj.get_sum_of_template_in_veh(knob_link_id);
-                    if ismember(knob_link_id,obj.link_ids_beats(obj.source_mask_beats))
-                        coeff=-1;
-                    else
-                        coeff=1;
-                    end
-                    if (size(obj.knobs.knob_groups{1,i},1)==1)
-                        knob_perfect_value=coeff*obj.knobs.knob_group_flow_differences(i)/sum_of_template;
-                        obj.knobs.knob_perfect_values(knob_index,1)=knob_perfect_value;
-                        obj.knobs.knob_boundaries_min(knob_index,1)=knob_perfect_value*obj.knobs.underevaluation_tolerance_coefficient;
-                        obj.knobs.knob_boundaries_max(knob_index,1)=knob_perfect_value*obj.knobs.overevaluation_tolerance_coefficient;
-                    else
-                        knob_groups_to_project(end+1)=i;
-                    end    
-                end    
-            end
-            obj.knobs.knob_groups_to_project=unique(knob_groups_to_project);
-        end    
-        
-        function [knobs_on_correct_subspace]= project_involved_knob_groups_on_correct_flow_subspace(obj, knobs_vector)
-            knobs_on_correct_subspace=knobs_vector;
-            for i=1:size(obj.knobs.knob_groups_to_project)
-                knob_group=cell2mat(obj.knobs.knob_groups{1,obj.knobs.knob_groups_to_project(i)});
-                indices=[];
-                constraint_equation_coeffs=[];
-                for j=1:size(knob_group)
-                    index=find(obj.knobs.knob_link_ids==knob_group(j));
-                    indices(end+1,1)=index;
-                    subvector=knobs_vector(indices,1);
-                    sum_of_template=obj.get_sum_of_template_in_veh(obj.knobs.knob_link_ids(index));
-                    if ismember(obj.knobs.knob_link_ids(index),obj.link_ids_beats(obj.source_mask_beats))
-                        coeff=-1;
-                    else
-                        coeff=1;
-                    end    
-                    constraint_equation_coeffs(1,end+1)=coeff*sum_of_template;
-                end
-                flowdiff=obj.knobs.knob_group_flow_differences(1,obj.knobs.knob_groups_to_project(i));
-                otc=obj.knobs.overevaluation_tolerance_coefficient;
-                utc=obj.knobs.underevaluation_tolerance_coefficient;
-                [subvector_on_correct_subspace,fval]=quadprog(eye(size(knob_group,1)),-reshape(subvector,1,[]),[constraint_equation_coeffs;-constraint_equation_coeffs],[otc*flowdiff;-utc*flowdiff],[],[],obj.knobs.naive_knob_boundaries_min(indices,1),obj.knobs.naive_knob_boundaries_max(indices,1)); % minimization program
-                knobs_on_correct_subspace(indices,1)=subvector_on_correct_subspace;
-            end    
-        end    
-        
         %temporary.........................................................
                 
         function [res] = compute_TVM_with_knobs_vector(obj,vector)
@@ -780,107 +804,8 @@ classdef (Abstract) AlgorithmBox < handle
             end
             res=obj.TVM_reference_values.beats+alphaIs_tuple*(vector-1);
        end   % Computes TVM with the knobs vector.
-       
-        function [knobs_on_correct_subspace] = project_on_correct_TVM_subspace_fminunc(obj,vector) % Project vector on the hyperplan of vectors that will make beats output have the same TVM as pems.
-            equation_coefficients_tuple=[]; 
-            %N tuple that will contain the coefficients of the equation of 
-            %the hyperplan. We will call them alpha(i) : alpha(i)= (sum over time of the template values of the demand profile of knob(i))*(remaining mainline length from the corresponding link) 
-            %The equation is [(knob1)*alpha(1)+(knob2)*alpha(2)+...+(knobN)*alpha(N)-sum(alpha(i))]+[TVM value given by beats output when all knobs are set to one]=pems TVM value
-            %(the substraction of sum of alphaIs removes the extra contribution of the links tuned in beats TVM)
-            for i=1:size(obj.knobs.knob_link_ids) %fill the tuple
-                if (ismember(obj.knobs.knob_link_ids(i),obj.link_ids_beats(obj.source_mask_beats)))
-                    sign=1;
-                else
-                    sign=-1;
-                end
-                equation_coefficients_tuple(1,i)=sign*obj.get_sum_of_template_in_veh(obj.knobs.knob_link_ids(i,1))*obj.get_remaining_monitored_mainline_length(obj.get_next_mainline_link_id(obj.knobs.knob_link_ids(i)));  
-            end
-            equation_rest_of_left_side=obj.TVM_reference_values.beats-sum(equation_coefficients_tuple); %second term between brackets of the left side
-            [knobs_on_correct_subspace,fval]=fmincon(@(x)Utilities.euclidianDistance(x,vector),vector,[],[],equation_coefficients_tuple, obj.TVM_reference_values.pems-equation_rest_of_left_side,obj.knobs.knob_boundaries_min,obj.knobs.knob_boundaries_max); % minimization program
-        end
-        
-        %transform masks to fit linear freeway...........................
-        
-        function [linear_mask_in_mainline_space] = send_mask_beats_to_linear_mainline_space(obj,mask_beats)
-            linear_mask_in_mainline_space=obj.send_linear_mask_beats_to_mainline_space(obj, obj.send_mask_beats_to_linear_space(obj, mask_beats));
-        end  
-        
-        %several performance calculators.........................................
-        
-        function [] = load_performance_calculator(obj, perfStruct) %perfStruct : struct which fields are the names of the performance calculator classes, associated with their respective weight.                
-            obj.performance_calculator.weights=[];
-            if (nargin<2)
-                npc=input(['Enter the number of different performance calculators that will be involved : ']);
-                perfStruct=struct;
-                for i=1:npc
-                    name=input(['Enter the name of the "PerformanceCalculator" subclass number ', num2str(i),' : '],'s');
-                    weight=input(['Enter its weight (sum of weights must be one) : '],'s');
-                    eval(strcat('perfStruct.',name,'=',weight,';'));
-                end    
-            end    
-            names=fieldnames(perfStruct);
-            for i = 1:size(names,1)
-                obj.performance_calculator.weights(1,i)=getfield(perfStruct,char(names(i)));
-                if (strcmpi(names(i),'CongestionPattern'))
-                    obj.performance_calculator.pcs{i}=CongestionPattern(obj);
-                else    
-                    obj.performance_calculator.pcs{i}=eval(char(names(i)));
-                end
-                if (i==1)
-                    obj.performance_calculator.name=strcat(num2str(obj.performance_calculator.weights(1,i)),'*',names(1));
-                else    
-                    obj.performance_calculator.name=strcat(obj.performance_calculator.name,'+', num2str(obj.performance_calculator.weights(1,i)),'*',names(i));
-                end
-            end
-            if sum(obj.performance_calculator.weights)~=1
-                error('The sum of the weights of the performance calculators must be 1.');
-            end  
-            obj.calculate_pc_from_pems;
-        end
-        
-        function [] = calculate_pc_from_beats(obj)
-            for i=1:size(obj.performance_calculator.pcs,2)
-                obj.performance_calculator.pcs{i}.calculate_from_beats(obj);
-            end
-        end    
-            
-        function [] = calculate_pc_from_pems(obj)
-             for i=1:size(obj.performance_calculator.pcs,2)
-                obj.performance_calculator.pcs{i}.calculate_from_pems(obj);
-             end
-        end    
-        
-        function [result,error_in_percentage] = calculate_error(obj)
-            for i=1:size(obj.performance_calculator.pcs,2)
-                res(i,1)=obj.error_calculator.calculate(obj.performance_calculator.pcs{i}.result_from_beats,obj.performance_calculator.pcs{i}.result_from_pems);
-                err_in_percentage(i,1)=obj.performance_calculator.pcs{i}.error_in_percentage;
-            end    
-            result=obj.performance_calculator.weights*res;
-            error_in_percentage=obj.performance_calculator.weights*err_in_percentage;
-        end    
-        
+                
     end
-        
-    methods (Static, Access = public)
-    
-        %transform masks to fit linear freeway.............................
-        
-        function [linear_mask] = send_mask_beats_to_linear_space(obj, mask_beats)
-            linear_mask=ismember(obj.linear_link_ids,obj.link_ids_beats(mask_beats));
-        end    
-        
-        function [linear_mask_in_mainline_space] = send_linear_mask_beats_to_mainline_space(obj, linear_mask_beats)
-            mainline_link_ids=obj.link_ids_beats(obj.mainline_mask_beats);
-            linear_mask_in_mainline_space = ismember(mainline_link_ids,obj.linear_link_ids(linear_mask_beats));
-        end    
-        
-        function [linear_mask_in_mainline_space] = send_mask_pems_to_linear_mainline_space(obj, mask_pems)
-            mainline_link_ids=obj.link_ids_beats(obj.mainline_mask_beats);
-            mainline_masked_link_ids=obj.link_ids_pems(mask_pems);
-            linear_mask_in_mainline_space = ismember(mainline_link_ids,mainline_masked_link_ids);
-        end  
-        
-    end    
  
 end    
 

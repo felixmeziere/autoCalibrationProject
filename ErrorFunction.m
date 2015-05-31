@@ -3,8 +3,8 @@ classdef ErrorFunction <handle
     properties (SetAccess = protected)
         
         algorithm_box
-        error_calculator@ErrorCalculator
-        performance_calculators=struct;
+        error_calculator@ErrorCalculator % an ErrorCalculator subclass, which is a way of comparing two performance calculator values (e.g. L1 norm).
+        performance_calculators  % a cell array containing instances of the PerformanceCalculator subclass, which is a quantity measured in pems or outputed by beats (e.g. TVM).
         weights
         name
         
@@ -19,7 +19,7 @@ classdef ErrorFunction <handle
                 param=struct;
             end
             if (~isfield(param,'performance_calculators'))
-                npc=input(['Enter the number of the different performance calculators that will be involved : ']);
+                npc=input(['Enter the number of different performance calculators that will be involved : ']);
                 for i=1:npc
                     name=input(['Enter the name of the "PerformanceCalculator" subclass number ', num2str(i),' : '],'s');
                     weight=input(['Enter its weight (sum of weights must be one) : '],'s');
@@ -29,13 +29,14 @@ classdef ErrorFunction <handle
             if (~isfield(param,'error_calculator'))
                 param.error_calculator=input(['Enter the name of an "ErrorCalculator" subclass (like L1) : ']);
             end
+            npc=size(param.performance_calculators,2);
             names=fieldnames(param.performance_calculators);
             obj.error_calculator=param.error_calculator;
             obj.performance_calculators=cell(1,npc);
             for i = 1:size(names,1)
                 obj.weights(1,i)=getfield(param.performance_calculators,char(names(i)));
-                if (strcmpi(names(i),'CongestionPattern'))
-                    obj.performance_calculators{i}=CongestionPattern(obj.algorithm_box);
+                if (strcmpi(names(i),'CongestionPattern') && isfield(obj.algorithm_box.temp,'congestion_patterns'))
+                    obj.performance_calculators{i}=CongestionPattern(obj.algorithm_box, obj.algorithm_box.temp.congestion_patterns);
                 else    
                     obj.performance_calculators{i}=eval(strcat(char(names(i)),'(obj.algorithm_box)'));
                 end
@@ -60,7 +61,7 @@ classdef ErrorFunction <handle
             
         function [] = calculate_pc_from_pems(obj)
              for i=1:size(obj.performance_calculators,2)
-                obj.performance_calculators.calculate_from_pems;
+                obj.performance_calculators{i}.calculate_from_pems;
              end
         end    
         

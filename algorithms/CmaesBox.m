@@ -70,13 +70,7 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
               bestEver.x=obj.rescale_knobs(bestEver.x,0);
               obj.bestEverPoint=bestEver.x;
               obj.bestEver=bestEver;
-              obj.res_history=reshape(obj.res_history,[],1);
-              obj.res_history=obj.res_history/obj.performance_calculator.result_from_pems;
-              for i=1:size(obj.knobs_history,2)
-                  temp(i,:)=obj.knobs_history(:,i);
-              end
               obj.bestEverErrorFunctionValue=bestEver.f;
-              obj.knobs_history=temp;
               obj.numberOfIterations=countiter;
         end   % defined in AlgorithmBox   
   
