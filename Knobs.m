@@ -52,7 +52,8 @@ classdef Knobs < handle
         end    
         
         function [] = run_assistant(obj) % set the ids of the knobs to tune in the command window.
-            if (obj.algorithm_box.beats_loaded==1)
+            if (obj.algorithm_box.beats_loaded==1 && obj.algorithm_box.pems.is_loaded==1)
+                obj.is_loaded=0;
                 obj.link_ids=[];
                 demand2link=obj.algorithm_box.beats_simulation.scenario_ptr.get_demandprofile_link_map;
                 bad_sources=obj.algorithm_box.link_ids_beats(1,logical(~obj.algorithm_box.good_source_mask_beats.*obj.algorithm_box.source_mask_beats));
@@ -86,7 +87,7 @@ classdef Knobs < handle
                 obj.ask_for_knob_boundaries;
                 obj.is_loaded=1;
             else
-                error('No Beats Simulation loaded.');
+                error('Beats simulation and PeMS data must be loaded first in AlgorithmBox.');
             end    
         end
 

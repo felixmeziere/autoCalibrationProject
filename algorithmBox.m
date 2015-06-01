@@ -42,7 +42,7 @@ classdef (Abstract) AlgorithmBox < handle
         %visible input porperties..........................................
         
         beats_simulation@BeatsSimulation % the BeatsSimulation object that will run and be overwritten at each algorithm iteration.
-        pems=struct; % the pems data to compare with the beats results. Input fields : 'days' (e.g. datenum(2014,10,1):datenum(2014,10,10)); 'district' (e.g. 7); 'processed_folder'(e.g. C:\Code). Output Fields : 'data' 
+        pems@PeMSData % the pems data to compare with the beats results. Input fields : 'days' (e.g. datenum(2014,10,1):datenum(2014,10,10)); 'district' (e.g. 7); 'processed_folder'(e.g. C:\Code). Output Fields : 'data' 
         error_calculator@ErrorCalculator 
         initialization_method@char % initialization method must be 'normal', 'uniform' or 'manual'.
         TVM_reference_values=struct; %TVM values from pems and beats with all knobs set to one.
@@ -70,7 +70,6 @@ classdef (Abstract) AlgorithmBox < handle
         xls_results@char % address of the excel file containing the results, with a format that fits to the method obj.send_result_to_xls.
         xls_program % cell array corresponding to the excel file containing configs in the columns, with the same format as given in the template.
         beats_loaded=0; % flag to indicate if the beats simulation and parameters have been correctly loaded.
-        pems_loaded=0; % flag to indicate if pems data has been correctly loaded.
         current_day=1; %current day used in the pems data loaded.
         temp=struct;
         is_program_first_run=1; %flag to indicate if long loading time data has been already loaded.
@@ -98,10 +97,8 @@ classdef (Abstract) AlgorithmBox < handle
         
         two_sensors_links
         link_ids_beats % all the link ids of the scenario. For practical reasons.
-        link_ids_pems % list of the link ids corresponding to the pems data columns, in the right order.
         linear_link_ids      
 
-        
     end    
    
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -122,7 +119,6 @@ classdef (Abstract) AlgorithmBox < handle
         
         %create object....................................................
         function [obj] = AlgorithmBox()
-            obj.knobs=Knobs(obj);
         end % useless constructor.
         
         %load for single run from xls file.................................
@@ -134,6 +130,8 @@ classdef (Abstract) AlgorithmBox < handle
             %Empty cells in the current column will be ignored.
             %The program input (0 or 1) is to avoid reloading useless
             %stuff.
+            obj.knobs=Knobs(obj);
+            obj.pems=PeMSData(obj);
             if ~exist('is_program','var') || is_program~=1
                 for i=1:size(obj.xls_program,1)
                     if ~strcmp(obj.xls_program(i,obj.current_xls_program_column),'')
@@ -141,7 +139,8 @@ classdef (Abstract) AlgorithmBox < handle
                     end
                 end
                 obj.load_beats;
-                obj.load_pems;
+                obj.pems.load;
+                obj.set_masks_and_reference_values;
                 obj.error_function=ErrorFunction(obj,obj.temp.erfStruct);
             end
             if ~exist('is_program_first_run','var') || is_program_first_run~=1
@@ -159,10 +158,10 @@ classdef (Abstract) AlgorithmBox < handle
         %load for single run from initial loading assistant and its 
         %standalone dependencies...........................................
         function [] = run_assistant(obj) % assistant to set all the parameters for a single run in the command window.
-            obj.ask_for_beats_simulation;
+%             obj.ask_for_beats_simulation;
             obj.ask_for_pems_data;
-            obj.ask_for_knobs;
             obj.ask_for_errorFunction;
+            obj.ask_for_knobs;
             obj.ask_for_algorithm_parameters;
             obj.ask_for_starting_point;
             disp('ALL SETTINGS LOADED, ALGORITHM READY TO RUN');
@@ -176,21 +175,9 @@ classdef (Abstract) AlgorithmBox < handle
         end   
         
         function [] = ask_for_pems_data(obj) % ask the user for the pems info (still not implemented).
-            if (obj.beats_loaded==1)
-                startyear=input(['Enter pems data beginning year (integer) : ']);
-                startmonth=input(['Enter pems data beginning month (integer) : ']);
-                startday=input(['Enter pems data beginning day (integer) : ']);
-                endyear=input(['Enter pems data end year (integer) : ']);
-                endmonth=input(['Enter pems data end month (integer) : ']);
-                endday=input(['Enter pems data end day (integer) : ']);
-                obj.pems.days = (datenum(startyear, startmonth, startday):datenum(endyear, endmonth, endday));
-                obj.pems.district = input(['Enter district : ']);
-                obj.pems.processed_folder = input(['Enter the adress of the peMS processed folder : '], 's');
-                obj.load_pems;
-            else
-                error('Beats simulation must be loaded before loading pems data.');
-            end    
-                
+            obj.pems=PeMSData(obj);
+            obj.pems.run_assistant;
+            obj.set_masks_and_reference_values;
         end 
         
         function [] = ask_for_knobs(obj) % set the ids of the knobs to tune in the command window.
@@ -203,7 +190,7 @@ classdef (Abstract) AlgorithmBox < handle
         end    
                
         function [] = ask_for_errorFunction (obj) % set the performance calculator and error calculator in the command window.
-            if (obj.pems_loaded==1)
+            if (obj.pems.is_loaded==1)
                 obj.error_function=ErrorFunction(obj);
                 obj.error_function.calculate_pc_from_pems;
             else
@@ -287,7 +274,7 @@ classdef (Abstract) AlgorithmBox < handle
                     zeroten_knob_values=repmat([],size(knob_values,1),1);
                 end
 %                 knob_values=obj.project_on_correct_TVM_subspace(knob_values);
-%                 knob_values=obj.knobs.project_involved_knob_groups_on_correct_flow_subspace(knob_values);
+                knob_values=obj.knobs.project_involved_knob_groups_on_correct_flow_subspace(knob_values);
                 zeroten_knob_values=obj.knobs.rescale_knobs(knob_values,1);
                 obj.knobs.knobs_history(end+1,:)=reshape(knob_values,1,[]);
                 disp(['Knobs vector and values being tested for evaluation # ',num2str(obj.numberOfEvaluations),' :']);
@@ -348,11 +335,8 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.beats_simulation.create_beats_object(obj.beats_parameters);
                 obj.link_ids_beats=obj.beats_simulation.scenario_ptr.get_link_ids;
                 obj.beats_simulation.run_beats_persistent;
-                if obj.pems_loaded==1
-                    TVmiles=TVM(obj);
-                    obj.TVM_reference_values.beats=TVmiles.calculate_from_beats;
-%                     refflw=DailyExitFlow;
-%                     obj.flow_reference_values.beats=refflw.calculate_from_beats;
+                if (size(obj.pems,1)~=0 && obj.pems.is_loaded==1)
+
                 end
                 obj.linear_link_ids=obj.link_ids_beats(obj.beats_simulation.scenario_ptr.extract_linear_fwy_indices);
                 disp('BEATS SETTINGS LOADED.')
@@ -360,78 +344,57 @@ classdef (Abstract) AlgorithmBox < handle
             else error('Beats scenario xml file adress and beats parameters must be set before loading beats.');   
             end    
         end    %loads beats simulation and computes first TVM reference value.
-        
-        function [] = load_pems(obj)   %loads pems data once all the inputs have been given to the object
-            if (obj.beats_loaded==1)
-                obj.pems_loaded=0;
-                obj.pems.peMS5minData= PeMS5minData;
-                obj.set_masks_and_pems_data;
+                
+        function [] = set_masks_and_reference_values(obj)
+            %sets the masks for further link selection.
+            if (obj.beats_loaded && obj.pems.is_loaded)
+                sensor_link = obj.beats_simulation.scenario_ptr.get_sensor_link_map;
+                good_sensor_mask_pems_r = all(~isnan(obj.pems.data.flw), 1);
+                good_sensor_ids_r=obj.pems.vds2id(good_sensor_mask_pems_r,2);
+                good_sensor_link_r=sensor_link(ismember(sensor_link(:,1), good_sensor_ids_r),:);
+                good_sensor_link=zeros(1,2);
+                k=1;
+                for i= 1:size(good_sensor_link_r(:,2),1)
+                    if (~ismember(good_sensor_link_r(i,2),good_sensor_link(:,2)))
+                        good_sensor_link(k,:)=good_sensor_link_r(i,:);
+                        k=k+1;
+                    else
+                        obj.two_sensors_links(end+1)=good_sensor_link_r(i,2);
+                    end    
+                end
+                good_sensor_ids=good_sensor_link(:,1);
+                obj.good_sensor_mask_pems=reshape(ismember(obj.pems.vds2id(:,2),good_sensor_ids),1,[]);
+                good_sensor_link_ids=good_sensor_link(:,2);
+                mainline_link_ids=obj.beats_simulation.scenario_ptr.get_link_ids_by_type('freeway');
+                obj.mainline_mask_beats=ismember(obj.link_ids_beats, mainline_link_ids);
+                obj.source_mask_beats=obj.beats_simulation.scenario_ptr.is_source_link;
+                obj.sink_mask_beats=obj.beats_simulation.scenario_ptr.is_sink_link;
+                source_link_ids=obj.link_ids_beats(1,obj.source_mask_beats);
+                sink_link_ids=obj.link_ids_beats(1,obj.sink_mask_beats);
+                obj.mainline_mask_pems=reshape(ismember(sensor_link(:,2), mainline_link_ids),1,[]);
+                obj.source_mask_pems=reshape(ismember(sensor_link(:,2), source_link_ids),1,[]);
+                obj.sink_mask_pems=reshape(ismember(sensor_link(:,2), sink_link_ids),1,[]);
+                obj.good_sensor_mask_beats=ismember(obj.link_ids_beats, good_sensor_link_ids);
+                obj.good_mainline_mask_beats=logical(obj.good_sensor_mask_beats.*obj.mainline_mask_beats);
+                obj.good_source_mask_beats=logical(obj.good_sensor_mask_beats.*obj.source_mask_beats);
+                obj.good_sink_mask_beats=logical(obj.good_sensor_mask_beats.*obj.sink_mask_beats);
+                obj.good_mainline_mask_pems=logical(obj.good_sensor_mask_pems.*obj.mainline_mask_pems);
+                obj.good_source_mask_pems=logical(obj.good_sensor_mask_pems.*obj.source_mask_pems);
+                obj.good_sink_mask_pems=logical(obj.good_sensor_mask_pems.*obj.sink_mask_pems);
                 TVmiles=TVM(obj);
                 obj.TVM_reference_values.beats=TVmiles.calculate_from_beats;
-                obj.TVM_reference_values.pems = TVmiles.calculate_from_pems;
-%                 refflw=DailyExitFlow;
-%                 obj.flow_reference_values.beats=refflw.calculate_from_beats;
-                obj.pems_loaded=1;
-                disp('PeMS DATA LOADED.');
+                obj.TVM_reference_values.pems=TVmiles.calculate_from_pems;
+
             else
-                error('Beats simulation must be loaded before loading pems data.');
-            end
-        end
-        
-        function [] = load_knobs(obj)
-            obj.knobs_history=zeros(size(obj.knobs.link_ids,1),1);
-        end
-        
-        function [] = set_masks_and_pems_data(obj)
-            %sets the masks for further link selection and smoothens pems 
-            %data. Ugly code...
-            sensor_link = obj.beats_simulation.scenario_ptr.get_sensor_link_map;
-            obj.link_ids_pems=reshape(sensor_link(:,2),1,[]);
-            vds2id = obj.beats_simulation.scenario_ptr.get_sensor_vds2id_map;
-            obj.pems.peMS5minData.load(obj.pems.processed_folder,  vds2id(:,1), obj.pems.days);
-            obj.pems.data=obj.pems.peMS5minData.get_data_batch_aggregate(vds2id(:,1), obj.pems.days(obj.current_day), 'smooth', true);
-            obj.pems.data.flw=obj.pems.data.flw/12;
-            obj.pems.data.occ=obj.pems.data.occ;
-            good_sensor_mask_pems_r = all(~isnan(obj.pems.data.flw), 1);
-            good_sensor_ids_r=vds2id(good_sensor_mask_pems_r,2);
-            good_sensor_link_r=sensor_link(ismember(sensor_link(:,1), good_sensor_ids_r),:);
-            good_sensor_link=zeros(1,2);
-            k=1;
-            for i= 1:size(good_sensor_link_r(:,2),1)
-                if (~ismember(good_sensor_link_r(i,2),good_sensor_link(:,2)))
-                    good_sensor_link(k,:)=good_sensor_link_r(i,:);
-                    k=k+1;
-                else
-                    obj.two_sensors_links(end+1)=good_sensor_link_r(i,2);
-                end    
-            end
-            good_sensor_ids=good_sensor_link(:,1);
-            obj.good_sensor_mask_pems=reshape(ismember(vds2id(:,2),good_sensor_ids),1,[]);
-            good_sensor_link_ids=good_sensor_link(:,2);
-            mainline_link_ids=obj.beats_simulation.scenario_ptr.get_link_ids_by_type('freeway');
-            obj.mainline_mask_beats=ismember(obj.link_ids_beats, mainline_link_ids);
-            obj.source_mask_beats=obj.beats_simulation.scenario_ptr.is_source_link;
-            obj.sink_mask_beats=obj.beats_simulation.scenario_ptr.is_sink_link;
-            source_link_ids=obj.link_ids_beats(1,obj.source_mask_beats);
-            sink_link_ids=obj.link_ids_beats(1,obj.sink_mask_beats);
-            obj.mainline_mask_pems=reshape(ismember(sensor_link(:,2), mainline_link_ids),1,[]);
-            obj.source_mask_pems=reshape(ismember(sensor_link(:,2), source_link_ids),1,[]);
-            obj.sink_mask_pems=reshape(ismember(sensor_link(:,2), sink_link_ids),1,[]);
-            obj.good_sensor_mask_beats=ismember(obj.link_ids_beats, good_sensor_link_ids);
-            obj.good_mainline_mask_beats=logical(obj.good_sensor_mask_beats.*obj.mainline_mask_beats);
-            obj.good_source_mask_beats=logical(obj.good_sensor_mask_beats.*obj.source_mask_beats);
-            obj.good_sink_mask_beats=logical(obj.good_sensor_mask_beats.*obj.sink_mask_beats);
-            obj.good_mainline_mask_pems=logical(obj.good_sensor_mask_pems.*obj.mainline_mask_pems);
-            obj.good_source_mask_pems=logical(obj.good_sensor_mask_pems.*obj.source_mask_pems);
-            obj.good_sink_mask_pems=logical(obj.good_sensor_mask_pems.*obj.sink_mask_pems);
-            
+                error('Beats simulation and PeMS data must be loaded before setting the masks and reference values.');
+            end    
         end    %sets the masks for further link selection and smoothens pems flow values.
         
         %get link lengths in beats or pems data matching format............
         function [lengths] = get_link_lengths_miles_pems(obj,link_mask_pems, same_link_mask_beats)
             all_lengths=obj.beats_simulation.scenario_ptr.get_link_lengths('us')*0.0001893935;
             lengths=zeros(1,sum(link_mask_pems));
-            ordered_link_ids=obj.link_ids_pems(link_mask_pems);
+            ordered_link_ids=obj.pems.link_id(link_mask_pems);
             k=1;
             for i=1:size(ordered_link_ids,2)
                 link_mask=ismember(obj.link_ids_beats,ordered_link_ids(1,i));
@@ -538,5 +501,6 @@ classdef (Abstract) AlgorithmBox < handle
     end
  
 end    
+
 
 

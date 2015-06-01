@@ -13,7 +13,7 @@ classdef TVH < PerformanceCalculator
         function [obj] = TVH(algoBox)
             if (nargin~=1)
                 error('You must enter an AlgorithmBox as argument of a performance calculator constructor.');
-            elseif (algoBox.beats_loaded==1 && algoBox.pems_loaded==1)
+            elseif (algoBox.beats_loaded==1 && algoBox.pems.is_loaded==1)
             obj.algorithm_box=algoBox;
             else error('Beats simulation and PeMS data must be loaded first.')
             end

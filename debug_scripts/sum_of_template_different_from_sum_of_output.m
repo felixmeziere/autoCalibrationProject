@@ -1,12 +1,12 @@
-clear all
-close all
-scenario_ptr='C:\Users\Felix\code\autoCalibrationProject\config\210E_joined_frmode_beats.xml';
-beats_parameters=struct('OUTPUT_DT','300','SIM_DT','4','RUN_MODE','fw_fr_split_output','DURATION','86400');
-f=BeatsSimulation;
-f.import_beats_classes;
-f.load_scenario(scenario_ptr);
-f.create_beats_object(beats_parameters);
-f.run_beats_persistent;
+% clear all
+% close all
+% scenario_ptr='C:\Users\Felix\code\autoCalibrationProject\config\210E_joined_frmode_beats.xml';
+% beats_parameters=struct('OUTPUT_DT','300','SIM_DT','4','RUN_MODE','fw_fr_split_output','DURATION','86400');
+% f=BeatsSimulation;
+% f.import_beats_classes;
+% f.load_scenario(scenario_ptr);
+% f.create_beats_object(beats_parameters);
+% f.run_beats_persistent;
 
 
 %this is an offramp

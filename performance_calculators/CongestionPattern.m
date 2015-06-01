@@ -22,9 +22,9 @@ classdef CongestionPattern < PerformanceCalculator
     methods (Access = public)
         
         function [obj] = CongestionPattern(algoBox, congestion_patterns)
-            if (nargin~=1)
-                error('You must enter an AlgorithmBox as argument of a performance calculator constructor.');
-            elseif (algoBox.beats_loaded==1 && algoBox.pems_loaded==1)
+            if (nargin<1)
+                error('You must enter an AlgorithmBox as argument of any performance calculator constructor.');
+            elseif (algoBox.beats_loaded==1 && algoBox.pems.is_loaded==1)
                 %congestion_patterns is a single column cell array of structs whose fields are 'left_absciss', 'left_absciss','up_ordinate' and 'down_ordinate'. 
                 %They correspond to the coordinates of the corners of  rectangles of the congestion patterns
                 %These coordinates are included.

@@ -2,6 +2,7 @@ classdef ErrorFunction <handle
     
     properties (SetAccess = protected)
         
+        is_loaded=0;
         algorithm_box
         error_calculator@ErrorCalculator % an ErrorCalculator subclass, which is a way of comparing two performance calculator values (e.g. L1 norm).
         performance_calculators  % a cell array containing instances of the PerformanceCalculator subclass, which is a quantity measured in pems or outputed by beats (e.g. TVM).
@@ -51,7 +52,8 @@ classdef ErrorFunction <handle
             end
             if sum(obj.weights)~=1
                 error('The sum of the weights of the performance calculators must be 1.');
-            end    
+            end
+            is_loaded=1;
         end
         
         %calculate results................................................
