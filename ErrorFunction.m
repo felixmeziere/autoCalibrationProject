@@ -24,7 +24,7 @@ classdef ErrorFunction <handle
             if (~isfield(param,'performance_calculators'))
                 npc=input(['Enter the number of different performance calculators that will be involved : ']);
                 for i=1:npc
-                    name=input(['Enter the name of the "PerformanceCalculator" subclass number ', num2str(i),' : '],'s');
+                    name=input(['Enter the name of the "PerformanceCalculator" subclass number ', num2str(i),' (like TVH) : '],'s');
                     weight=input(['Enter its weight (sum of weights must be one) : '],'s');
                     eval(strcat('param.performance_calculators.',name,'=',weight,';'));
                 end
@@ -78,6 +78,19 @@ classdef ErrorFunction <handle
             obj.result=result;
             obj.error_in_percentage=error_in_percentage;
         end  
+        
+        function [] = plot_congestion_pattern_if_exists(obj)
+            exists=0;
+            for (i=1:size(obj.performance_calculators,2))
+                if (strcmp(class(obj.performance_calculators{i}),'CongestionPattern'))
+                    obj.performance_calculators{i}.plot;
+                    exists=1;
+                end    
+            end    
+            if (exists==0)
+                disp('Sorry, no CongestionPattern among the performance calculators of this error function');
+            end    
+        end    
             
     end
     

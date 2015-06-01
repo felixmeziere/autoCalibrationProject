@@ -1,14 +1,12 @@
-classdef Knobs<handle
-    %UNTITLED Summary of this class goes here
-    %   Detailed explanation goes here
+classdef Knobs < handle
     
-    properties (SetAccess = private)
+    properties (SetAccess = ?AlgorithmBox)
         
         is_loaded=0;
-        algorithm_box;
+        algorithm_box@AlgorithmBox;
         
         %selecting.........................................................
-        link_ids
+        link_ids=0;
         demand_ids
         
         
@@ -21,13 +19,13 @@ classdef Knobs<handle
         overevaluation_tolerance_coefficient=-Inf;
         
         %values............................................................
-        current_value
-        knobs_history
+        current_value=[];
+        knobs_history % consecutive values of the knobs during last run
         perfect_values
          
     end
     
-    properties (Hidden, SetAccess = private)
+    properties (Hidden, SetAccess = ?AlgorithmBox)
     
         %selecting.........................................................
         knob_sensor_map
@@ -35,16 +33,17 @@ classdef Knobs<handle
         knob_groups_to_project
         
         %boundaries........................................................
-        force_manual_boundaries=0;
+        force_manual_knob_boundaries=0; % 1 if knob boundaries are set manually, 0 if they are set to [link's FD max capacity*number of lanes]/[max value of the link's demand template].
         isnaive_boundaries=0;
 
         %values............................................................
         knob_group_flow_differences
 
-
-
-        
-    end    
+    end
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %  Constructing                                                       %
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     methods (Access = public)
         
@@ -52,6 +51,71 @@ classdef Knobs<handle
             obj.algorithm_box=algoBox;
         end    
         
+        function [] = run_assistant(obj) % set the ids of the knobs to tune in the command window.
+            if (obj.algorithm_box.beats_loaded==1)
+                obj.link_ids=[];
+                demand2link=obj.algorithm_box.beats_simulation.scenario_ptr.get_demandprofile_link_map;
+                bad_sources=obj.algorithm_box.link_ids_beats(1,logical(~obj.algorithm_box.good_source_mask_beats.*obj.algorithm_box.source_mask_beats));
+                bad_sources=demand2link(ismember(demand2link(:,2),bad_sources),:);
+                bad_sinks=obj.algorithm_box.link_ids_beats(1,logical(~obj.algorithm_box.good_sink_mask_beats.*obj.algorithm_box.sink_mask_beats));
+                bad_sinks=demand2link(ismember(demand2link(:,2), bad_sinks),:);
+                numberOfKnobs=size(bad_sources,1)+size(bad_sinks,1);
+                numberMissingKnobs=numberOfKnobs+1;
+                while numberMissingKnobs>numberOfKnobs
+                    numberMissingKnobs = input(strcat(['Among the ', num2str(numberOfKnobs), ' sources and sinks without sensors, how many knobs have to be tuned ? :']));
+                end    
+                disp(['List of sources (on-ramps or interconnects) without working sensor demand ids and corresponding link ids : ']);
+                disp(' ');
+                disp(['Demand Id :','     ', 'Link Id :']);
+                disp(' ');
+                disp(bad_sources);
+                disp(' ');
+                disp(['List of sinks (off-ramps or interconnects) without working sensor demand ids and corresponding link ids : ']);
+                disp(' ');
+                disp(['Demand Id :','     ', 'Link Id :']);                                
+                disp(' ');
+                disp(bad_sinks);
+                disp('Link Id (again, for copy-paste) :');
+                disp(' ');
+                disp([bad_sources(:,2); bad_sinks(:,2)]);
+                disp('You can directly select and copy-paste several at a time from the second list which contains only the link ids.');
+                for i=1:numberMissingKnobs
+                    obj.link_ids(i,1)=input(strcat(['knob ', num2str(i),' link id :']));
+                end
+                obj.set_demand_ids;
+                obj.ask_for_knob_boundaries;
+                obj.is_loaded=1;
+            else
+                error('No Beats Simulation loaded.');
+            end    
+        end
+
+        function [] = ask_for_knob_boundaries(obj) % set the knob boundaries (in the same order as the knob ids) in the command window.
+            if (obj.link_ids~=0)
+                mode='';
+                while (~strcmp(mode,'auto') && ~strcmp(mode,'manual'))
+                    mode=input('How should the knob boundaries be set ? (auto/manual)','s');
+                end    
+                if (strcmp(mode,'auto'))
+                    obj.isnaive_boundaries=2;
+                    while (obj.isnaive_boundaries~=0 && obj.isnaive_boundaries~=1)
+                        obj.isnaive_boundaries=input(['Should the knobs be naively set (i.e. leading to potentially absurd daily flows) ? yes =1, no=0 : ']);
+                    end
+                    obj.set_auto_knob_boundaries(obj.isnaive_boundaries);
+                elseif (strcmp(mode,'manual'))     
+                    obj.boundaries_max=[];
+                    obj.boundaries_min=[];
+                    for i=1:size(obj.link_ids,1)
+                        obj.boundaries_min(i,1)=input(['Knob ', num2str(obj.demand_ids(i,1)), ' | ', num2str(obj.link_ids(i,1)), ' minimum : ']);
+                        obj.boundaries_max(i,1)=input(['Knob ', num2str(obj.demand_ids(i,1)), ' | ', num2str(obj.link_ids(i,1)), ' maximum : ']);
+                    end
+                else     
+                end
+            else
+                error('The knobs to tune ids : obj.link_ids has to be set first.');
+            end    
+        end    
+
         function [] = set_auto_knob_boundaries(obj, isnaive) %sets automatically the knob minimums to zero and maximums to [link's FD max capacity*number of lanes]/[max value of the link's demand template]
             for i=1:size(obj.link_ids)    
                 maxTemplateValue=max(obj.algorithm_box.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.link_ids(i)).demand);       
@@ -79,8 +143,13 @@ classdef Knobs<handle
    
     end
     
-    methods (Access = private)
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %  Privates                                                           %
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    methods (Access = ?AlgorithmBox)
         
+        %utilities.........................................................
         function []=set_demand_ids(obj) % set demand profile ids in obj.demand_ids corresponding to obj.link_ids.
             obj.demand_ids=[];
             for i=1:size(obj.link_ids,1)
@@ -246,9 +315,9 @@ classdef Knobs<handle
                     obj.algorithm_box.beats_simulation.beats.set.knob_for_offramp_link_id(obj.link_ids(i),knobs_vector(i));
                 end    
             end
+            obj.current_value=knobs_vector;
         end
 
-        
     end    
     
 end

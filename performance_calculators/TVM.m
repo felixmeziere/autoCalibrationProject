@@ -13,8 +13,10 @@ classdef TVM < PerformanceCalculator
         function [obj] = TVM(algoBox)
             if (nargin~=1)
                 error('You must enter an AlgorithmBox as argument of a performance calculator constructor.');
-            end
+            elseif (algoBox.beats_loaded==1 && algoBox.pems_loaded==1)
             obj.algorithm_box=algoBox;
+            else error('Beats simulation and PeMS data must be loaded first.')
+            end
         end
         
         function [result] = calculate_from_beats(obj) %compute TVM on beats output on monitored mainline links. units in SI.

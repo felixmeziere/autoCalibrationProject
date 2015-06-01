@@ -58,23 +58,22 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
               obj.numberOfIterations=1;
               obj.numberOfEvaluations=1;
               obj.res_history=[];
-              obj.knobs_history=[];
+              obj.knobs.knobs_history=[];
               obj.inopts.MaxFunEvals = obj.maxEval;
               obj.inopts.MaxIter = obj.maxIter;
               obj.inopts.StopFitness = obj.stopFValue;
-              obj.inopts.UBounds = ones(size(obj.knobs.knob_link_ids,1),1)*10;
-              obj.inopts.LBounds = zeros(size(obj.knobs.knob_link_ids,1),1);
-              xstart=obj.rescale_knobs(obj.starting_point,1);
-              [bestPoint, last, obj.numberOfEvaluations, obj.stopFlag, obj.out, bestEver]=cmaes(@(x)obj.errorFunction(x,1), xstart, obj.insigma, obj.inopts);  
+              obj.inopts.UBounds = ones(size(obj.knobs.link_ids,1),1)*10;
+              obj.inopts.LBounds = zeros(size(obj.knobs.link_ids,1),1);
+              xstart=obj.knobs.rescale_knobs(obj.starting_point,1);
+              [bestPoint, last, obj.numberOfEvaluations, obj.stopFlag, obj.out, bestEver]=cmaes(@(x)obj.evaluate_error_function(x,1), xstart, obj.insigma, obj.inopts);  
               load variablescmaes.mat
-              bestEver.x=obj.rescale_knobs(bestEver.x,0);
+              bestEver.x=obj.knobs.rescale_knobs(bestEver.x,0);
               obj.bestEverPoint=bestEver.x;
               obj.bestEver=bestEver;
               obj.bestEverErrorFunctionValue=bestEver.f;
               obj.numberOfIterations=countiter;
         end   % defined in AlgorithmBox   
-  
-        
+   
         function [] = set_result_for_xls(obj)
             %This function should be changed manually to fit the format
             %choosen in the excel file.
