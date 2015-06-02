@@ -51,7 +51,7 @@ classdef ErrorCalculator<handle
                 end
                  result=obj.norm.calculate(contour,0);
             else
-                result=(obj.norm.calculate(beatsPerformance,pemsPerformance))^2;
+                result=(obj.norm.calculate(beatsPerformance,pemsPerformance));
             end
             obj.result = result;
         end

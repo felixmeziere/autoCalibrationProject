@@ -81,8 +81,12 @@ classdef CongestionPattern < PerformanceCalculator
             obj.error_in_percentage=100*sum(sum((obj.result_from_beats-obj.result_from_pems)))/sum(sum(obj.result_from_pems));
         end    
 
-        function [] = plot(obj)
-            figure
+        function [] = plot(obj,figure_number)
+            if (nargin>1 && figure_number~=-Inf)
+                figure(figure_number);
+            else
+                figure
+            end
             imagesc(obj.result_from_beats-obj.result_from_pems)
             drawnow;
         end    

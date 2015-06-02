@@ -6,35 +6,37 @@ classdef ErrorFunction < handle
         algorithm_box
         error_calculator@ErrorCalculator % an ErrorCalculator subclass, which is a way of comparing two performance calculator values (e.g. L1 norm).
         performance_calculators  % a cell array containing instances of the PerformanceCalculator subclass, which is a quantity measured in pems or outputed by beats (e.g. TVM).
-        weights
+        weights_and_exponents
         name
         result
         results
+        transformed_results
         error_in_percentage
-        %res_history
         
     end    
 
     methods (Access = public)
         
         %create object.....................................................
-        function [obj] = ErrorFunction(algoBox, param) %param : struct which fields are 'performance_calculators', a struct which fields are the names of the performance calculator classes, associated with their respective weight, and 'error_calculator', associated with the name of the error calculator used.               
-            no_param=0;
+        function [obj] = ErrorFunction(algoBox, param) %param : struct which fields are 'performance_calculators', a struct which fields are the names of the performance calculator classes, associated with their respective weight and exponent, and 'error_calculator', associated with the name of the error calculator used.               
+            first_time=1;
             obj.algorithm_box=algoBox;
             if (obj.algorithm_box.beats_loaded==1 && obj.algorithm_box.pems.is_loaded==1 && obj.algorithm_box.masks_loaded==1)
                 if (nargin<2)
                     param=struct;
+
                 end
                 has_congestion_pattern=0;
                 if (~isfield(param,'performance_calculators'))
+                    param.performance_calculators=struct;
                     npc=input(['Enter the number of different performance calculators that will be involved : ']);
                     for i=1:npc
                         name=input(['Enter the name of the "PerformanceCalculator" subclass number ', num2str(i),' (like TVH) : '],'s');
-                        weight=input(['Enter its weight (sum of weights must be one) : '],'s');
-                        eval(strcat('param.performance_calculators.',name,'=',weight,';'));
+                        weight=input(['Enter its weight (sum of weights must be one) : ']);
+                        exponent=input('Enter its exponent : ');
+                        param.performance_calculators=setfield(param.performance_calculators,name,[weight,exponent]);
                         if strcmp(name,'CongestionPattern')
                             has_congestion_pattern=1;
-                            no_param=1;
                         end    
                     end
                 end
@@ -46,11 +48,14 @@ classdef ErrorFunction < handle
                 obj.error_calculator=param.error_calculator;
                 obj.performance_calculators=cell(1,npc);
                 for i = 1:size(names,1)
-                    obj.weights(1,i)=getfield(param.performance_calculators,char(names(i)));
+                    weight_and_exponent=getfield(param.performance_calculators,char(names(i)));
+                    obj.weights_and_exponents(1,i)=weight_and_exponent(1);
+                    obj.weights_and_exponents(2,i)=weight_and_exponent(2);
                     if strcmpi(names(i),'CongestionPattern') 
                         if isfield(obj.algorithm_box.temp,'congestion_patterns')
+                            first_time=0;
                             change_rectangles=-1;
-                            if (no_param==1)
+                            if (nargin<2)
                                 while (change_rectangles~=1 && change_rectangles ~= 0)
                                     change_rectangles=input(['Do you want to change the rectangles (instead of leaving them as they were until now) (1=yes/0=no) ? : ']);
                                 end
@@ -70,19 +75,18 @@ classdef ErrorFunction < handle
                         obj.performance_calculators{i}=eval(strcat(char(names(i)),'(obj.algorithm_box)'));
                     end
                     if (i==1)
-                        obj.name=strcat(num2str(obj.weights(1,i)),'*',names(1));
+                        obj.name=strcat('(',num2str(obj.weights_and_exponents(1,i)),'*',names(1),')','^',num2str(obj.weights_and_exponents(2,i)));
                     else    
-                        obj.name=strcat(obj.name,'+', num2str(obj.weights(1,i)),'*',names(i));
+                        obj.name=strcat(obj.name,'+', '(', num2str(obj.weights_and_exponents(1,i)),'*',names(i),')','^',num2str(obj.weights_and_exponents(2,i)));
                     end
                     obj.name=char(obj.name);
                 end
-                if sum(obj.weights)~=1
+                if sum(obj.weights_and_exponents(1,:))~=1
                     error('The sum of the weights of the performance calculators must be 1.');
                 end
-%                 display('RUNNING BEATS A FIRST TIME FOR REFERENCE DATA (Temporary method).');
-%                 obj.algorithm_box.evaluate_error_function(ones(11,1),0);
-%                  STILL HAS TO BE TO IMPLEMENTED BUT WONT BE NEEDED WHEN
-%                  WE WILL USE PEMDS DATA
+                if (nargin<2 && first_time==0)
+                    obj.algorithm_box.reset_beats;
+                end    
                 obj.calculate_pc_from_beats;
                 obj.calculate_pc_from_pems;
                 obj.calculate_error;  
@@ -107,21 +111,25 @@ classdef ErrorFunction < handle
         
         function [result,error_in_percentage] = calculate_error(obj)
             for i=1:size(obj.performance_calculators,2)
-                res(i,1)=obj.error_calculator.calculate(obj.performance_calculators{i}.result_from_beats,obj.performance_calculators{i}.result_from_pems);
+                res(i,1)=(obj.error_calculator.calculate(obj.performance_calculators{i}.result_from_beats,obj.performance_calculators{i}.result_from_pems));
                 errors_in_percentage(i,1)=obj.performance_calculators{i}.error_in_percentage;
-            end    
-            result=obj.weights*res;
-            error_in_percentage=obj.weights*errors_in_percentage;
+            end
+            obj.transformed_results=(obj.weights_and_exponents(1,:).*(transpose(res)).^obj.weights_and_exponents(2,:));
+            result=sum(obj.transformed_results);
+            error_in_percentage=obj.weights_and_exponents(1,:)*errors_in_percentage;
             obj.result=result;
             obj.results=res;
             obj.error_in_percentage=error_in_percentage;
         end  
         
-        function [] = plot_congestion_pattern_if_exists(obj)
+        function [] = plot_congestion_pattern_if_exists(obj,figure_number)
             exists=0;
+            if (nargin<1)
+                figure_number=-Inf;
+            end    
             for (i=1:size(obj.performance_calculators,2))
                 if (strcmp(class(obj.performance_calculators{i}),'CongestionPattern'))
-                    obj.performance_calculators{i}.plot;
+                    obj.performance_calculators{i}.plot(figure_number);
                     exists=1;
                 end    
             end    

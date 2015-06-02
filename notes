@@ -24,11 +24,7 @@ equilibrium popsize/time
     %FAST.
     
     fix the zeros not smoothened in PeMS data
-
-
-    implement powers to the error functions
-    implement exporting variablescmaes.mat to the right place everytime
-
+    
 
 
 

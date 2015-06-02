@@ -273,10 +273,11 @@ classdef (Abstract) AlgorithmBox < handle
                 else
                     zeroten_knob_values=repmat([],size(knob_values,1),1);
                 end
-%                 knob_values=obj.project_on_correct_TVM_subspace(knob_values);
                 knob_values=obj.knobs.project_involved_knob_groups_on_correct_flow_subspace(knob_values);
+                knob_values=obj.project_on_correct_TVM_subspace(knob_values);
                 zeroten_knob_values=obj.knobs.rescale_knobs(knob_values,1);
                 obj.knobs.knobs_history(end+1,:)=reshape(knob_values,1,[]);
+                obj.knobs.zeroten_knobs_history(end+1,:)=reshape(zeroten_knob_values,1,[]);
                 disp(['Knobs vector and values being tested for evaluation # ',num2str(obj.numberOfEvaluations),' :']);
                 disp(' ');
                 disp(['               Demand Id :','                 Link Id :','                                    Value, min and max:','           Value on a scale from 0 to 10:']);
@@ -287,10 +288,16 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.beats_simulation.run_beats_persistent;
                 obj.error_function.calculate_pc_from_beats;
                 [result,error_in_percentage] = obj.error_function.calculate_error;
-                disp(['    Error function value :','       Error in percentage:','        ',obj.error_function.performance_calculators{1}.name,':              ',obj.error_function.performance_calculators{2}.name,':']);
-                disp([result, error_in_percentage,obj.error_function.results(1)*obj.error_function.weights(1),obj.error_function.results(2)*obj.error_function.weights(2)]);
+                disp(['    Error function value :','      Error in percentage:',' CONTRIBUTIONS: ',obj.error_function.performance_calculators{1}.name,':              ',obj.error_function.performance_calculators{2}.name,':              ',obj.error_function.performance_calculators{3}.name,':']);
+                disp([result, error_in_percentage,obj.error_function.transformed_results(1),obj.error_function.transformed_results(2),obj.error_function.transformed_results(3)]);
                 obj.res_history(end+1,[1,2])=[result,error_in_percentage];
                 obj.numberOfEvaluations=obj.numberOfEvaluations+1;
+                figure(1);
+                plot(obj.knobs.zeroten_knobs_history);
+                figure(2);
+                plot(obj.res_history(:,1));
+                obj.error_function.plot_congestion_pattern_if_exists(3);
+                
             else
                 error('The matrix with knobs values given does not match the number of knobs to tune or is not a column vector.');
             end    
@@ -328,13 +335,13 @@ classdef (Abstract) AlgorithmBox < handle
             if (~strcmp(obj.scenario_ptr,''))
                 obj.beats_loaded=0;
                 obj.beats_parameters.RUN_MODE = 'fw_fr_split_output'; 
-                display('RUNNING BEATS A FIRST TIME FOR REFERENCE DATA.');
+                display('LOADING BEATS.');
                 obj.beats_simulation = BeatsSimulation;
                 obj.beats_simulation.import_beats_classes;
                 obj.beats_simulation.load_scenario(obj.scenario_ptr);
                 obj.beats_simulation.create_beats_object(obj.beats_parameters);
                 obj.link_ids_beats=obj.beats_simulation.scenario_ptr.get_link_ids;
-                obj.beats_simulation.run_beats_persistent;
+                obj.reset_beats;
                 if (size(obj.pems,1)~=0 && obj.pems.is_loaded==1)
 
                 end
@@ -389,6 +396,13 @@ classdef (Abstract) AlgorithmBox < handle
                 error('Beats simulation and PeMS data must be loaded before setting the masks and reference values.');
             end    
         end    %sets the masks for further link selection and smoothens pems flow values.
+        
+        function [] = reset_beats(obj)
+            obj.beats_simulation.beats.reset();
+            obj.knobs.set_knobs_persistent(ones(size(obj.knobs.link_ids,1),1));
+            disp('LOADING BEATS A FIRST TIME FOR REFERENCE DATA.');
+            obj.beats_simulation.run_beats_persistent;
+        end
         
         %get link lengths in beats or pems data matching format............
         function [lengths] = get_link_lengths_miles_pems(obj,link_mask_pems, same_link_mask_beats)
@@ -497,6 +511,8 @@ classdef (Abstract) AlgorithmBox < handle
             end
             res=obj.TVM_reference_values.beats+alphaIs_tuple*(vector-1);
        end   % Computes TVM with the knobs vector.
+       
+        
                 
     end
     

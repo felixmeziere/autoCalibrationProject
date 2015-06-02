@@ -21,6 +21,7 @@ classdef Knobs < handle
         %values............................................................
         current_value=[];
         knobs_history % consecutive values of the knobs during last run
+        zeroten_knobs_history %same as before with the same 0-10 scale for all knobs
         perfect_values
          
     end
@@ -102,7 +103,7 @@ classdef Knobs < handle
                     while (obj.isnaive_boundaries~=0 && obj.isnaive_boundaries~=1)
                         obj.isnaive_boundaries=input(['Should the knobs be naively set (i.e. leading to potentially absurd daily flows) ? yes =1, no=0 : ']);
                     end
-                    obj.set_auto_knob_boundaries(obj.isnaive_boundaries);
+                    obj.set_auto_knob_boundaries(obj.isnaive_boundaries,1);
                 elseif (strcmp(mode,'manual'))     
                     obj.boundaries_max=[];
                     obj.boundaries_min=[];
@@ -114,10 +115,14 @@ classdef Knobs < handle
                 end
             else
                 error('The knobs to tune ids : obj.link_ids has to be set first.');
-            end    
+            end
+            obj.algorithm_box.ask_for_starting_point;
         end    
 
-        function [] = set_auto_knob_boundaries(obj, isnaive) %sets automatically the knob minimums to zero and maximums to [link's FD max capacity*number of lanes]/[max value of the link's demand template]
+        function [] = set_auto_knob_boundaries(obj, isnaive, is_assistant) %sets automatically the knob minimums to zero and maximums to [link's FD max capacity*number of lanes]/[max value of the link's demand template]
+            if (nargin<3)
+                is_assistant=0;
+            end    
             for i=1:size(obj.link_ids)    
                 maxTemplateValue=max(obj.algorithm_box.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.link_ids(i)).demand);       
                 lanes=obj.algorithm_box.beats_simulation.scenario_ptr.get_link_byID(obj.link_ids(i)).ATTRIBUTE.lanes;
@@ -129,8 +134,11 @@ classdef Knobs < handle
                 obj.naive_boundaries_min=obj.boundaries_min;
                 obj.naive_boundaries_max=obj.boundaries_max;
                 obj.set_knob_groups;
+                if (obj.current_value~=1)
+                   obj.algorithm_box.reset_beats
+                end
                 obj.set_knob_group_flow_differences;
-                obj.set_auto_knob_boundaries_refined;
+                obj.set_auto_knob_boundaries_refined(is_assistant);
                 disp('Refined knob boundaries set automatically :');
             else
                 disp('Naive knob boundaries set automatically :');
@@ -240,10 +248,10 @@ classdef Knobs < handle
             end
         end
         
-        function [] = set_auto_knob_boundaries_refined(obj)
-            if (obj.underevaluation_tolerance_coefficient==-Inf || obj.overevaluation_tolerance_coefficient==-Inf)
-                obj.underevaluation_tolerance_coefficient=input(['Enter the underevaluation tolerance coefficient for the flow going throw the knob links : ']);
-                obj.overevaluation_tolerance_coefficient=input(['Enter the overevaluation tolerance coefficient for the flow going throw the knob links : ']);
+        function [] = set_auto_knob_boundaries_refined(obj, is_assistant)
+            if (nargin>0 && is_assistant)
+                obj.underevaluation_tolerance_coefficient=input(['Enter the underevaluation tolerance coefficient for the flow going through the knob links : ']);
+                obj.overevaluation_tolerance_coefficient=input(['Enter the overevaluation tolerance coefficient for the flow going through the knob links : ']);
             end    
             knob_groups_to_project=[];
             for i=1:size(obj.knob_groups,2)

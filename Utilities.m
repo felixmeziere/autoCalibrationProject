@@ -60,13 +60,13 @@ classdef Utilities
             end    
         end    
         
-        function [file_name] = give_dated_name(folder,extension)
+        function [file_name] = give_dated_name(folder_name,extension)
               i=1;
-              name=strcat('cmaes_reports\',datestr(today));
-              while (exist(strcat(pwd,name,'_',num2str(i),'.mat'),'file')==2)
+              name=strcat(folder_name,'\',datestr(today));
+              while (exist(strcat(pwd,'\',name,'_',num2str(i),'.',extension),'file')==2)
                   i=i+1;
               end
-              name=strcat(name,'_',num2str(i),'.mat');
+              file_name=strcat(name,'_',num2str(i),'.', extension);
         end    
         
         function [distance]= euclidianDistance(fvector, svector)

@@ -59,6 +59,7 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
               obj.numberOfEvaluations=1;
               obj.res_history=[];
               obj.knobs.knobs_history=[];
+              obj.knobs.zeroten_knobs_history=[];
               obj.inopts.MaxFunEvals = obj.maxEval;
               obj.inopts.MaxIter = obj.maxIter;
               obj.inopts.StopFitness = obj.stopFValue;
@@ -72,13 +73,10 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
               obj.bestEver=bestEver;
               obj.bestEverErrorFunctionValue=bestEver.f;
               obj.numberOfIterations=countiter;
-              i=1;
-              name=strcat('cmaes_reports\',datestr(today));
-              while (exist(strcat(pwd,name,'_',num2str(i),'.mat'),'file')==2)
-                  i=i+1;
-              end
-              name=strcat(name,'_',num2str(i),'.mat');
-              save(name);
+              mat_name = Utilities.give_dated_name('cmaes_reports','mat');
+              save(mat_name);
+              fig_name= Utilities.give_dated_name('cmaes_reports','fig');
+              savefig(fig_name);
         end   % defined in AlgorithmBox   
    
         function [] = set_result_for_xls(obj)
