@@ -14,7 +14,6 @@ TVM/TVH too global to tune 11 knobs precisely : take into account local variatio
 
 why don't I compare with the actual congestion instead of a square ? I define a rectangle, and then compare pems congestion with beats congestion in it.
 criteria for density treshold+epsilon
-unify error_calculator in only one class... or not
 equilibrium popsize/time
 
  %CHECK THAT MONITORED TEMPLATES ARE THE EXACT SAME AS PEMS DATA.
@@ -25,6 +24,12 @@ equilibrium popsize/time
     %FAST.
     
     fix the zeros not smoothened in PeMS data
+
+
+    implement powers to the error functions
+    implement exporting variablescmaes.mat to the right place everytime
+
+
 
 
 										

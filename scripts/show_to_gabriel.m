@@ -1,0 +1,34 @@
+best_ever_point=[1.0513;1.3853;0.52978;0.85521;2.5142;0.92383;0.56677;0.82987;2.3519;1.3245;1.1443];
+check_monitored_between_unmonitored_knobs;
+imagesc(a.error_function.performance_calculators{1}.result_from_pems);
+a.evaluate_error_function(ones(11,1));
+a.error_function.plot_congestion_pattern_if_exists;
+a.beats_simulation.plot_freeway_contour;
+a.evaluate_error_function(best_ever_point);
+a.error_function.plot_congestion_pattern_if_exists;
+a.beats_simulation.plot_freeway_contour;
+
+
+disp(strcat(a.error_function.name,'^2'));
+disp(strcat(a.error_function.error_calculator.norm_name));
+disp('Value of reference TVH');
+b=a.error_function.performance_calculators{2}.result_from_pems;
+disp(b);
+disp('Value of bestpoint TVH');
+c=a.error_function.performance_calculators{2}.result_from_beats;
+disp(c);
+disp('Difference in percentage');
+disp(100*(c-b)/b);
+disp('Value of reference TVM');
+b=a.TVM_reference_values.pems;
+disp(b);
+disp('Value of bestPoint TVM');
+TVMiles=TVM(a);
+c=TVMiles.calculate_from_beats;
+disp(c);
+disp('Difference in percentage');
+disp(100*(c-b)/b);
+disp('Best ever point');
+disp(best_ever_point);
+disp('Projected into correct TVM subspace :');
+disp(a.project_on_correct_TVM_subspace(best_ever_point));

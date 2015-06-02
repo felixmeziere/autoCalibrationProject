@@ -9,8 +9,6 @@ classdef (Abstract) AlgorithmBox < handle
     %I AM USING BEATS OUTPUT WITH KNOBS SET TO ONE INSTEAD OF TEMPLATES FOR
     %REFINING THE KNOB BOUNDARIES (IN THEORY, THEIR SUM SHOULD BE THE
     %SAME).
-    %IS THERE A WAY TO RUN BEATS PERSISTENT WHITHOUT RESETING ? ITS SO
-    %FAST.
     
     properties (Abstract, Constant)
         
@@ -43,7 +41,6 @@ classdef (Abstract) AlgorithmBox < handle
         
         beats_simulation@BeatsSimulation % the BeatsSimulation object that will run and be overwritten at each algorithm iteration.
         pems@PeMSData % the pems data to compare with the beats results. Input fields : 'days' (e.g. datenum(2014,10,1):datenum(2014,10,10)); 'district' (e.g. 7); 'processed_folder'(e.g. C:\Code). Output Fields : 'data' 
-        error_calculator@ErrorCalculator 
         initialization_method@char % initialization method must be 'normal', 'uniform' or 'manual'.
         TVM_reference_values=struct; %TVM values from pems and beats with all knobs set to one.
         knobs@Knobs % Knobs class instance with all the properties and methods relative to the knobs of the scenario.
@@ -54,13 +51,19 @@ classdef (Abstract) AlgorithmBox < handle
         out % struct with various histories and solutions.
         bestEverErrorFunctionValue % smallest error_calculator value reached during the execution. Extracted from out.
         bestEverPoint % vector of knob values that gave the best (smallest) ever function value.
-        numberOfIterations=0; % number of iterations of the algorithm (different than the number of evaluations for evolutionnary algorithms for example).
-        numberOfEvaluations=0; % number of times beats ran a simulation. Extracted from out.
+        numberOfIterations=1; % number of iterations of the algorithm (different than the number of evaluations for evolutionnary algorithms for example).
+        numberOfEvaluations=1; % number of times beats ran a simulation. Extracted from out.
         stopFlag; % reason why the algorithm stopped. Extracted from out.
         convergence % convergence speed. 
         res_history % consecutive values of the errorfunction during last run
         
     end
+    
+    properties (Hidden, Access = public)
+        
+        temp=struct;
+        
+    end    
     
     properties (Hidden, SetAccess = protected)
         
@@ -70,8 +73,8 @@ classdef (Abstract) AlgorithmBox < handle
         xls_results@char % address of the excel file containing the results, with a format that fits to the method obj.send_result_to_xls.
         xls_program % cell array corresponding to the excel file containing configs in the columns, with the same format as given in the template.
         beats_loaded=0; % flag to indicate if the beats simulation and parameters have been correctly loaded.
+        masks_loaded=0; % flag to indicate if the masks and TVM reference values have been correctly loaded.
         current_day=1; %current day used in the pems data loaded.
-        temp=struct;
         is_program_first_run=1; %flag to indicate if long loading time data has been already loaded.
 
         
@@ -118,8 +121,9 @@ classdef (Abstract) AlgorithmBox < handle
     methods (Access= public)    
         
         %create object....................................................
-        function [obj] = AlgorithmBox()
-        end % useless constructor.
+        function [obj] = AlgorithmBox() %constructor
+            cd C:\Users\Felix\code\autoCalibrationProject
+        end 
         
         %load for single run from xls file.................................
         function [] = load_properties_from_xls(obj,is_program,is_program_first_run) % load the properties from an excel file in the format described underneath.
@@ -130,9 +134,9 @@ classdef (Abstract) AlgorithmBox < handle
             %Empty cells in the current column will be ignored.
             %The program input (0 or 1) is to avoid reloading useless
             %stuff.
-            obj.knobs=Knobs(obj);
-            obj.pems=PeMSData(obj);
             if ~exist('is_program','var') || is_program~=1
+                obj.knobs=Knobs(obj);
+                obj.pems=PeMSData(obj);
                 for i=1:size(obj.xls_program,1)
                     if ~strcmp(obj.xls_program(i,obj.current_xls_program_column),'')
                         eval(strcat('obj.',char(obj.xls_program(i,1)),'=',char(obj.xls_program(i,obj.current_xls_program_column)),';'));
@@ -141,7 +145,6 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.load_beats;
                 obj.pems.load;
                 obj.set_masks_and_reference_values;
-                obj.error_function=ErrorFunction(obj,obj.temp.erfStruct);
             end
             if ~exist('is_program_first_run','var') || is_program_first_run~=1
                 obj.knobs.set_demand_ids;
@@ -153,12 +156,14 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.knobs.is_loaded=1;
                 obj.set_starting_point(obj.initialization_method);
             end
+            obj.error_function=ErrorFunction(obj,obj.temp.erfStruct);
+            disp('ALL SETTINGS LOADED, ALGORITHM READY TO RUN');    
         end
 
         %load for single run from initial loading assistant and its 
         %standalone dependencies...........................................
         function [] = run_assistant(obj) % assistant to set all the parameters for a single run in the command window.
-%             obj.ask_for_beats_simulation;
+            obj.ask_for_beats_simulation;
             obj.ask_for_pems_data;
             obj.ask_for_errorFunction;
             obj.ask_for_knobs;
@@ -190,12 +195,7 @@ classdef (Abstract) AlgorithmBox < handle
         end    
                
         function [] = ask_for_errorFunction (obj) % set the performance calculator and error calculator in the command window.
-            if (obj.pems.is_loaded==1)
-                obj.error_function=ErrorFunction(obj);
-                obj.error_function.calculate_pc_from_pems;
-            else
-                error('Pems data must be loaded first.')
-            end    
+           obj.error_function=ErrorFunction(obj);
         end
         
     end    
@@ -229,7 +229,6 @@ classdef (Abstract) AlgorithmBox < handle
             [useless,obj.xls_program,useless] = xlsread(xls_program_adress);
             obj.xls_results=xls_results_adress;            
             obj.load_properties_from_xls;
-            disp('ALL SETTINGS LOADED, ALGORITHM READY TO RUN');
         end
     
         function [] = send_result_to_xls(obj, filename)
@@ -244,6 +243,7 @@ classdef (Abstract) AlgorithmBox < handle
             xlswrite(filename,id,obj.algorithm_name, strcat('B',num2str(id+1)));
             xlswrite(filename, obj.result_for_xls, obj.algorithm_name, strcat('C',num2str(id+1)));
             xlswrite(filename, id+1,obj.algorithm_name,'A2');
+            [useless1,useless2,xls]=xlsread(filename, 'report')
             disp('RESULTS OF THE RUN SENT TO XLS FILE :');
             disp(filename);
         end  % send result of an execution of the algorithm to the output Excel file.
@@ -287,8 +287,8 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.beats_simulation.run_beats_persistent;
                 obj.error_function.calculate_pc_from_beats;
                 [result,error_in_percentage] = obj.error_function.calculate_error;
-                disp(['    Error function value :','       Error in percentage:']);
-                disp([result, error_in_percentage]);
+                disp(['    Error function value :','       Error in percentage:','        ',obj.error_function.performance_calculators{1}.name,':              ',obj.error_function.performance_calculators{2}.name,':']);
+                disp([result, error_in_percentage,obj.error_function.results(1)*obj.error_function.weights(1),obj.error_function.results(2)*obj.error_function.weights(2)]);
                 obj.res_history(end+1,[1,2])=[result,error_in_percentage];
                 obj.numberOfEvaluations=obj.numberOfEvaluations+1;
             else
@@ -318,7 +318,7 @@ classdef (Abstract) AlgorithmBox < handle
     end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %  Privates                                                           %
+    %  Privates and Hidden                                                %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
     
     methods (Access = public) %supposed to be private but public for debug reasons
@@ -384,7 +384,7 @@ classdef (Abstract) AlgorithmBox < handle
                 TVmiles=TVM(obj);
                 obj.TVM_reference_values.beats=TVmiles.calculate_from_beats;
                 obj.TVM_reference_values.pems=TVmiles.calculate_from_pems;
-
+                obj.masks_loaded=1;
             else
                 error('Beats simulation and PeMS data must be loaded before setting the masks and reference values.');
             end    
@@ -499,6 +499,14 @@ classdef (Abstract) AlgorithmBox < handle
        end   % Computes TVM with the knobs vector.
                 
     end
+    
+    methods (Hidden, Access = public)
+        
+        function [] = remove_field_from_property(obj, property, field)
+           eval(strcat('obj.',property,'=rmfield(obj.',property,',',Utilities.char2char('field'),');'));
+        end    
+        
+    end    
  
 end    
 

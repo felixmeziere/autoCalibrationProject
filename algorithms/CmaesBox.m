@@ -65,29 +65,36 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
               obj.inopts.UBounds = ones(size(obj.knobs.link_ids,1),1)*10;
               obj.inopts.LBounds = zeros(size(obj.knobs.link_ids,1),1);
               xstart=obj.knobs.rescale_knobs(obj.starting_point,1);
-              [bestPoint, last, obj.numberOfEvaluations, obj.stopFlag, obj.out, bestEver]=cmaes(@(x)obj.evaluate_error_function(x,1), xstart, obj.insigma, obj.inopts);  
+              [lastPoint, lastValue, obj.numberOfEvaluations, obj.stopFlag, obj.out, bestEver]=cmaes(@(x)obj.evaluate_error_function(x,1), xstart, obj.insigma, obj.inopts);  
               load variablescmaes.mat
               bestEver.x=obj.knobs.rescale_knobs(bestEver.x,0);
               obj.bestEverPoint=bestEver.x;
               obj.bestEver=bestEver;
               obj.bestEverErrorFunctionValue=bestEver.f;
               obj.numberOfIterations=countiter;
+              i=1;
+              name=strcat('cmaes_reports\',datestr(today));
+              while (exist(strcat(pwd,name,'_',num2str(i),'.mat'),'file')==2)
+                  i=i+1;
+              end
+              name=strcat(name,'_',num2str(i),'.mat');
+              save(name);
         end   % defined in AlgorithmBox   
    
         function [] = set_result_for_xls(obj)
             %This function should be changed manually to fit the format
             %choosen in the excel file.
             %load 'variablescmaes.mat';
-            obj.result_for_xls{1}=obj.performance_calculator.name;
-            obj.result_for_xls{2}=obj.error_calculator.name;
+            obj.result_for_xls{1}=obj.error_function.name;
+            obj.result_for_xls{2}=obj.error_function.error_calculator.norm_name;
             obj.result_for_xls{3}=size(obj.starting_point,2);
             obj.result_for_xls{4}=obj.initialization_method;
             obj.result_for_xls{5}=Utilities.double2char(obj.normopts.CENTERS);
             obj.result_for_xls{6}=Utilities.double2char(obj.normopts.SIGMAS);
             obj.result_for_xls{7}=Utilities.double2char(obj.starting_point);
             obj.result_for_xls{8}=obj.insigma;
-            obj.result_for_xls{9}=Utilities.double2char(obj.knobs.knob_boundaries_min);
-            obj.result_for_xls{10}=Utilities.double2char(obj.knobs.knob_boundaries_max);
+            obj.result_for_xls{9}=Utilities.double2char(obj.knobs.boundaries_min);
+            obj.result_for_xls{10}=Utilities.double2char(obj.knobs.boundaries_max);
             obj.result_for_xls{11}=obj.maxIter;
             obj.result_for_xls{12}=obj.maxEval;
             obj.result_for_xls{13}=obj.stopFValue;

@@ -64,6 +64,7 @@ classdef CongestionPattern < PerformanceCalculator
             result(densities>obj.critical_densities+6)=1; 
             obj.result_from_beats=result;
             obj.error_in_percentage=100*sum(sum((obj.result_from_beats-obj.result_from_pems)))/sum(sum(obj.result_from_pems));
+%             obj.plot;
         end
         
         function [result] = calculate_from_pems(obj)
@@ -81,7 +82,9 @@ classdef CongestionPattern < PerformanceCalculator
         end    
 
         function [] = plot(obj)
+            figure
             imagesc(obj.result_from_beats-obj.result_from_pems)
+            drawnow;
         end    
         
     end

@@ -1,4 +1,4 @@
-classdef (Abstract) PerformanceCalculator < handle
+classdef (Abstract) PerformanceCalculator<handle
     %PerformanceCalculator Summary of this class goes here
     %   Detailed explanation goes here
    properties (SetAccess = protected)

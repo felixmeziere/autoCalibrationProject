@@ -1,12 +1,12 @@
-% clear all
-% close all
-% scenario_ptr='C:\Users\Felix\code\autoCalibrationProject\config\210E_joined_frmode_beats.xml';
-% beats_parameters=struct('OUTPUT_DT','300','SIM_DT','4','RUN_MODE','fw_fr_split_output','DURATION','86400');
-% f=BeatsSimulation;
-% f.import_beats_classes;
-% f.load_scenario(scenario_ptr);
-% f.create_beats_object(beats_parameters);
-% f.run_beats_persistent;
+clear all
+close all
+scenario_ptr='C:\Users\Felix\code\autoCalibrationProject\config\210E_joined_frmode_beats.xml';
+beats_parameters=struct('OUTPUT_DT','300','SIM_DT','4','RUN_MODE','fw_fr_split_output','DURATION','86400');
+f=BeatsSimulation;
+f.import_beats_classes;
+f.load_scenario(scenario_ptr);
+f.create_beats_object(beats_parameters);
+f.run_beats_persistent;
 
 
 %this is an offramp
@@ -83,12 +83,13 @@ end
 
 f.beats.reset();
 for i=1:size(offramps,2)
-    f.beats.set.demand_knob_for_link_id(offramps(i),3);
+    f.beats.set.knob_for_offramp_link_id(offramps(i),3);
 end
 
 for i=1:size(onramps,2)
-    f.beats.set.knob_for_offramp_link_id(onramps(i),3);
+    f.beats.set.demand_knob_for_link_id(onramps(i),3);
 end
+f.run_beats_persistent;
 
 for i=1:size(offramps,2)
 dp=f.scenario_ptr.get_demandprofiles_with_linkIDs(offramps(i));
@@ -134,6 +135,21 @@ disp('onramps knobs=1');
 disp(d);
 disp('onramps knobs=3');
 disp(on_knobs_set_to_3);
+
+f.beats.reset();
+f.beats.set.demand_knob_for_link_id(128809372,1.8);
+f.run_beats_persistent;
+disp('sum of template');
+dp=f.scenario_ptr.get_demandprofiles_with_linkIDs(128809372);
+sum_of_template_in_veh=sum(dp.demand)*dp.dt;
+disp(sum_of_template_in_veh);
+%this is the sum of its output (whole day, in vehicles).  
+disp('sum of output');
+sum_of_output=sum(f.get_output_for_link_id(128809372).flw_in_veh);
+disp(sum_of_output);
+disp('ratio');
+disp(sum_of_output/sum_of_template_in_veh);
+
 
 
 
