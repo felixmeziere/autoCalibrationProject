@@ -156,7 +156,7 @@ classdef Knobs < handle
     %  Privates                                                           %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
-    methods (Access = ?AlgorithmBox)
+    methods %(Access = ?AlgorithmBox) supposed to be private but public for debug reasons
         
         %utilities.........................................................
         function []=set_demand_ids(obj) % set demand profile ids in obj.demand_ids corresponding to obj.link_ids.
