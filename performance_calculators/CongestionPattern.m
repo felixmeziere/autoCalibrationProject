@@ -127,7 +127,7 @@ classdef CongestionPattern < PerformanceCalculator
         end  
         
         function [linear_mask_in_mainline_space] = send_mask_beats_to_linear_mainline_space(obj,mask_beats)
-            linear_mask_in_mainline_space=obj.send_linear_mask_beats_to_mainline_space(obj.algorithm_box, obj.send_mask_beats_to_linear_space(obj.algorithm_box, mask_beats));
+            linear_mask_in_mainline_space=obj.send_linear_mask_beats_to_mainline_space(obj.send_mask_beats_to_linear_space( mask_beats));
         end   
 
         function [linear_mask_in_mainline_space] = send_mask_pems_to_linear_mainline_space(obj, mask_pems)

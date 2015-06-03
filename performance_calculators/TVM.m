@@ -42,8 +42,8 @@ classdef TVM < PerformanceCalculator
 %             result =sum(sum(obj.algorithm_box.pems.data.flw(:,obj.algorithm_box.good_mainline_mask_pems).*repmat(good_lengths,size(obj.algorithm_box.pems.data.flw,1),1),2)); %sum over time and links
 %             obj.result_from_pems=result;
 
-              dt_hr=obj.algorithm_box.beats_parameters.OUTPUT_DT/3600;
-              result = sum(obj.algorithm_box.beats_simulation.compute_performance(obj.algorithm_box.good_mainline_mask_beats).tot_flux)*dt_hr; %sum over time
+              dt_hr=obj.algorithm_box.beats_simulation.out_dt/3600;
+              result = sum(obj.algorithm_box.normal_mode_bs.compute_performance(obj.algorithm_box.good_mainline_mask_beats).tot_flux)*dt_hr; %sum over time
               obj.result_from_pems = result;
               obj.error_in_percentage=100*(obj.result_from_beats-obj.result_from_pems)/obj.result_from_pems;
         end    

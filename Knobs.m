@@ -234,10 +234,10 @@ classdef Knobs < handle
             local_monitored_sinks(1,end+1)=monitored_sink_mainline_link_id;
             local_flow_difference=0;
             for i=1:size(local_monitored_sources,2)
-                local_flow_difference=local_flow_difference+sum(obj.algorithm_box.beats_simulation.get_output_for_link_id(local_monitored_sources(1,i)).flw_in_veh);
+                local_flow_difference=local_flow_difference+sum(obj.algorithm_box.normal_mode_bs.get_output_for_link_id(local_monitored_sources(1,i)).flw_in_veh);
             end
             for i=1:size(local_monitored_sinks,2)
-                local_flow_difference=local_flow_difference-sum(obj.algorithm_box.beats_simulation.get_output_for_link_id(local_monitored_sinks(1,i)).flw_in_veh);
+                local_flow_difference=local_flow_difference-sum(obj.algorithm_box.normal_mode_bs.get_output_for_link_id(local_monitored_sinks(1,i)).flw_in_veh);
             end   
         end    
         

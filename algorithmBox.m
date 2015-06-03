@@ -32,6 +32,7 @@ classdef (Abstract) AlgorithmBox < handle
         maxIter=30; % maximum number of iterations of the algorithm (can be different in Evolutionnary Algorithms for example).
         stopFValue=1000; % the algorithm will stop if a smaller value is reached by error_calculator (this is the goal).
         current_xls_program_column=2; % in the xls program, number (not 'B' as in Excel) of the config column currently used.
+        normal_mode_bs@BeatsSimulation %temporary. Normal mode already run beatsSimulation to test beats as pems real scenario mode
         
     end
                 
@@ -274,7 +275,7 @@ classdef (Abstract) AlgorithmBox < handle
                     zeroten_knob_values=repmat([],size(knob_values,1),1);
                 end
                 knob_values=obj.knobs.project_involved_knob_groups_on_correct_flow_subspace(knob_values);
-                knob_values=obj.project_on_correct_TVM_subspace(knob_values);
+%                 knob_values=obj.project_on_correct_TVM_subspace(knob_values);
                 zeroten_knob_values=obj.knobs.rescale_knobs(knob_values,1);
                 obj.knobs.knobs_history(end+1,:)=reshape(knob_values,1,[]);
                 obj.knobs.zeroten_knobs_history(end+1,:)=reshape(zeroten_knob_values,1,[]);
@@ -334,6 +335,13 @@ classdef (Abstract) AlgorithmBox < handle
         function [] = load_beats(obj)
             if (~strcmp(obj.scenario_ptr,''))
                 obj.beats_loaded=0;
+                normalstruct=obj.beats_parameters;
+                normalstruct.RUN_MODE='normal';
+                b=BeatsSimulation;
+                b.load_scenario('C:\Users\Felix\code\autoCalibrationProject\config\210E_joined.xml');
+                b.create_beats_object(normalstruct);
+                b.run_beats_persistent;
+                obj.normal_mode_bs=b;
                 obj.beats_parameters.RUN_MODE = 'fw_fr_split_output'; 
                 display('LOADING BEATS.');
                 obj.beats_simulation = BeatsSimulation;
@@ -400,7 +408,7 @@ classdef (Abstract) AlgorithmBox < handle
         function [] = reset_beats(obj)
             obj.beats_simulation.beats.reset();
             obj.knobs.set_knobs_persistent(ones(size(obj.knobs.link_ids,1),1));
-            disp('LOADING BEATS A FIRST TIME FOR REFERENCE DATA.');
+            disp('RUNNING BEATS A FIRST TIME FOR REFERENCE DATA.');
             obj.beats_simulation.run_beats_persistent;
         end
         
@@ -512,6 +520,22 @@ classdef (Abstract) AlgorithmBox < handle
             res=obj.TVM_reference_values.beats+alphaIs_tuple*(vector-1);
        end   % Computes TVM with the knobs vector.
        
+       function [absciss] = get_linear_absciss_for_link_id(obj,link_id)
+           if ~ismember(link_id,obj.link_ids_beats(obj.mainline_mask_beats))
+               link_id=obj.get_next_mainline_link_id(link_id);
+           end    
+           absciss=find(obj.error_function.performance_calculators{1}.send_mask_beats_to_linear_mainline_space(obj.link_ids_beats==link_id));
+       end    
+       
+       function [type] = get_type(obj,link_id)
+            if (ismember(link_id,obj.link_ids_beats(obj.source_mask_beats)))
+                type='On-Ramp';
+            elseif ismember(link_id,obj.link_ids_beats(obj.sink_mask_beats))
+                type='Off-Ramp';
+            else 
+                type='Freeway';
+            end    
+       end    
         
                 
     end
@@ -521,6 +545,8 @@ classdef (Abstract) AlgorithmBox < handle
         function [] = remove_field_from_property(obj, property, field)
            eval(strcat('obj.',property,'=rmfield(obj.',property,',',Utilities.char2char('field'),');'));
         end    
+        
+
         
     end    
  

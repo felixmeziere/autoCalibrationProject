@@ -24,7 +24,10 @@ equilibrium popsize/time
     %FAST.
     
     fix the zeros not smoothened in PeMS data
-    
+	
+	change obj.algorithm_box.....OUTPUT_DT in performance calculators
+	runnin beats in function reset_beats_simulation    
+	functions at the end of algorithmbox
 
 
 
