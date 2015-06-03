@@ -357,41 +357,102 @@ classdef (Abstract) AlgorithmBox < handle
         end
         
         function [] = plot_scenario(obj,is_mainline_only_format, with_monitored_onramps,with_monitored_offramps,with_nonmonitored_onramps,with_nonmonitored_offramps,with_monitored_mainlines)
-            xinfo='';
-            if(nargin<2)
-                is_mainline_only_format=1;
+            %The designated mainline link for ramps will be the precedent one.
+
+            if(nargin<3)
                 with_monitored_onramps=1;
                 with_monitored_offramps=1;
                 with_nonmonitored_onramps=1;
                 with_nonmonitored_offramps=1;
                 with_monitored_mainlines=1;
-            end    
+                if (nargin<2)
+                   is_mainline_only_format=1;
+                end    
+            end
+            cmap=[1,1,1];
+            leg={};
             if is_mainline_only_format
-                array=zeros(1,sum(obj.mainline_mask_beats));
+                xinfo='Mainline links in order';
+                yinfo='Ramps info                                       Mainline info';
+                mainline_array=zeros(1,sum(obj.mainline_mask_beats));
+                ramps_array=zeros(1,sum(obj.mainline_mask_beats));
                 good_source_mask=obj.send_mask_beats_to_linear_mainline_space(obj.good_source_mask_beats);
+                good_sink_mask=obj.send_mask_beats_to_linear_mainline_space(obj.good_sink_mask_beats);
                 good_mainline_mask=obj.send_mask_beats_to_linear_mainline_space(obj.good_mainline_mask_beats);
-                source_mask;
+                onramp_mask=obj.send_mask_beats_to_linear_mainline_space(logical(obj.source_mask_beats.*~obj.mainline_mask_beats));
+                offramp_mask=obj.send_mask_beats_to_linear_mainline_space(logical(obj.sink_mask_beats.*~obj.mainline_mask_beats));
+                if with_monitored_mainlines
+                    mainline_array(good_mainline_mask)=1;
+                    cmap=[cmap;1,1,0];
+                    leg{1,end+1}='Monitored mainline links';
+                end
                 if with_monitored_onramps
-                   
+                   ramps_array(logical(good_source_mask.*onramp_mask))=2;
+                   cmap=[cmap;1,0,0];
+                   leg{1,end+1}='Monitored on-ramps';
                 end    
                 if with_monitored_offramps
+                   ramps_array(logical(good_sink_mask.*offramp_mask))=3;
+                   cmap=[cmap;1,0,1];
+                   leg{1,end+1}='Monitored off-ramps';
                 end    
                 if with_nonmonitored_onramps
+                    ramps_array(logical(~good_source_mask.*onramp_mask))=4;
+                    cmap=[cmap;0,0,1];
+                    leg{1,end+1}='Non-monitored on-ramps';
                 end
                 if with_nonmonitored_offramps
+                    ramps_array(logical(~good_sink_mask.*offramp_mask))=5;
+                    cmap=[cmap;0,1,1];
+                    leg{1,end+1}='Non-monitored off-ramps';
                 end
-                if with_monitored_mainlines
-                end    
+                array=[mainline_array;ramps_array];
             else
-                array=zeros(1,size(obj.link_ids_beats,2));
-            end
-            
-            array=array+send_obj.good_mainline_mask_beats;
+                xinfo='All links in order';
+                yinfo='Link info';
+                array=zeros(1,size(obj.link_ids_beats,1));
+                good_source_mask=obj.send_mask_beats_to_linear_space(obj.good_source_mask_beats);
+                good_sink_mask=obj.send_mask_beats_to_linear_space(obj.good_sink_mask_beats);
+                good_mainline_mask=obj.send_mask_beats_to_linear_space(obj.good_mainline_mask_beats);
+                onramp_mask=obj.send_mask_beats_to_linear_space(logical(obj.source_mask_beats.*~obj.mainline_mask_beats));
+                offramp_mask=obj.send_mask_beats_to_linear_space(logical(obj.sink_mask_beats.*~obj.mainline_mask_beats));
+                if with_monitored_mainlines
+                    array(good_mainline_mask)=1;
+                    cmap=[cmap;1,1,0];
+                    leg{1,end+1}='Monitored mainline links';
+                end
+                if with_monitored_onramps
+                   array(logical(good_source_mask.*onramp_mask))=2;
+                   cmap=[cmap;1,0,0];
+                   leg{1,end+1}='Monitored on-ramps';
+                end    
+                if with_monitored_offramps
+                   array(logical(good_sink_mask.*offramp_mask))=3;
+                   cmap=[cmap;1,0,1];
+                   leg{1,end+1}='Monitored off-ramps';
+                end    
+                if with_nonmonitored_onramps
+                    array(logical(~good_source_mask.*onramp_mask))=4;
+                    cmap=[cmap;0,0,1];
+                    leg{1,end+1}='Non-monitored on-ramps';
+                end
+                if with_nonmonitored_offramps
+                    array(logical(~good_sink_mask.*offramp_mask))=5;
+                    cmap=[cmap;0,1,1];
+                    leg{1,end+1}='Non-monitored off-ramps';                    
+                end    
+            end      
+            arg_array=[with_monitored_onramps,with_monitored_offramps,with_nonmonitored_onramps,with_nonmonitored_offramps,with_monitored_mainlines];
+            number_arg=sum(arg_array);
             figure;
-            imagesc(array)
+            imagesc(array);
+            colormap(cmap);
             title(['Scenario']);
             xlabel(xinfo);
-            ylabel('Info'); 
+            ylabel(yinfo);
+            L = line(ones(number_arg),ones(number_arg), 'LineWidth',2); 
+            set(L,{'color'},mat2cell(cmap(2:end,:),ones(1,number_arg),3));
+            legend(leg);
         end    
         
     end    
@@ -589,10 +650,11 @@ classdef (Abstract) AlgorithmBox < handle
             linear_mask=ismember(obj.linear_link_ids,obj.link_ids_beats(mask_beats));
         end    
         
-        function [linear_mask_in_mainline_space] = send_linear_mask_to_mainline_space(obj, linear_mask)
+        function [linear_mask_in_mainline_space] = send_linear_mask_to_mainline_space(obj, linear_mask) %if ramp, the designated mainline link will be the precedent one.
             ordered_mainline_link_ids=obj.linear_link_ids(ismember(obj.linear_link_ids,obj.link_ids_beats(obj.mainline_mask_beats)));
+            nonlinear_mask=ismember(obj.link_ids_beats,obj.linear_link_ids(linear_mask));
             linear_mask_in_mainline_space = ismember(ordered_mainline_link_ids,obj.linear_link_ids(linear_mask));
-            ramp_link_ids=obj.link_ids_beats(logical(linear_mask.*(obj.source_mask_beats+obj.sink_mask_beats).*~obj.mainline_mask_beats));
+            ramp_link_ids=obj.link_ids_beats(logical(nonlinear_mask.*(obj.source_mask_beats+obj.sink_mask_beats).*~obj.mainline_mask_beats));
             indices=find(ismember(obj.linear_link_ids,ramp_link_ids));
             linear_mainline_mask=ismember(obj.linear_link_ids,obj.link_ids_beats(obj.mainline_mask_beats));
             for i=1:size(indices,2)
@@ -606,21 +668,21 @@ classdef (Abstract) AlgorithmBox < handle
                     else l=l+1;
                     end
                 end    
-                r=1;
-                right=0;
-                while right==0;
-                    if linear_mainline_mask(indices(i)+r)==1
-                        index=find(ordered_mainline_link_ids==obj.linear_link_ids(indices(i)+r));
-                        linear_mask_in_mainline_space(index)=1;
-                        right=1;
-                    else r=r+1;
-                    end
-                end
+%                 r=1;
+%                 right=0;
+%                 while right==0;
+%                     if linear_mainline_mask(indices(i)+r)==1
+%                         index=find(ordered_mainline_link_ids==obj.linear_link_ids(indices(i)+r));
+%                         linear_mask_in_mainline_space(index)=1;
+%                         right=1;
+%                     else r=r+1;
+%                     end
+%                 end
             end       
         end  
         
         function [linear_mask_in_mainline_space] = send_mask_beats_to_linear_mainline_space(obj,mask_beats)
-            linear_mask_in_mainline_space=obj.send_linear_mask_beats_to_mainline_space(obj.send_mask_beats_to_linear_space( mask_beats));
+            linear_mask_in_mainline_space=obj.send_linear_mask_to_mainline_space(obj.send_mask_beats_to_linear_space( mask_beats));
         end   
 
         function [linear_mask_in_mainline_space] = send_mask_pems_to_linear_mainline_space(obj, mask_pems)
