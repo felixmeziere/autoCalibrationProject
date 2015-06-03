@@ -7,6 +7,7 @@ classdef Knobs < handle
         
         %selecting.........................................................
         link_ids=0;
+        linear_link_ids;
         demand_ids
         
         
@@ -50,6 +51,7 @@ classdef Knobs < handle
         
         function [obj] = Knobs(algoBox)
             obj.algorithm_box=algoBox;
+            obj.linear_link_ids=obj.algorithm_box.linear_link_ids(ismember(obj.algorithm_box.linear_link_ids,obj.link_ids));
         end    
         
         function [] = run_assistant(obj) % set the ids of the knobs to tune in the command window.
@@ -116,6 +118,7 @@ classdef Knobs < handle
             else
                 error('The knobs to tune ids : obj.link_ids has to be set first.');
             end
+            obj.is_loaded=1;
             obj.algorithm_box.ask_for_starting_point;
         end    
 
@@ -134,9 +137,6 @@ classdef Knobs < handle
                 obj.naive_boundaries_min=obj.boundaries_min;
                 obj.naive_boundaries_max=obj.boundaries_max;
                 obj.set_knob_groups;
-                if (obj.current_value~=1)
-                   obj.algorithm_box.reset_beats
-                end
                 obj.set_knob_group_flow_differences;
                 obj.set_auto_knob_boundaries_refined(is_assistant);
                 disp('Refined knob boundaries set automatically :');
@@ -151,6 +151,44 @@ classdef Knobs < handle
         end
    
     end
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %  Plot functions                                                     %
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    methods (Access = public)
+    
+        function [] = plot_zeroten_knobs_history(obj,figureNumber)
+            if (nargin<2)
+                figure;
+            else
+                figure(figureNumber);
+            end
+            plot(obj.knobs_history);
+            for i=2:size(obj.link_ids,1)
+                leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
+            end    
+            title('Knobs rescaled to 0-10 evolution, ordered linearly.');
+            xlabel('Number of BEATS evaluations');
+            ylabel('Knobs 0-10 values');
+            legend(['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(1,1))),' (',num2str(obj.link_ids(1,1)),')']);
+        end 
+        
+        function [] = plot_knob_history(obj,knob_link_id,figureNumber)
+            if (nargin<2)
+                figure;
+            else
+                figure(figureNumber);
+            end
+            index=find(obj.link_ids==knob_link_id);
+            plot(obj.knobs_history(:,index));
+            number=num2str(find(obj.linear_link_ids==knob_link_id));
+            title(['Knob ',number,' (',knob_link_id,') evolution']);
+            xlabel('Number of BEATS evaluations');
+            ylabel('Knob values');  
+        end    
+        
+    end    
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %  Privates                                                           %

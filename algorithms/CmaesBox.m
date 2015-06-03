@@ -57,9 +57,7 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
         function [] = run_algorithm(obj)
               obj.numberOfIterations=1;
               obj.numberOfEvaluations=1;
-              obj.res_history=[];
-              obj.knobs.knobs_history=[];
-              obj.knobs.zeroten_knobs_history=[];
+              obj.reset_for_new_run;
               obj.inopts.MaxFunEvals = obj.maxEval;
               obj.inopts.MaxIter = obj.maxIter;
               obj.inopts.StopFitness = obj.stopFValue;
@@ -73,10 +71,17 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
               obj.bestEver=bestEver;
               obj.bestEverErrorFunctionValue=bestEver.f;
               obj.numberOfIterations=countiter;
-              mat_name = Utilities.give_dated_name('cmaes_reports','mat');
+              mat_name = Utilities.give_dated_name('cmaes_reports','','mat');
+              [~,obj.dated_name,~]=fileparts(mat_name);
               save(mat_name);
-              fig_name= Utilities.give_dated_name('cmaes_reports','fig');
-              savefig(fig_name);
+              obj.figures(1)=figure(1);
+              obj.figures(2)=figure(2);
+              obj.figures(3)=figure(3);
+              plotcmaesdat;
+              drawnow;
+              obj.figures(4)=gcf;
+              fig_name= Utilities.give_dated_name('cmaes_reports','','fig');
+              savefig(obj.figures,fig_name);
         end   % defined in AlgorithmBox   
    
         function [] = set_result_for_xls(obj)
@@ -107,7 +112,7 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
     end
     
     methods (Static, Access = public)
-        function [] = plot() % plots data on the last running of cmaes.
+        function [] = plot_cmaes_data() % plots data on the last running of cmaes.
             plotcmaesdat;
         end
     end

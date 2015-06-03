@@ -56,7 +56,7 @@ classdef (Abstract) AlgorithmBox < handle
         numberOfEvaluations=1; % number of times beats ran a simulation. Extracted from out.
         stopFlag; % reason why the algorithm stopped. Extracted from out.
         convergence % convergence speed. 
-        res_history % consecutive values of the errorfunction during last run
+        figures %figures array to be saved at the end
         
     end
     
@@ -77,7 +77,8 @@ classdef (Abstract) AlgorithmBox < handle
         masks_loaded=0; % flag to indicate if the masks and TVM reference values have been correctly loaded.
         current_day=1; %current day used in the pems data loaded.
         is_program_first_run=1; %flag to indicate if long loading time data has been already loaded.
-
+        dated_name %name that will have the reports for this run
+        
         
         %masks pointing at the links with working sensors used on beats 
         %output or on pems data............................................
@@ -241,10 +242,9 @@ classdef (Abstract) AlgorithmBox < handle
             obj.set_result_for_xls;
             [useless1,useless2,xls]=xlsread(filename, obj.algorithm_name);
             id=xls{2,1};
-            xlswrite(filename,id,obj.algorithm_name, strcat('B',num2str(id+1)));
-            xlswrite(filename, obj.result_for_xls, obj.algorithm_name, strcat('C',num2str(id+1)));
+            to_send=[{id,obj.dated_name},obj.result_for_xls];
+            xlswrite(filename,to_send,obj.algorithm_name, strcat('B',num2str(id+1)));
             xlswrite(filename, id+1,obj.algorithm_name,'A2');
-            [useless1,useless2,xls]=xlsread(filename, 'report')
             disp('RESULTS OF THE RUN SENT TO XLS FILE :');
             disp(filename);
         end  % send result of an execution of the algorithm to the output Excel file.
@@ -291,9 +291,10 @@ classdef (Abstract) AlgorithmBox < handle
                 [result,error_in_percentage] = obj.error_function.calculate_error;
                 disp(['    Error function value :','      Error in percentage:',' CONTRIBUTIONS: ',obj.error_function.performance_calculators{1}.name,':              ',obj.error_function.performance_calculators{2}.name,':              ',obj.error_function.performance_calculators{3}.name,':']);
                 disp([result, error_in_percentage,obj.error_function.transformed_results(1),obj.error_function.transformed_results(2),obj.error_function.transformed_results(3)]);
-                obj.res_history(end+1,[1,2])=[result,error_in_percentage];
+                obj.error_function.res_history(end+1,[1,2])=[result,error_in_percentage];
                 obj.numberOfEvaluations=obj.numberOfEvaluations+1;
                 figure(1);
+                title('')
                 plot(obj.knobs.zeroten_knobs_history);
                 figure(2);
                 plot(obj.res_history(:,1));
@@ -326,6 +327,76 @@ classdef (Abstract) AlgorithmBox < handle
     end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %  Plot functions                                                     %
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    
+    methods (Access = public)
+    
+        function [] = plot_zeroten_knobs_history(obj,figureNumber)
+            if (nargin<2)
+                obj.knobs.plot_zeroten_knobs_history;
+            else    
+                obj.knobs.plot_zeroten_knobs_history(figureNumber);
+            end
+        end    
+     
+        function [] = plot_result_history(obj, figureNumber)
+            if (nargin<2)
+                obj.error_function.plot_result_history;
+            else
+                obj.error_function.plot_result_history(figureNumber);
+            end
+        end    
+        
+        function [] = plot_performance_calculator_if_exists(obj,performance_calculator, figureNumber)  
+            if (nargin<2)
+                obj.error_function.plot_performance_calculator_if_exists(performance_calculator);
+            else
+                obj.error_function.plot_performance_calculator_if_exists(performance_calculator,figureNumber);
+            end
+        end
+        
+        function [] = plot_scenario(obj,is_mainline_only_format, with_monitored_onramps,with_monitored_offramps,with_nonmonitored_onramps,with_nonmonitored_offramps,with_monitored_mainlines)
+            xinfo='';
+            if(nargin<2)
+                is_mainline_only_format=1;
+                with_monitored_onramps=1;
+                with_monitored_offramps=1;
+                with_nonmonitored_onramps=1;
+                with_nonmonitored_offramps=1;
+                with_monitored_mainlines=1;
+            end    
+            if is_mainline_only_format
+                array=zeros(1,sum(obj.mainline_mask_beats));
+                good_source_mask=obj.send_mask_beats_to_linear_mainline_space(obj.good_source_mask_beats);
+                good_mainline_mask=obj.send_mask_beats_to_linear_mainline_space(obj.good_mainline_mask_beats);
+                source_mask;
+                if with_monitored_onramps
+                   
+                end    
+                if with_monitored_offramps
+                end    
+                if with_nonmonitored_onramps
+                end
+                if with_nonmonitored_offramps
+                end
+                if with_monitored_mainlines
+                end    
+            else
+                array=zeros(1,size(obj.link_ids_beats,2));
+            end
+            
+            array=array+send_obj.good_mainline_mask_beats;
+            figure;
+            imagesc(array)
+            title(['Scenario']);
+            xlabel(xinfo);
+            ylabel('Info'); 
+        end    
+        
+    end    
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %  Privates and Hidden                                                %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
     
@@ -338,6 +409,7 @@ classdef (Abstract) AlgorithmBox < handle
                 normalstruct=obj.beats_parameters;
                 normalstruct.RUN_MODE='normal';
                 b=BeatsSimulation;
+                b.import_beats_classes;
                 b.load_scenario('C:\Users\Felix\code\autoCalibrationProject\config\210E_joined.xml');
                 b.create_beats_object(normalstruct);
                 b.run_beats_persistent;
@@ -411,6 +483,12 @@ classdef (Abstract) AlgorithmBox < handle
             disp('RUNNING BEATS A FIRST TIME FOR REFERENCE DATA.');
             obj.beats_simulation.run_beats_persistent;
         end
+        
+        function [] = reset_for_new_run(obj)
+            obj.error_function.reset_for_new_run;
+            obj.knobs.knobs_history=[];
+            obj.knobs.zeroten_knobs_history;
+        end    
         
         %get link lengths in beats or pems data matching format............
         function [lengths] = get_link_lengths_miles_pems(obj,link_mask_pems, same_link_mask_beats)
@@ -505,6 +583,52 @@ classdef (Abstract) AlgorithmBox < handle
             [knobs_on_correct_subspace,fval]=quadprog(eye(sze),-reshape(vector,1,[]),[],[],equation_coefficients_tuple, obj.TVM_reference_values.pems-equation_rest_of_left_side,obj.knobs.boundaries_min,obj.knobs.boundaries_max); % minimization program
         end    
   
+        %Transform masks to fit linear link ids............................
+        
+        function [linear_mask] = send_mask_beats_to_linear_space(obj, mask_beats)
+            linear_mask=ismember(obj.linear_link_ids,obj.link_ids_beats(mask_beats));
+        end    
+        
+        function [linear_mask_in_mainline_space] = send_linear_mask_to_mainline_space(obj, linear_mask)
+            ordered_mainline_link_ids=obj.linear_link_ids(ismember(obj.linear_link_ids,obj.link_ids_beats(obj.mainline_mask_beats)));
+            linear_mask_in_mainline_space = ismember(ordered_mainline_link_ids,obj.linear_link_ids(linear_mask));
+            ramp_link_ids=obj.link_ids_beats(logical(linear_mask.*(obj.source_mask_beats+obj.sink_mask_beats).*~obj.mainline_mask_beats));
+            indices=find(ismember(obj.linear_link_ids,ramp_link_ids));
+            linear_mainline_mask=ismember(obj.linear_link_ids,obj.link_ids_beats(obj.mainline_mask_beats));
+            for i=1:size(indices,2)
+                left=0;
+                l=1;
+                while left==0;
+                    if linear_mainline_mask(indices(i)-l)==1
+                        index=find(ordered_mainline_link_ids==obj.linear_link_ids(indices(i)-l));
+                        linear_mask_in_mainline_space(index)=1;
+                        left=1;
+                    else l=l+1;
+                    end
+                end    
+                r=1;
+                right=0;
+                while right==0;
+                    if linear_mainline_mask(indices(i)+r)==1
+                        index=find(ordered_mainline_link_ids==obj.linear_link_ids(indices(i)+r));
+                        linear_mask_in_mainline_space(index)=1;
+                        right=1;
+                    else r=r+1;
+                    end
+                end
+            end       
+        end  
+        
+        function [linear_mask_in_mainline_space] = send_mask_beats_to_linear_mainline_space(obj,mask_beats)
+            linear_mask_in_mainline_space=obj.send_linear_mask_beats_to_mainline_space(obj.send_mask_beats_to_linear_space( mask_beats));
+        end   
+
+        function [linear_mask_in_mainline_space] = send_mask_pems_to_linear_mainline_space(obj, mask_pems)
+            mainline_link_ids=obj.link_ids_beats(obj.mainline_mask_beats);
+            mainline_masked_link_ids=obj.link_ids_pems(mask_pems);
+            linear_mask_in_mainline_space = ismember(mainline_link_ids,mainline_masked_link_ids);
+        end    
+        
         %temporary.........................................................        
         function [res] = compute_TVM_with_knobs_vector(obj,vector)
             %assumes units are in SI
@@ -520,14 +644,14 @@ classdef (Abstract) AlgorithmBox < handle
             res=obj.TVM_reference_values.beats+alphaIs_tuple*(vector-1);
        end   % Computes TVM with the knobs vector.
        
-       function [absciss] = get_linear_absciss_for_link_id(obj,link_id)
+        function [absciss] = get_linear_absciss_for_link_id(obj,link_id)
            if ~ismember(link_id,obj.link_ids_beats(obj.mainline_mask_beats))
                link_id=obj.get_next_mainline_link_id(link_id);
            end    
            absciss=find(obj.error_function.performance_calculators{1}.send_mask_beats_to_linear_mainline_space(obj.link_ids_beats==link_id));
-       end    
+        end    
        
-       function [type] = get_type(obj,link_id)
+        function [type] = get_type(obj,link_id)
             if (ismember(link_id,obj.link_ids_beats(obj.source_mask_beats)))
                 type='On-Ramp';
             elseif ismember(link_id,obj.link_ids_beats(obj.sink_mask_beats))
@@ -535,9 +659,9 @@ classdef (Abstract) AlgorithmBox < handle
             else 
                 type='Freeway';
             end    
-       end    
-        
-                
+       end   
+       
+               
     end
     
     methods (Hidden, Access = public)
@@ -545,9 +669,7 @@ classdef (Abstract) AlgorithmBox < handle
         function [] = remove_field_from_property(obj, property, field)
            eval(strcat('obj.',property,'=rmfield(obj.',property,',',Utilities.char2char('field'),');'));
         end    
-        
-
-        
+         
     end    
  
 end    

@@ -47,9 +47,9 @@ classdef CongestionPattern < PerformanceCalculator
                     obj.rectangles=congestion_patterns;
                     obj.vertical_size=size(obj.algorithm_box.beats_simulation.outflow_veh{1,1},1);
                     obj.horizontal_size=sum(obj.algorithm_box.mainline_mask_beats);
-                    obj.linear_mainline_links=obj.algorithm_box.linear_link_ids(obj.send_mask_beats_to_linear_space(obj.algorithm_box.mainline_mask_beats));
+                    obj.linear_mainline_links=obj.algorithm_box.linear_link_ids(obj.algorithm_box.send_mask_beats_to_linear_space(obj.algorithm_box.mainline_mask_beats));
                     linear_fwy_indices=obj.algorithm_box.beats_simulation.scenario_ptr.extract_linear_fwy_indices;
-                    obj.linear_mainline_indices=linear_fwy_indices(obj.send_mask_beats_to_linear_space(obj.algorithm_box.mainline_mask_beats));
+                    obj.linear_mainline_indices=linear_fwy_indices(obj.algorithm_box.send_mask_beats_to_linear_space(obj.algorithm_box.mainline_mask_beats));
                     obj.set_critical_densities;
                     else error('Argument congestion_patterns not in the right format. Please see code comments.');     
                 end
@@ -81,13 +81,16 @@ classdef CongestionPattern < PerformanceCalculator
             obj.error_in_percentage=100*sum(sum((obj.result_from_beats-obj.result_from_pems)))/sum(sum(obj.result_from_pems));
         end    
 
-        function [] = plot(obj,figure_number)
-            if (nargin>1 && figure_number~=-Inf)
-                figure(figure_number);
+        function [] = plot(obj,figureNumber)
+            if (nargin<2)
+                figure;
             else
-                figure
+                figure(figureNumber);
             end
             imagesc(obj.result_from_beats-obj.result_from_pems)
+            title('Contour plot : Congestion pattern matching');
+            xlabel('Linear mainline links');
+            ylabel('Time (unit : 5 minutes if SI)');
             drawnow;
         end    
         
@@ -115,26 +118,7 @@ classdef CongestionPattern < PerformanceCalculator
                 obj.critical_densities=critical_densities;   
           end            
 
-        %Utilities.........................................................
         
-        function [linear_mask] = send_mask_beats_to_linear_space(obj, mask_beats)
-            linear_mask=ismember(obj.algorithm_box.linear_link_ids,obj.algorithm_box.link_ids_beats(mask_beats));
-        end    
-        
-        function [linear_mask_in_mainline_space] = send_linear_mask_beats_to_mainline_space(obj, linear_mask_beats)
-            mainline_link_ids=obj.algorithm_box.link_ids_beats(obj.algorithm_box.mainline_mask_beats);
-            linear_mask_in_mainline_space = ismember(mainline_link_ids,obj.algorithm_box.linear_link_ids(linear_mask_beats));
-        end  
-        
-        function [linear_mask_in_mainline_space] = send_mask_beats_to_linear_mainline_space(obj,mask_beats)
-            linear_mask_in_mainline_space=obj.send_linear_mask_beats_to_mainline_space(obj.send_mask_beats_to_linear_space( mask_beats));
-        end   
-
-        function [linear_mask_in_mainline_space] = send_mask_pems_to_linear_mainline_space(obj, mask_pems)
-            mainline_link_ids=obj.algorithm_box.link_ids_beats(obj.algorithm_box.mainline_mask_beats);
-            mainline_masked_link_ids=obj.algorithm_box.link_ids_pems(mask_pems);
-            linear_mask_in_mainline_space = ismember(mainline_link_ids,mainline_masked_link_ids);
-        end    
     end    
 end
 

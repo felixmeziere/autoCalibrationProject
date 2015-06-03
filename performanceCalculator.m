@@ -10,6 +10,11 @@ classdef (Abstract) PerformanceCalculator<handle
        
    end 
    
+   properties (SetAccess = ?ErrorFunction
+    
+      error_in_percentage_history=[];
+       
+   end    
    properties (Abstract, Constant)
        
        name
@@ -21,7 +26,8 @@ classdef (Abstract) PerformanceCalculator<handle
        %the constructor must have one argument, algoBox, which will be
        %affected to obj.algorithm_box
         [result] = calculate_from_beats(obj)
-        [result] = calculate_from_pems(obj)   
+        [result] = calculate_from_pems(obj)
+        [] = plot(obj,figureNumber);
         
    end
    

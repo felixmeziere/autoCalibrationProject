@@ -50,8 +50,8 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
                          end    
                     end
                  end
-            else error('Knobs ids and boundaries must be set first');
-            end    
+           else error('Knobs ids and boundaries must be set first');
+           end    
         end  %This will set the initial population.
         
         function [] = set_starting_point(obj, mode)

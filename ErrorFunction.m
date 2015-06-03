@@ -12,7 +12,8 @@ classdef ErrorFunction < handle
         results
         transformed_results
         error_in_percentage
-        
+        result_history % consecutive values of the errorFunction during last run
+
     end    
 
     methods (Access = public)
@@ -122,22 +123,53 @@ classdef ErrorFunction < handle
             obj.error_in_percentage=error_in_percentage;
         end  
         
-        function [] = plot_congestion_pattern_if_exists(obj,figure_number)
-            exists=0;
-            if (nargin<1)
-                figure_number=-Inf;
-            end    
-            for (i=1:size(obj.performance_calculators,2))
-                if (strcmp(class(obj.performance_calculators{i}),'CongestionPattern'))
-                    obj.performance_calculators{i}.plot(figure_number);
-                    exists=1;
+        function [] = plot_performance_calculator_if_exists(obj,performance_calculator, figureNumber)  
+            index=obj.find_performance_calculator(performance_calculator);
+            if (index~=0)
+                if (nargin<3)
+                    obj.performance_calculators{index}.plot;
+                else    
+                    obj.performance_calculators{index}.plot(figureNumber);
+                end
+            end
+        end 
+        
+        function [] = plot_result_history(obj, figureNumber)
+            if (nargin<2)
+                figure;
+            else    
+                figure(figureNumber);
+            end
+            plot(obj.result_history(:,1));
+            title('Error function evolution');
+            xlabel('Number of BEATS evaluations');
+            ylabel('Error function value');
+        end
+        
+    end
+    
+    methods (Access = private)
+    
+        function [index] = find_performance_calculator(obj,performance_calculator_name)
+            index=0;
+            for i=1:size(obj.performance_calculators,2)
+                if (strcmp(class(obj.performance_calculators{i}),performance_calculator_name))
+                    index=i;
                 end    
-            end    
-            if (exists==0)
-                disp('Sorry, no CongestionPattern among the performance calculators of this error function');
+            end
+            if index==0
+                string=['Sorry, no ',performance_calculator_name,' among the performance calculators of this error function.'];
+                disp(string);
             end    
         end    
-            
+        
+        function [] = reset_for_new_run(obj)
+            obj.result_history=[];
+            for i=1:size(obj.performance_calculators,2)
+                obj.performance_calculators{1,i}.error_in_percentage_history=[];
+            end    
+        end    
+        
     end
     
 end

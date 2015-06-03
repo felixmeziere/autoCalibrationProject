@@ -8,6 +8,7 @@ classdef TVM < PerformanceCalculator
         
     end
     
+    
     methods (Access = public)
        
         function [obj] = TVM(algoBox)
@@ -24,6 +25,7 @@ classdef TVM < PerformanceCalculator
             result = sum(obj.algorithm_box.beats_simulation.compute_performance(obj.algorithm_box.good_mainline_mask_beats).tot_flux)*dt_hr; %sum over time
             obj.result_from_beats = result;
             obj.error_in_percentage=100*(obj.result_from_beats-obj.result_from_pems)/obj.result_from_pems;
+            obj.error_in_percentage_history=[obj.error_in_percentage_history;obj.error_in_percentage];
         end
         
         function [result] = calculate_from_pems(obj) %compute TVM on pems data on monitored mainline links
@@ -48,6 +50,18 @@ classdef TVM < PerformanceCalculator
               obj.error_in_percentage=100*(obj.result_from_beats-obj.result_from_pems)/obj.result_from_pems;
         end    
         
+        function [] = plot(obj,figureNumber)
+            if (nargin<2)
+                figure;
+            else
+                figure(figureNumber);
+            end
+            plot(obj.error_in_percentage_history);
+            title('TVM error evolution (in percentage)');
+            xlabel('TVM error in percentage');
+            ylabel('Number of BEATS evaluations');            
+            drawnow;
+        end    
     end
 end
 
