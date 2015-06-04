@@ -135,15 +135,23 @@ classdef ErrorFunction < handle
             end
         end 
         
-        function [] = plot_result_history(obj, figureNumber)
-            if (nargin<2)
+        function [] = plot_result_history(obj, figureNumber, result_history, evaluation_number)
+            n=nargin;
+            if (n<2)
                 h=figure;
             else    
                 h=figure(figureNumber);
             end
-            plot(obj.result_history(:,1));
-            p=[30,400,700,470];
-            set(h, 'Position', p);
+            if (n==4)
+                result_history=result_history(1:evaluation_number,1);
+            else
+                if (n~=3)
+                    result_history=obj.result_history;
+                    p=[30,400,700,470];
+                    set(h, 'Position', p);
+                end    
+            end    
+            plot(result_history(:,1));
             title('Error function evolution');
             xlabel('Number of BEATS evaluations');
             ylabel('Error function value');

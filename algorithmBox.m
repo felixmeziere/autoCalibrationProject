@@ -293,6 +293,7 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.plot_zeroten_knobs_history(1);
                 obj.plot_result_history(2);
                 obj.plot_all_performance_calculators(3);
+                drawnow;
                 obj.save_congestionPattern_matrix;
             else
                 error('The matrix with knobs values given does not match the number of knobs to tune or is not a column vector.');
@@ -455,41 +456,102 @@ classdef (Abstract) AlgorithmBox < handle
              else
                  obj.error_function.plot_all_performance_calculators(firstFigureNumber);
              end    
-        end    
-    end    
+        end
         
-    methods (Access = public)
-    
-
-        
-    end    
-    
-    methods (Static, Access = public)
-        
-        function [] = plot_congestion_movie(dated_name,figureNumber)
-            if (nargin<3)
-                h=figure
+        function [movie] = plot_movie(obj,dated_name,figureNumber,congestion_pattern_only,tosave,stop_frame)
+            directory=[pwd,'\movies\',dated_name,'\'];
+            load([directory,'result_history.mat']);
+            load([directory,'zeroten_knobs_history.mat']);
+            if (nargin<5)
+                tosave=0;
+            end    
+            if (nargin==6)
+                Num=stop_frame;
+            else    
+                D = dir([pwd,'\movies\',dated_name, '\*.mat']);
+                Num = length(D(not([D.isdir])));
+                stop_frame=Num+1;
+            end
+            movie(Num) = struct('cdata',[],'colormap',[]);
+            if (nargin<2)
+                h=figure;
+                figureNumber=h.Number;
             else
-                h=figure(figureNumber)
+                h=figure(figureNumber);
             end
             p=[100,50,1300,700];
             set(h, 'Position', p);
-
             i=1;
             flag=1;
-            while flag
-                if exist([pwd,'\congestion_pattern_movies\',dated_name,'\',num2str(i),'.mat'],'file')==2
-                    load(['congestion_pattern_movies\',dated_name,'\',num2str(i),'.mat'])
-                    imagesc(tosave)
-                    title(['Contour plot : Congestion pattern matching (Beats evaluation number ',num2str(i),')']);
-                    xlabel('Linear mainline links');
-                    ylabel('Time (unit : 5 minutes if SI)');
-                    drawnow;
-                    i=i+1;
-                else flag=0;
+            if (nargin>3 && congestion_pattern_only)
+                while flag && i<=stop_frame
+                    if exist([directory,num2str(i),'.mat'],'file')==2
+                        load(['movies\',dated_name,'\',num2str(i),'.mat']);
+                        cp=obj.error_function.performance_calculators{obj.error_function.find_performance_calculator('CongestionPattern')};
+                        cp.plot(figureNumber,i,frame);
+                        drawnow;
+                        if (tosave)
+                            movie(i)=getframe;
+                        end    
+                        i=i+1;
+                    else flag=0;
+                    end
+                end
+            else
+                while flag && i<=stop_frame
+                    if exist([pwd,'\movies\',dated_name,'\',num2str(i),'.mat'],'file')==2
+                        if (mod(i,10)==0)
+                            subplot(3,2,1);
+                            obj.knobs.plot_zeroten_knobs_history(h.Number,zeroten_knobs_history,i);
+                            subplot(3,2,2);
+                            obj.error_function.plot_result_history(h.Number,result_history, i);
+                        end    
+                        load(['movies\',dated_name,'\',num2str(i),'.mat']);
+                        subplot(3,2,[4:6]);
+                        cp=obj.error_function.performance_calculators{obj.error_function.find_performance_calculator('CongestionPattern')};
+                        cp.plot(figureNumber,i,frame);
+                        drawnow;
+                        if (tosave)
+                            movie(i)=getframe(figureNumber);
+                        end    
+                        i=i+1;
+                    else flag=0;
+                    end
                 end
             end    
         end
+        
+        function [] = make_movie(obj,dated_name,stop_frame)
+            videoname=[pwd,'\movies\',dated_name,'.avi'];
+            if exist(videoname,'file')~=2
+                if nargin==3
+                    M=obj.plot_movie(dated_name,1,stop_frame);
+                else
+                    M=obj.plot_movie(dated_name,1);
+                end
+                vidObj = VideoWriter(videoname);
+                open(vidObj);
+                writeVideo(vidObj,M);
+                close(vidObj);
+            else
+                error('Sorry, a video already exists for this algorithm execution.');
+            end    
+        end    
+        
+        function [] = make_nonmade_movies(obj,stop_frame)
+            dirname=[pwd,'\movies\'];
+            list=dir(dirname);
+            for i=1:size(list,1)
+                videoname=[dirname,list(i).name,'.avi'];
+                if (list(i).isdir && exist(videoname,'file')~=2 && ~strcmp(list(i).name,'..') && ~strcmp(list(i).name,'.'))
+                    if nargin==2
+                        obj.make_movie(list(i).name,stop_frame);
+                    else    
+                        obj.make_movie(list(i).name);
+                    end
+                end
+            end    
+        end    
         
     end    
     
@@ -765,17 +827,21 @@ classdef (Abstract) AlgorithmBox < handle
         end    
         
         %saving data......................................................
-        function [] = save_figures(obj)
+        function [] = save_figures_and_movie_data(obj)
             obj.plot_zeroten_knobs_history(1);
             obj.plot_result_history(2);
             obj.plot_all_performance_calculators(3);
             plotcmaesdat(324);
-            h=figure(324)
+            h=figure(324);
             p=[900,0,450,350];
             set(h, 'Position', p);
             figures=findobj(0,'type','figure');
             fig_name= [pwd,'\',obj.algorithm_name,'_reports\',obj.dated_name,'.fig'];
             savefig(figures,fig_name);
+            zeroten_knobs_history=obj.knobs.zeroten_knobs_history;
+            result_history=obj.error_function.result_history(:,1);
+            save([pwd,'\movies\',obj.dated_name,'\zeroten_knobs_history.mat'],'zeroten_knobs_history');
+            save([pwd,'\movies\',obj.dated_name,'\result_history.mat'],'result_history');
         end    
         
         function [] = save_congestionPattern_matrix(obj)

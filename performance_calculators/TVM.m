@@ -62,7 +62,7 @@ classdef TVM < PerformanceCalculator
             title('TVM error evolution (in percentage)');
             ylabel('TVM error in percentage');
             xlabel('Number of BEATS evaluations');            
-            drawnow;
+            
         end    
     end
 end

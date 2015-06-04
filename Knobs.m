@@ -157,25 +157,33 @@ classdef Knobs < handle
     
     methods (Access = public)
     
-        function [] = plot_zeroten_knobs_history(obj,figureNumber)
-            if (nargin<2)
+        function [] = plot_zeroten_knobs_history(obj,figureNumber, zeroten_knobs_history, evaluation_number)
+            n=nargin;
+            if (n<2)
                 h=figure;
             else
                 h=figure(figureNumber);
-            end
-            
-            plot(obj.zeroten_knobs_history);
-            leg{1}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(1,1))),' (',num2str(obj.link_ids(1,1)),')'];
-            for i=2:size(obj.link_ids,1)
-                leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
+            end  
+            if (n==4)
+                zeroten_knobs_history=zeroten_knobs_history(1:evaluation_number,:);
+            else
+                if (n~=3) 
+                    zeroten_knobs_history=obj.zeroten_knobs_history;
+                    p=[700,400,800,470];
+                    set(h, 'Position', p);
+                    leg{1}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(1,1))),' (',num2str(obj.link_ids(1,1)),')'];
+                    for i=2:size(obj.link_ids,1)
+                        leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
+                    end 
+                end
             end    
-            p=[700,400,800,470];
-            set(h, 'Position', p);
-            title('Knobs rescaled to 0-10 evolution, ordered linearly.');
+            plot(zeroten_knobs_history);
+            title('Knobs rescaled to 0-10 evolution, ordered linearly');
             xlabel('Number of BEATS evaluations');
             ylabel('Knobs 0-10 values');
-            legend(leg);
-            drawnow;
+            if (n<3)
+                legend(leg);
+            end                 
         end 
         
         function [] = plot_knob_history(obj,knob_link_id,figureNumber)

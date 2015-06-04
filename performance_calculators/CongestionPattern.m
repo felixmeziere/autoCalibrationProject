@@ -81,25 +81,30 @@ classdef CongestionPattern < PerformanceCalculator
             obj.error_in_percentage=100*sum(sum((obj.result_from_beats-obj.result_from_pems)))/sum(sum(obj.result_from_pems));
         end    
 
-        function [] = plot(obj,figureNumber)
+        function [] = plot(obj,figureNumber,frameNumber,frame)
             if (nargin<2)
                 h=figure;
             else
                 h=figure(figureNumber);
             end
-            imagesc(obj.result_from_beats-obj.result_from_pems)
-            p=[0,0,450,350];
-            set(h, 'Position', p);
-            title('Contour plot : Congestion pattern matching');
+            if (nargin<2)
+               imagesc(obj.result_from_beats-obj.result_from_pems); 
+               p=[0,0,450,350];
+               set(h, 'Position', p);
+               title('Contour plot : Congestion pattern matching');
+            else
+               imagesc(frame);
+               title(['Contour plot : Congestion pattern matching (Beats evaluation number ',num2str(frameNumber),')']);
+            end    
             xlabel('Linear mainline links');
             ylabel('Time (unit : 5 minutes if SI)');
-            drawnow;
+            
         end 
         
         function [] = save_plot(obj)
-            tosave=obj.result_from_beats-obj.result_from_pems;
-            mkdir([pwd,'\congestion_pattern_movies\',obj.algorithm_box.dated_name])
-            save([pwd,'\congestion_pattern_movies\',obj.algorithm_box.dated_name,'\',Utilities.get_matfile_number(['congestion_pattern_movies\',obj.algorithm_box.dated_name]),'.mat'],'tosave');
+            frame=obj.result_from_beats-obj.result_from_pems;
+            mkdir([pwd,'\movies\',obj.algorithm_box.dated_name])
+            save([pwd,'\movies\',obj.algorithm_box.dated_name,'\',Utilities.get_matfile_number(['movies\',obj.algorithm_box.dated_name]),'.mat'],'frame');
         end    
         
     end

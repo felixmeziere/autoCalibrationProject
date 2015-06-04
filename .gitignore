@@ -40,9 +40,11 @@ Thumbs.db
 #######
 *.asv
 *cmaes_reports/*
+*movies/*
 variablescmaes.mat
 *.dat
 testAlgo.m
 *.mat
 *.fig
+8147236864.xml
 

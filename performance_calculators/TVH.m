@@ -52,7 +52,6 @@ classdef TVH < PerformanceCalculator
             title('TVH error evolution (in percentage)');
             ylabel('TVH error in percentage');
             xlabel('Number of BEATS evaluations');            
-            drawnow;
         end  
     end
 end
