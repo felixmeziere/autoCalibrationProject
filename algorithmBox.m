@@ -56,7 +56,6 @@ classdef (Abstract) AlgorithmBox < handle
         numberOfEvaluations=1; % number of times beats ran a simulation. Extracted from out.
         stopFlag; % reason why the algorithm stopped. Extracted from out.
         convergence % convergence speed. 
-        figures %figures array to be saved at the end
         
     end
     
@@ -271,8 +270,6 @@ classdef (Abstract) AlgorithmBox < handle
             if (size(knob_values,1)==size(obj.knobs.link_ids,1))   
                 if exist('isZeroToTenScale','var') && isZeroToTenScale==1
                     knob_values=obj.knobs.rescale_knobs(knob_values,0);
-                else
-                    zeroten_knob_values=repmat([],size(knob_values,1),1);
                 end
                 knob_values=obj.knobs.project_involved_knob_groups_on_correct_flow_subspace(knob_values);
                 knob_values=obj.project_on_correct_TVM_subspace(knob_values);
@@ -289,13 +286,14 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.beats_simulation.run_beats_persistent;
                 obj.error_function.calculate_pc_from_beats;
                 [result,error_in_percentage] = obj.error_function.calculate_error;
-                disp(['    Error function value :','      Error in percentage:',' CONTRIBUTIONS: ',obj.error_function.performance_calculators{1}.name,':              ',obj.error_function.performance_calculators{2}.name,':              ',obj.error_function.performance_calculators{3}.name,':']);
-                disp([result, error_in_percentage,obj.error_function.transformed_results(1),obj.error_function.transformed_results(2),obj.error_function.transformed_results(3)]);
+                disp(['    Error function value :','      Error in percentage:',' CONTRIBUTIONS: ',obj.error_function.performance_calculators{1}.name,':              ',obj.error_function.performance_calculators{2}.name,':']);%              ',obj.error_function.performance_calculators{3}.name,':']);
+                disp([result, error_in_percentage,obj.error_function.transformed_results(1),obj.error_function.transformed_results(2)]);%,obj.error_function.transformed_results(3)]);
                 obj.error_function.result_history(end+1,[1,2])=[result,error_in_percentage];
                 obj.numberOfEvaluations=obj.numberOfEvaluations+1;
                 obj.plot_zeroten_knobs_history(1);
                 obj.plot_result_history(2);
                 obj.plot_all_performance_calculators(3);
+                obj.save_congestionPattern_matrix;
             else
                 error('The matrix with knobs values given does not match the number of knobs to tune or is not a column vector.');
             end    
@@ -451,9 +449,48 @@ classdef (Abstract) AlgorithmBox < handle
             legend(leg);
         end    
         
-        function [] = plot_all_performance_calculators(obj)
-            obj.error_function.plot_all_performance_calculators;
+        function [] = plot_all_performance_calculators(obj, firstFigureNumber)
+             if (nargin<2)
+                 obj.error_function.plot_all_performance_calculators;
+             else
+                 obj.error_function.plot_all_performance_calculators(firstFigureNumber);
+             end    
         end    
+    end    
+        
+    methods (Access = public)
+    
+
+        
+    end    
+    
+    methods (Static, Access = public)
+        
+        function [] = plot_congestion_movie(dated_name,figureNumber)
+            if (nargin<3)
+                h=figure
+            else
+                h=figure(figureNumber)
+            end
+            p=[100,50,1300,700];
+            set(h, 'Position', p);
+
+            i=1;
+            flag=1;
+            while flag
+                if exist([pwd,'\congestion_pattern_movies\',dated_name,'\',num2str(i),'.mat'],'file')==2
+                    load(['congestion_pattern_movies\',dated_name,'\',num2str(i),'.mat'])
+                    imagesc(tosave)
+                    title(['Contour plot : Congestion pattern matching (Beats evaluation number ',num2str(i),')']);
+                    xlabel('Linear mainline links');
+                    ylabel('Time (unit : 5 minutes if SI)');
+                    drawnow;
+                    i=i+1;
+                else flag=0;
+                end
+            end    
+        end
+        
     end    
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -482,9 +519,6 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.beats_simulation.create_beats_object(obj.beats_parameters);
                 obj.link_ids_beats=obj.beats_simulation.scenario_ptr.get_link_ids;
                 obj.reset_beats;
-                if (size(obj.pems,1)~=0 && obj.pems.is_loaded==1)
-
-                end
                 obj.linear_link_ids=obj.link_ids_beats(obj.beats_simulation.scenario_ptr.extract_linear_fwy_indices);
                 disp('BEATS SETTINGS LOADED.')
                 obj.beats_loaded=1;
@@ -547,6 +581,7 @@ classdef (Abstract) AlgorithmBox < handle
         function [] = reset_for_new_run(obj)
             obj.error_function.reset_for_new_run;
             obj.knobs.knobs_history=[];
+            obj.knobs.zeroten_knobs_history=[];
             obj.knobs.zeroten_knobs_history;
         end    
         
@@ -644,7 +679,6 @@ classdef (Abstract) AlgorithmBox < handle
         end    
   
         %Transform masks to fit linear link ids............................
-        
         function [linear_mask] = send_mask_beats_to_linear_space(obj, mask_beats)
             linear_mask=ismember(obj.linear_link_ids,obj.link_ids_beats(mask_beats));
         end    
@@ -720,9 +754,8 @@ classdef (Abstract) AlgorithmBox < handle
             else 
                 type='Freeway';
             end    
-       end   
+        end   
        
-               
     end
     
     methods (Hidden, Access = public)
@@ -730,9 +763,28 @@ classdef (Abstract) AlgorithmBox < handle
         function [] = remove_field_from_property(obj, property, field)
            eval(strcat('obj.',property,'=rmfield(obj.',property,',',Utilities.char2char('field'),');'));
         end    
-         
+        
+        %saving data......................................................
+        function [] = save_figures(obj)
+            obj.plot_zeroten_knobs_history(1);
+            obj.plot_result_history(2);
+            obj.plot_all_performance_calculators(3);
+            plotcmaesdat(324);
+            h=figure(324)
+            p=[900,0,450,350];
+            set(h, 'Position', p);
+            figures=findobj(0,'type','figure');
+            fig_name= [pwd,'\',obj.algorithm_name,'_reports\',obj.dated_name,'.fig'];
+            savefig(figures,fig_name);
+        end    
+        
+        function [] = save_congestionPattern_matrix(obj)
+            CPindex=obj.error_function.find_performance_calculator('CongestionPattern');
+            obj.error_function.performance_calculators{CPindex}.save_plot;
+        end    
+        
     end    
- 
+     
 end    
 
 

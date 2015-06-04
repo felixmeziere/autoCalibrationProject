@@ -64,6 +64,8 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
               obj.inopts.UBounds = ones(size(obj.knobs.link_ids,1),1)*10;
               obj.inopts.LBounds = zeros(size(obj.knobs.link_ids,1),1);
               xstart=obj.knobs.rescale_knobs(obj.starting_point,1);
+              mat_name = Utilities.give_dated_name('cmaes_reports','','mat');
+              [~,obj.dated_name,~]=fileparts(mat_name);
               [lastPoint, lastValue, obj.numberOfEvaluations, obj.stopFlag, obj.out, bestEver]=cmaes(@(x)obj.evaluate_error_function(x,1), xstart, obj.insigma, obj.inopts);  
               load variablescmaes.mat
               bestEver.x=obj.knobs.rescale_knobs(bestEver.x,0);
@@ -71,17 +73,8 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
               obj.bestEver=bestEver;
               obj.bestEverErrorFunctionValue=bestEver.f;
               obj.numberOfIterations=countiter;
-              mat_name = Utilities.give_dated_name('cmaes_reports','','mat');
-              [~,obj.dated_name,~]=fileparts(mat_name);
               save(mat_name);
-              obj.figures(1)=figure(1);
-              obj.figures(2)=figure(2);
-              obj.figures(3)=figure(3);
-              plotcmaesdat;
-              drawnow;
-              obj.figures(4)=gcf;
-              fig_name= Utilities.give_dated_name('cmaes_reports','','fig');
-              savefig(obj.figures,fig_name);
+              obj.save_figures;
         end   % defined in AlgorithmBox   
    
         function [] = set_result_for_xls(obj)
@@ -96,17 +89,19 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
             obj.result_for_xls{6}=Utilities.double2char(obj.normopts.SIGMAS);
             obj.result_for_xls{7}=Utilities.double2char(obj.starting_point);
             obj.result_for_xls{8}=obj.insigma;
-            obj.result_for_xls{9}=Utilities.double2char(obj.knobs.boundaries_min);
-            obj.result_for_xls{10}=Utilities.double2char(obj.knobs.boundaries_max);
-            obj.result_for_xls{11}=obj.maxIter;
-            obj.result_for_xls{12}=obj.maxEval;
-            obj.result_for_xls{13}=obj.stopFValue;
-            obj.result_for_xls{14}=Utilities.double2char(obj.bestEverPoint);
-            obj.result_for_xls{15}=obj.bestEverErrorFunctionValue;
-            obj.result_for_xls{16}=Utilities.cellArray2char(obj.stopFlag);
-            obj.result_for_xls{17}=obj.numberOfIterations;
-            obj.result_for_xls{18}=obj.numberOfEvaluations;
-            obj.result_for_xls{19}=obj.convergence;
+            obj.result_for_xls{9}=obj.knobs.underevaluation_tolerance_coefficient;
+            obj.result_for_xls{10}=obj.knobs.overevaluation_tolerance_coefficient;
+            obj.result_for_xls{11}=Utilities.double2char(obj.knobs.boundaries_min);
+            obj.result_for_xls{12}=Utilities.double2char(obj.knobs.boundaries_max);
+            obj.result_for_xls{13}=obj.maxIter;
+            obj.result_for_xls{14}=obj.maxEval;
+            obj.result_for_xls{15}=obj.stopFValue;
+            obj.result_for_xls{16}=Utilities.double2char(obj.bestEverPoint);
+            obj.result_for_xls{17}=obj.bestEverErrorFunctionValue;
+            obj.result_for_xls{18}=Utilities.cellArray2char(obj.stopFlag);
+            obj.result_for_xls{19}=obj.numberOfIterations;
+            obj.result_for_xls{20}=obj.numberOfEvaluations;
+            obj.result_for_xls{21}=obj.convergence;
         end % defined in AlgorithmBox
        
     end

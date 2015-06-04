@@ -7,7 +7,7 @@ classdef Knobs < handle
         
         %selecting.........................................................
         link_ids=0;
-        linear_link_ids;
+        linear_link_ids
         demand_ids
         
         
@@ -51,7 +51,6 @@ classdef Knobs < handle
         
         function [obj] = Knobs(algoBox)
             obj.algorithm_box=algoBox;
-            obj.linear_link_ids=obj.algorithm_box.linear_link_ids(ismember(obj.algorithm_box.linear_link_ids,obj.link_ids));
         end    
         
         function [] = run_assistant(obj) % set the ids of the knobs to tune in the command window.
@@ -160,22 +159,27 @@ classdef Knobs < handle
     
         function [] = plot_zeroten_knobs_history(obj,figureNumber)
             if (nargin<2)
-                figure;
+                h=figure;
             else
-                figure(figureNumber);
+                h=figure(figureNumber);
             end
+            
             plot(obj.zeroten_knobs_history);
+            leg{1}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(1,1))),' (',num2str(obj.link_ids(1,1)),')'];
             for i=2:size(obj.link_ids,1)
                 leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
             end    
+            p=[700,400,800,470];
+            set(h, 'Position', p);
             title('Knobs rescaled to 0-10 evolution, ordered linearly.');
             xlabel('Number of BEATS evaluations');
             ylabel('Knobs 0-10 values');
-            legend(['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(1,1))),' (',num2str(obj.link_ids(1,1)),')']);
+            legend(leg);
+            drawnow;
         end 
         
         function [] = plot_knob_history(obj,knob_link_id,figureNumber)
-            if (nargin<2)
+            if (nargin<3)
                 figure;
             else
                 figure(figureNumber);
@@ -183,7 +187,7 @@ classdef Knobs < handle
             index=find(obj.link_ids==knob_link_id);
             plot(obj.knobs_history(:,index));
             number=num2str(find(obj.linear_link_ids==knob_link_id));
-            title(['Knob ',number,' (',knob_link_id,') evolution']);
+            title(['Knob ',number,' (',num2str(knob_link_id),') evolution']);
             xlabel('Number of BEATS evaluations');
             ylabel('Knob values');  
         end    
@@ -203,6 +207,7 @@ classdef Knobs < handle
                 dps=obj.algorithm_box.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.link_ids);
                 obj.demand_ids(i,1)=dps(i).id;
             end
+            obj.linear_link_ids=obj.algorithm_box.linear_link_ids(ismember(obj.algorithm_box.linear_link_ids,obj.link_ids));
         end
         
         %functions to refine the auto boundaries to realistic ones, taking 

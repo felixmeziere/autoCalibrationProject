@@ -62,12 +62,24 @@ classdef Utilities
         
         function [file_name] = give_dated_name(folder_name,suffix,extension)
               i=1;
-              name=strcat(folder_name,'\',datestr(today));
-              
+              name=strcat(folder_name,'\',datestr(today)); 
               while (exist(strcat(pwd,'\',name,'_',num2str(i),suffix,'.',extension),'file')==2)
                   i=i+1;
               end
               file_name=strcat(name,'_',num2str(i),suffix,'.', extension);
+        end    
+        
+        function [number] = get_matfile_number(folder_name)
+            i=1;
+            flag=1;
+            while flag
+                if exist([pwd,'\',folder_name,'\',num2str(i),'.mat'],'file')==2
+                    i=i+1;
+                else
+                    flag=0;
+                end    
+                number=num2str(i);
+            end    
         end    
         
         function [distance]= euclidianDistance(fvector, svector)

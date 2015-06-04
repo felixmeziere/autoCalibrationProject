@@ -137,25 +137,33 @@ classdef ErrorFunction < handle
         
         function [] = plot_result_history(obj, figureNumber)
             if (nargin<2)
-                figure;
+                h=figure;
             else    
-                figure(figureNumber);
+                h=figure(figureNumber);
             end
             plot(obj.result_history(:,1));
+            p=[30,400,700,470];
+            set(h, 'Position', p);
             title('Error function evolution');
             xlabel('Number of BEATS evaluations');
             ylabel('Error function value');
         end
         
         function [] = plot_all_performance_calculators(obj,starting_index)
-            for i=1:size(obj.performance_calculators,2)
-                obj.performance_calculators{i}.plot(i+starting_index-1);
+            if (nargin<2)
+                for i=1:size(obj.performance_calculators,2)
+                    obj.performance_calculators{i}.plot;
+                end 
+            else
+                for i=1:size(obj.performance_calculators,2)
+                    obj.performance_calculators{i}.plot(i+starting_index-1);
+                end    
             end    
         end    
         
     end
     
-    methods (Access = private)
+    methods (Access = ?AlgorithmBox)
     
         function [index] = find_performance_calculator(obj,performance_calculator_name)
             index=0;
