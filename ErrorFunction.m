@@ -1,6 +1,6 @@
 classdef ErrorFunction < handle
     
-    properties (SetAccess = public)
+    properties (SetAccess = ?AlgorithmBox)
         
         is_loaded=0;
         algorithm_box
@@ -123,6 +123,7 @@ classdef ErrorFunction < handle
             obj.error_in_percentage=error_in_percentage;
         end  
         
+        %plot functions...................................................
         function [] = plot_performance_calculator_if_exists(obj,performance_calculator, figureNumber)  
             index=obj.find_performance_calculator(performance_calculator);
             if (index~=0)
@@ -145,6 +146,12 @@ classdef ErrorFunction < handle
             xlabel('Number of BEATS evaluations');
             ylabel('Error function value');
         end
+        
+        function [] = plot_all_performance_calculators(obj,starting_index)
+            for i=1:size(obj.performance_calculators,2)
+                obj.performance_calculators{i}.plot(i+starting_index-1);
+            end    
+        end    
         
     end
     

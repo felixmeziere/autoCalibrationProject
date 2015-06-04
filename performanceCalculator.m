@@ -10,7 +10,7 @@ classdef (Abstract) PerformanceCalculator<handle
        
    end 
    
-   properties (SetAccess = ?ErrorFunction
+   properties (Hidden, Access = public)
     
       error_in_percentage_history=[];
        

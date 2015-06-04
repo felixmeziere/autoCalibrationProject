@@ -33,7 +33,7 @@ classdef (Abstract) AlgorithmBox < handle
         stopFValue=1000; % the algorithm will stop if a smaller value is reached by error_calculator (this is the goal).
         current_xls_program_column=2; % in the xls program, number (not 'B' as in Excel) of the config column currently used.
         normal_mode_bs@BeatsSimulation %temporary. Normal mode already run beatsSimulation to test beats as pems real scenario mode
-        
+        res_history
     end
                 
     properties (SetAccess = protected)
@@ -79,7 +79,6 @@ classdef (Abstract) AlgorithmBox < handle
         is_program_first_run=1; %flag to indicate if long loading time data has been already loaded.
         dated_name %name that will have the reports for this run
         
-        
         %masks pointing at the links with working sensors used on beats 
         %output or on pems data............................................
         
@@ -121,10 +120,11 @@ classdef (Abstract) AlgorithmBox < handle
     end   
     
     methods (Access= public)    
-        
+       
         %create object....................................................
         function [obj] = AlgorithmBox() %constructor
-            cd C:\Users\Felix\code\autoCalibrationProject
+            [name,~,~]=fileparts(mfilename('fullpath'));
+            cd(name);   
         end 
         
         %load for single run from xls file.................................
@@ -275,7 +275,7 @@ classdef (Abstract) AlgorithmBox < handle
                     zeroten_knob_values=repmat([],size(knob_values,1),1);
                 end
                 knob_values=obj.knobs.project_involved_knob_groups_on_correct_flow_subspace(knob_values);
-%                 knob_values=obj.project_on_correct_TVM_subspace(knob_values);
+                knob_values=obj.project_on_correct_TVM_subspace(knob_values);
                 zeroten_knob_values=obj.knobs.rescale_knobs(knob_values,1);
                 obj.knobs.knobs_history(end+1,:)=reshape(knob_values,1,[]);
                 obj.knobs.zeroten_knobs_history(end+1,:)=reshape(zeroten_knob_values,1,[]);
@@ -291,15 +291,11 @@ classdef (Abstract) AlgorithmBox < handle
                 [result,error_in_percentage] = obj.error_function.calculate_error;
                 disp(['    Error function value :','      Error in percentage:',' CONTRIBUTIONS: ',obj.error_function.performance_calculators{1}.name,':              ',obj.error_function.performance_calculators{2}.name,':              ',obj.error_function.performance_calculators{3}.name,':']);
                 disp([result, error_in_percentage,obj.error_function.transformed_results(1),obj.error_function.transformed_results(2),obj.error_function.transformed_results(3)]);
-                obj.error_function.res_history(end+1,[1,2])=[result,error_in_percentage];
+                obj.error_function.result_history(end+1,[1,2])=[result,error_in_percentage];
                 obj.numberOfEvaluations=obj.numberOfEvaluations+1;
-                figure(1);
-                title('')
-                plot(obj.knobs.zeroten_knobs_history);
-                figure(2);
-                plot(obj.res_history(:,1));
-                obj.error_function.plot_congestion_pattern_if_exists(3);
-                
+                obj.plot_zeroten_knobs_history(1);
+                obj.plot_result_history(2);
+                obj.plot_all_performance_calculators(3);
             else
                 error('The matrix with knobs values given does not match the number of knobs to tune or is not a column vector.');
             end    
@@ -349,7 +345,7 @@ classdef (Abstract) AlgorithmBox < handle
         end    
         
         function [] = plot_performance_calculator_if_exists(obj,performance_calculator, figureNumber)  
-            if (nargin<2)
+            if (nargin<3)
                 obj.error_function.plot_performance_calculator_if_exists(performance_calculator);
             else
                 obj.error_function.plot_performance_calculator_if_exists(performance_calculator,figureNumber);
@@ -455,6 +451,9 @@ classdef (Abstract) AlgorithmBox < handle
             legend(leg);
         end    
         
+        function [] = plot_all_performance_calculators(obj)
+            obj.error_function.plot_all_performance_calculators;
+        end    
     end    
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

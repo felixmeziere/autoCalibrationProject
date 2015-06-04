@@ -29,6 +29,7 @@ classdef TVH < PerformanceCalculator
             obj.error_in_percentage_history=[obj.error_in_percentage_history;obj.error_in_percentage];
         end
         
+        
         function [] = plot(obj,figureNumber)
             if (nargin<2)
                 figure;

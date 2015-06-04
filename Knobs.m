@@ -164,7 +164,7 @@ classdef Knobs < handle
             else
                 figure(figureNumber);
             end
-            plot(obj.knobs_history);
+            plot(obj.zeroten_knobs_history);
             for i=2:size(obj.link_ids,1)
                 leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
             end    
