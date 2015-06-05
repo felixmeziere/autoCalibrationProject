@@ -316,7 +316,8 @@ classdef (Abstract) AlgorithmBox < handle
                 end
                 obj.current_xls_program_column=obj.current_xls_program_column+1;
                 obj.is_program_first_run=0;
-           end    
+            end
+           obj.make_nonmade_movies;
         end % run the program defined by the input Excel file and write its results in the output Excel file.        
         
     end
@@ -469,6 +470,15 @@ classdef (Abstract) AlgorithmBox < handle
         end
         
         function [movie] = plot_movie(obj,dated_name,figureNumber,congestion_pattern_only,tosave,stop_frame)
+            if nargin<2
+                dated_name=obj.dated_name;
+            end    
+            if nargin<3
+                h=figure;
+                figureNumber=h.Number;     
+            else
+                h=figure(figureNumber);
+            end    
             directory=[pwd,'\movies\',dated_name,'\'];
             load([directory,'result_history.mat']);
             load([directory,'zeroten_knobs_history.mat']);
@@ -483,12 +493,6 @@ classdef (Abstract) AlgorithmBox < handle
                 stop_frame=Num+1;
             end
             movie(Num) = struct('cdata',[],'colormap',[]);
-            if (nargin<2)
-                h=figure;
-                figureNumber=h.Number;
-            else
-                h=figure(figureNumber);
-            end
             p=[100,50,1300,700];
             set(h, 'Position', p);
             i=1;

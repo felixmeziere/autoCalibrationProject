@@ -87,7 +87,7 @@ classdef CongestionPattern < PerformanceCalculator
             else
                 h=figure(figureNumber);
             end
-            if (nargin<2)
+            if (nargin<3)
                imagesc(obj.result_from_beats-obj.result_from_pems); 
                p=[0,0,450,350];
                set(h, 'Position', p);
