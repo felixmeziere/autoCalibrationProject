@@ -171,8 +171,7 @@ classdef Knobs < handle
                     zeroten_knobs_history=obj.zeroten_knobs_history;
                     p=[700,400,800,470];
                     set(h, 'Position', p);
-                    leg{1}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(1,1))),' (',num2str(obj.link_ids(1,1)),')'];
-                    for i=2:size(obj.link_ids,1)
+                    for i=1:size(obj.link_ids,1)
                         leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
                     end 
                 end

@@ -447,6 +447,9 @@ classdef (Abstract) AlgorithmBox < handle
                     leg{1,end+1}='Non-monitored off-ramps';                    
                 end    
             end      
+%             for i=1:size(obj.knobs.link_ids,1)
+%                 legknob{1,end+1}=['Knob ',num2str(find(obj.knobs.linear_link_ids==obj.knobs.link_ids(i,1))),' (',num2str(obj.knobs.link_ids(i,1)),')'];
+%             end 
             arg_array=[with_monitored_onramps,with_monitored_offramps,with_nonmonitored_onramps,with_nonmonitored_offramps,with_monitored_mainlines];
             number_arg=sum(arg_array);
             figure;
@@ -468,14 +471,21 @@ classdef (Abstract) AlgorithmBox < handle
              end    
         end
         
-        function [movie] = plot_movie(obj,dated_name,figureNumber,congestion_pattern_only,tosave,stop_frame)
+        function [movie] = plot_movie(obj,dated_name,figureNumber,congestion_pattern_only,tosave,noncongestion_refresh,stop_frame)
+            if(nargin<6)
+                noncongestion_refresh=10;
+            end    
+            if (nargin<2)
+                dated_name=obj.dated_name;
+            end    
             directory=[pwd,'\movies\',dated_name,'\'];
             load([directory,'result_history.mat']);
             load([directory,'zeroten_knobs_history.mat']);
+            max_error=max(result_history);
             if (nargin<5)
                 tosave=0;
             end    
-            if (nargin==6)
+            if (nargin>6)
                 Num=stop_frame;
             else    
                 D = dir([pwd,'\movies\',dated_name, '\*.mat']);
@@ -510,11 +520,16 @@ classdef (Abstract) AlgorithmBox < handle
             else
                 while flag && i<=stop_frame
                     if exist([pwd,'\movies\',dated_name,'\',num2str(i),'.mat'],'file')==2
-                        if (mod(i,10)==0)
+                        if (mod(i,noncongestion_refresh)==0)
                             subplot(3,2,1);
                             obj.knobs.plot_zeroten_knobs_history(h.Number,zeroten_knobs_history,i);
+                            axis([0,Num,0,10]);
+                            line([i i],[0,1000],'Color',[1 0 0]);
+%                             plot(i*ones(1,size(zeroten_knobs_history,2)),zeroten_knobs_history(i,:),'MarkerSize',16);
                             subplot(3,2,2);
                             obj.error_function.plot_result_history(h.Number,result_history, i);
+                            axis([0,Num,0,max_error]);
+                            line([i i],[0,1000],'Color',[1 0 0]);
                         end    
                         load(['movies\',dated_name,'\',num2str(i),'.mat']);
                         subplot(3,2,[4:6]);
@@ -535,9 +550,9 @@ classdef (Abstract) AlgorithmBox < handle
             videoname=[pwd,'\movies\',dated_name,'.avi'];
             if exist(videoname,'file')~=2
                 if nargin==3
-                    M=obj.plot_movie(dated_name,1,stop_frame);
+                    M=obj.plot_movie(dated_name,1,0,1,1,stop_frame);
                 else
-                    M=obj.plot_movie(dated_name,1);
+                    M=obj.plot_movie(dated_name,1,0,1,1);
                 end
                 vidObj = VideoWriter(videoname);
                 open(vidObj);
