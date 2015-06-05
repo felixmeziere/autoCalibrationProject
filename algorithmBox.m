@@ -135,18 +135,18 @@ classdef (Abstract) AlgorithmBox < handle
             %Empty cells in the current column will be ignored.
             %The program input (0 or 1) is to avoid reloading useless
             %stuff.
-            if ~exist('is_program','var') || is_program~=1
-                obj.knobs=Knobs(obj);
-                obj.pems=PeMSData(obj);
-                for i=1:size(obj.xls_program,1)
-                    if ~strcmp(obj.xls_program(i,obj.current_xls_program_column),'')
-                        eval(strcat('obj.',char(obj.xls_program(i,1)),'=',char(obj.xls_program(i,obj.current_xls_program_column)),';'));
-                    end
+            obj.pems=PeMSData(obj);
+            obj.knobs=Knobs(obj);
+            for i=1:size(obj.xls_program,1)
+                if ~strcmp(obj.xls_program(i,obj.current_xls_program_column),'')
+                    eval(strcat('obj.',char(obj.xls_program(i,1)),'=',char(obj.xls_program(i,obj.current_xls_program_column)),';'));
                 end
-                obj.load_beats;
-                obj.pems.load;
-                obj.set_masks_and_reference_values;
             end
+%             if ~exist('is_program','var') || is_program~=1
+            obj.load_beats;
+            obj.pems.load;
+            obj.set_masks_and_reference_values;
+%             end
             if ~exist('is_program_first_run','var') || is_program_first_run~=1
                 obj.knobs.set_demand_ids;
                 obj.knobs.current_value=ones(size(obj.knobs.link_ids,1));
