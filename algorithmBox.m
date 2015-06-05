@@ -361,12 +361,13 @@ classdef (Abstract) AlgorithmBox < handle
                 with_nonmonitored_offramps=1;
                 with_monitored_mainlines=1;
                 if (nargin<2)
-                   is_mainline_only_format=1;
+                   is_mainline_only_format=0;
                 end    
             end
-            cmap=[1,1,1];
+            cmap=[0.25,0.25,0.25];
             leg={};
-            if is_mainline_only_format
+            value=1;
+            if ~is_mainline_only_format
                 xinfo='Mainline links in order';
                 yinfo='Ramps info                                       Mainline info';
                 mainline_array=zeros(1,sum(obj.mainline_mask_beats));
@@ -377,27 +378,31 @@ classdef (Abstract) AlgorithmBox < handle
                 onramp_mask=obj.send_mask_beats_to_linear_mainline_space(logical(obj.source_mask_beats.*~obj.mainline_mask_beats));
                 offramp_mask=obj.send_mask_beats_to_linear_mainline_space(logical(obj.sink_mask_beats.*~obj.mainline_mask_beats));
                 if with_monitored_mainlines
-                    mainline_array(good_mainline_mask)=1;
+                    mainline_array(good_mainline_mask)=value;
+                    value=value+1;
                     cmap=[cmap;1,1,0];
                     leg{1,end+1}='Monitored mainline links';
                 end
                 if with_monitored_onramps
-                   ramps_array(logical(good_source_mask.*onramp_mask))=2;
+                   ramps_array(logical(good_source_mask.*onramp_mask))=value;
+                   value=value+1;
                    cmap=[cmap;1,0,0];
                    leg{1,end+1}='Monitored on-ramps';
                 end    
                 if with_monitored_offramps
-                   ramps_array(logical(good_sink_mask.*offramp_mask))=3;
+                   ramps_array(logical(good_sink_mask.*offramp_mask))=value;
+                   value=value+1;
                    cmap=[cmap;1,0,1];
                    leg{1,end+1}='Monitored off-ramps';
                 end    
                 if with_nonmonitored_onramps
-                    ramps_array(logical(~good_source_mask.*onramp_mask))=4;
+                    ramps_array(logical(~good_source_mask.*onramp_mask))=value;
+                    value=value+1;
                     cmap=[cmap;0,0,1];
                     leg{1,end+1}='Non-monitored on-ramps';
                 end
                 if with_nonmonitored_offramps
-                    ramps_array(logical(~good_sink_mask.*offramp_mask))=5;
+                    ramps_array(logical(~good_sink_mask.*offramp_mask))=value;
                     cmap=[cmap;0,1,1];
                     leg{1,end+1}='Non-monitored off-ramps';
                 end
@@ -412,27 +417,32 @@ classdef (Abstract) AlgorithmBox < handle
                 onramp_mask=obj.send_mask_beats_to_linear_space(logical(obj.source_mask_beats.*~obj.mainline_mask_beats));
                 offramp_mask=obj.send_mask_beats_to_linear_space(logical(obj.sink_mask_beats.*~obj.mainline_mask_beats));
                 if with_monitored_mainlines
-                    array(good_mainline_mask)=1;
+                    array(good_mainline_mask)=value;
+                    value=value+1;
                     cmap=[cmap;1,1,0];
                     leg{1,end+1}='Monitored mainline links';
                 end
                 if with_monitored_onramps
-                   array(logical(good_source_mask.*onramp_mask))=2;
+                   array(logical(good_source_mask.*onramp_mask))=value;
+                   value=value+1;
                    cmap=[cmap;1,0,0];
                    leg{1,end+1}='Monitored on-ramps';
                 end    
                 if with_monitored_offramps
-                   array(logical(good_sink_mask.*offramp_mask))=3;
+                   array(logical(good_sink_mask.*offramp_mask))=value;
+                   value=value+1;
                    cmap=[cmap;1,0,1];
                    leg{1,end+1}='Monitored off-ramps';
                 end    
                 if with_nonmonitored_onramps
-                    array(logical(~good_source_mask.*onramp_mask))=4;
+                    array(logical(~good_source_mask.*onramp_mask))=value;
+                    value=value+1;
                     cmap=[cmap;0,0,1];
                     leg{1,end+1}='Non-monitored on-ramps';
                 end
                 if with_nonmonitored_offramps
-                    array(logical(~good_sink_mask.*offramp_mask))=5;
+                    array(logical(~good_sink_mask.*offramp_mask))=value;
+                    value=value+1;
                     cmap=[cmap;0,1,1];
                     leg{1,end+1}='Non-monitored off-ramps';                    
                 end    
