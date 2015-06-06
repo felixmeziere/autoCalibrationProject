@@ -38,7 +38,7 @@ classdef ErrorCalculator<handle
         end    
 
         function [result] = calculate(obj, beatsPerformance, pemsPerformance)
-            if (size(beatsPerformance,1)~=1 || size(beatsPerformance,2)~=1)
+            if (size(beatsPerformance,1)~=1 && size(beatsPerformance,2)~=1)
                 contour=pemsPerformance-beatsPerformance;
                 for i=1:size(contour,2)
                     for j=1:size(contour,1)

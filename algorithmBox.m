@@ -75,7 +75,7 @@ classdef (Abstract) AlgorithmBox < handle
         beats_loaded=0; % flag to indicate if the beats simulation and parameters have been correctly loaded.
         masks_loaded=0; % flag to indicate if the masks and TVM reference values have been correctly loaded.
         current_day=1; %current day used in the pems data loaded.
-        is_program_first_run=1; %flag to indicate if long loading time data has been already loaded.
+        is_loaded=0; %flag to indicate if the algorithm is ready to run.
         dated_name %name that will have the reports for this run
         
         %masks pointing at the links with working sensors used on beats 
@@ -127,7 +127,7 @@ classdef (Abstract) AlgorithmBox < handle
         end 
         
         %load for single run from xls file.................................
-        function [] = load_properties_from_xls(obj,is_program,is_program_first_run) % load the properties from an excel file in the format described underneath.
+        function [] = load_properties_from_xls(obj) % load the properties from an excel file in the format described underneath.
             %properties file : an xls file containing the AlgorithmBox
             %properties to set in the first column and the corresponding
             %expressions to be evaluated by Matlab in the 'current' column
@@ -142,22 +142,19 @@ classdef (Abstract) AlgorithmBox < handle
                     eval(strcat('obj.',char(obj.xls_program(i,1)),'=',char(obj.xls_program(i,obj.current_xls_program_column)),';'));
                 end
             end
-%             if ~exist('is_program','var') || is_program~=1
             obj.load_beats;
             obj.pems.load;
             obj.set_masks_and_reference_values;
-%             end
-            if ~exist('is_program_first_run','var') || is_program_first_run~=1
-                obj.knobs.set_demand_ids;
-                obj.knobs.current_value=ones(size(obj.knobs.link_ids,1));
-                obj.link_ids_beats=obj.beats_simulation.scenario_ptr.get_link_ids;      
-                if (obj.knobs.force_manual_knob_boundaries==0)
-                    obj.knobs.set_auto_knob_boundaries(obj.knobs.isnaive_boundaries);
-                end   
-                obj.knobs.is_loaded=1;
-                obj.set_starting_point(obj.initialization_method);
-            end
+            obj.knobs.set_demand_ids;
+            obj.knobs.current_value=ones(size(obj.knobs.link_ids,1));
+            obj.link_ids_beats=obj.beats_simulation.scenario_ptr.get_link_ids;      
+            if (obj.knobs.force_manual_knob_boundaries==0)
+                obj.knobs.set_auto_knob_boundaries(obj.knobs.isnaive_boundaries);
+            end   
+            obj.knobs.is_loaded=1;
+            obj.set_starting_point(obj.initialization_method);
             obj.error_function=ErrorFunction(obj,obj.temp.erfStruct);
+            obj.is_loaded=1;
             disp('ALL SETTINGS LOADED, ALGORITHM READY TO RUN');    
         end
 
@@ -222,7 +219,7 @@ classdef (Abstract) AlgorithmBox < handle
         
         function [] = load_xls(obj, xls_program_adress, xls_results_adress)
             % loads the input Excel file and sets the adress of the output.
-            obj.is_program_first_run=1;
+            obj.is_loaded=0;
             if ~exist('xls_results_adress','var')
                 xls_results_adress='';
                 warning('RESULTS WILL NOT BE RECORDED IN XLS FILE.');
@@ -276,6 +273,12 @@ classdef (Abstract) AlgorithmBox < handle
                 zeroten_knob_values=obj.knobs.rescale_knobs(knob_values,1);
                 obj.knobs.knobs_history(end+1,:)=reshape(knob_values,1,[]);
                 obj.knobs.zeroten_knobs_history(end+1,:)=reshape(zeroten_knob_values,1,[]);
+                nknobs=size(obj.knobs.link_ids,1);
+                if (obj.numberOfEvaluations>nknobs)
+                    last=obj.numberOfEvaluations-mod(obj.numberOfEvaluations,nknobs);
+                    obj.knobs.zeroten_knobs_genmean_history(end+1,1:nknobs)=mean(obj.knobs.zeroten_knobs_history(last-nknobs+1:last,:),1);
+                    obj.error_function.result_genmean_history(end+1,1:nknobs)=mean(obj.error_function.result_history(last-nknobs+1:last,:),1);
+                end
                 disp(['Knobs vector and values being tested for evaluation # ',num2str(obj.numberOfEvaluations),' :']);
                 disp(' ');
                 disp(['               Demand Id :','                 Link Id :','                                    Value, min and max:','           Value on a scale from 0 to 10:']);
@@ -285,14 +288,22 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.knobs.set_knobs_persistent(knob_values);
                 obj.beats_simulation.run_beats_persistent;
                 obj.error_function.calculate_pc_from_beats;
-                [result,error_in_percentage] = obj.error_function.calculate_error;
-                disp(['    Error function value :','      Error in percentage:',' CONTRIBUTIONS: ',obj.error_function.performance_calculators{1}.name,':              ',obj.error_function.performance_calculators{2}.name,':']);%              ',obj.error_function.performance_calculators{3}.name,':']);
-                disp([result, error_in_percentage,obj.error_function.transformed_results(1),obj.error_function.transformed_results(2)]);%,obj.error_function.transformed_results(3)]);
-                obj.error_function.result_history(end+1,[1,2])=[result,error_in_percentage];
+                [result,~] = obj.error_function.calculate_error;
+                disp(['Error function value : ', num2str(result)]);
+                disp('CONTRIBUTIONS : ')
+                for i=1:size(obj.error_function.performance_calculators,2)
+                    disp([obj.error_function.performance_calculators{i}.name,' : ']);
+                    disp(['         contribution : ', num2str(obj.error_function.transformed_results(i))]);
+                    disp(['         actual value : ',num2str(obj.error_function.results(i))]);
+                    disp(['         error in percentage : ', num2str(obj.error_function.performance_calculators{i}.error_in_percentage)]);
+                end                
+                obj.error_function.result_history(end+1,1)=result;
                 obj.numberOfEvaluations=obj.numberOfEvaluations+1;
                 obj.plot_zeroten_knobs_history(1);
                 obj.plot_result_history(2);
-                obj.plot_all_performance_calculators(3);
+                obj.error_function.plot_result_genmean_history(3);
+                obj.knobs.plot_zeroten_knobs_genmean_history(4);
+                obj.plot_all_performance_calculators(5);
                 drawnow;
                 obj.save_congestionPattern_matrix;
             else
@@ -306,7 +317,9 @@ classdef (Abstract) AlgorithmBox < handle
             obj.current_xls_program_column=firstColumn;
             while (obj.current_xls_program_column<=lastColumn)
                 disp(strcat(['PROGRAM SETTINGS COLUMN ', num2str(obj.current_xls_program_column)]));
-                obj.load_properties_from_xls(1,obj.is_program_first_run);
+                if (obj.is_loaded~=1)
+                    obj.load_properties_from_xls;
+                end    
                 counter=obj.number_runs;          
                 while (counter > 0)
                     disp([num2str(counter), ' RUNS REMAINING FOR THIS SETTINGS COLUMN']);
@@ -315,7 +328,7 @@ classdef (Abstract) AlgorithmBox < handle
                     counter=counter-1;
                 end
                 obj.current_xls_program_column=obj.current_xls_program_column+1;
-                obj.is_program_first_run=0;
+                obj.is_loaded=0;
             end
            obj.make_nonmade_movies;
         end % run the program defined by the input Excel file and write its results in the output Excel file.        
@@ -323,7 +336,7 @@ classdef (Abstract) AlgorithmBox < handle
     end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %  Plot functions                                                     %
+    %  Plot methods                                                       %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     methods (Access = public)
@@ -479,9 +492,20 @@ classdef (Abstract) AlgorithmBox < handle
             if (nargin<2)
                 dated_name=obj.dated_name;
             end    
+            if (nargin<3)
+                h=figure;
+                figureNumber=h.Number;
+            else
+                h=figure(figureNumber);
+            end    
             directory=[pwd,'\movies\',dated_name,'\'];
             load([directory,'result_history.mat']);
-            load([directory,'zeroten_knobs_history.mat']);
+            if exist([directory,'zeroten_knobs_genmean_history.mat'],'file')==2
+                load([directory,'zeroten_knobs_genmean_history.mat']);
+                zeroten_knobs_history=zeroten_knobs_genmean_history;
+            else    
+                load([directory,'zeroten_knobs_history.mat']);
+            end
             max_error=max(result_history);
             if (nargin<5)
                 tosave=0;
@@ -489,7 +513,7 @@ classdef (Abstract) AlgorithmBox < handle
             if (nargin>6)
                 Num=stop_frame;
             else    
-                D = dir([pwd,'\movies\',dated_name, '\*.mat']);
+                D = dir([pwd,'\movies\',dated_name,'\frames\*.mat']);
                 Num = length(D(not([D.isdir])));
                 stop_frame=Num+1;
             end
@@ -501,7 +525,7 @@ classdef (Abstract) AlgorithmBox < handle
             if (nargin>3 && congestion_pattern_only)
                 while flag && i<=stop_frame
                     if exist([directory,num2str(i),'.mat'],'file')==2
-                        load(['movies\',dated_name,'\',num2str(i),'.mat']);
+                        load(['movies\',dated_name,'\frames\',num2str(i),'.mat']);
                         cp=obj.error_function.performance_calculators{obj.error_function.find_performance_calculator('CongestionPattern')};
                         cp.plot(figureNumber,i,frame);
                         drawnow;
@@ -514,19 +538,24 @@ classdef (Abstract) AlgorithmBox < handle
                 end
             else
                 while flag && i<=stop_frame
-                    if exist([pwd,'\movies\',dated_name,'\',num2str(i),'.mat'],'file')==2
+                    if exist([pwd,'\movies\',dated_name,'\frames\',num2str(i),'.mat'],'file')==2
                         if (mod(i,noncongestion_refresh)==0)
                             subplot(3,2,1);
-                            obj.knobs.plot_zeroten_knobs_history(h.Number,zeroten_knobs_history,i);
+                            obj.knobs.plot_zeroten_knobs_history(figureNumber,zeroten_knobs_history,i);
                             axis([0,Num,0,10]);
-                            line([i i],[0,1000],'Color',[1 0 0]);
-%                             plot(i*ones(1,size(zeroten_knobs_history,2)),zeroten_knobs_history(i,:),'MarkerSize',16);
+                            line([i i],[0,10],'Color',[1 0 0]);
+                            hold on
+                            plot(i,zeroten_knobs_history(i,:),'r.','MarkerSize',20)
+                            hold off
                             subplot(3,2,2);
-                            obj.error_function.plot_result_history(h.Number,result_history, i);
+                            obj.error_function.plot_result_history(figureNumber,result_history, i);
                             axis([0,Num,0,max_error]);
-                            line([i i],[0,1000],'Color',[1 0 0]);
+                            line([i i],[0,max_error],'Color',[1 0 0]);
+                            hold on
+                            plot(i,result_history(i),'r.','MarkerSize',20)
+                            hold off
                         end    
-                        load(['movies\',dated_name,'\',num2str(i),'.mat']);
+                        load(['movies\',dated_name,'\frames\',num2str(i),'.mat']);
                         subplot(3,2,[4:6]);
                         cp=obj.error_function.performance_calculators{obj.error_function.find_performance_calculator('CongestionPattern')};
                         cp.plot(figureNumber,i,frame);
@@ -573,7 +602,21 @@ classdef (Abstract) AlgorithmBox < handle
             end    
         end    
         
+        function [] = plot_all(obj)
+%             number=2+size(obj.error_function.performance_calculators,2);
+%             vsize=floor(number/2);
+%             hsize=number-floor(number/2);
+            obj.plot_zeroten_knobs_history(1);
+            obj.plot_result_history(2);
+            obj.plot_all_performance_calculators(3);
+            obj.plot_algorithm_data;
+        end    
+        
     end    
+    
+    methods (Abstract, Static)
+         [] = plot_algorithm_data()
+    end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %  Privates and Hidden                                                %
@@ -664,12 +707,15 @@ classdef (Abstract) AlgorithmBox < handle
             obj.error_function.reset_for_new_run;
             obj.knobs.knobs_history=[];
             obj.knobs.zeroten_knobs_history=[];
-            obj.knobs.zeroten_knobs_history;
+            obj.knobs.zeroten_knobs_genmean_history(1:size(obj.knobs.link_ids,1),1)=0;
+            obj.dated_name=Utilities.give_dated_name([obj.algorithm_name,'_reports\']);
+            mkdir([pwd,'\',obj.algorithm_name,'_reports\',obj.dated_name]);
+            mkdir([pwd,'\movies\',obj.dated_name,'\frames']);
         end    
         
         %get link lengths in beats or pems data matching format............
         function [lengths] = get_link_lengths_miles_pems(obj,link_mask_pems, same_link_mask_beats)
-            all_lengths=obj.beats_simulation.scenario_ptr.get_link_lengths('us')*0.0001893935;
+            all_lengths=obj.beats_simulation.scenario_ptr.get_link_lengths('us');
             lengths=zeros(1,sum(link_mask_pems));
             ordered_link_ids=obj.pems.link_id(link_mask_pems);
             k=1;
@@ -683,7 +729,7 @@ classdef (Abstract) AlgorithmBox < handle
         end %get an array with the lengths of the links pointed by link_mask_pems, when applied to a 'pems format' link ids array. Same_link_mask_beats must be the the same link mask for beats foramt.
         
         function [lengths] = get_link_lengths_miles_beats(obj,link_mask_beats)
-            link_length_miles = obj.beats_simulation.scenario_ptr.get_link_lengths('us')*0.0001893935;
+            link_length_miles = obj.beats_simulation.scenario_ptr.get_link_lengths('us');
             lengths = link_length_miles(link_mask_beats);
         end %get an array with the lengths of the links pointed by link_mask_beats, when applied to a 'beats format' link ids array.
         
@@ -847,21 +893,24 @@ classdef (Abstract) AlgorithmBox < handle
         end    
         
         %saving data......................................................
-        function [] = save_figures_and_movie_data(obj)
-            obj.plot_zeroten_knobs_history(1);
-            obj.plot_result_history(2);
-            obj.plot_all_performance_calculators(3);
-            plotcmaesdat(324);
-            h=figure(324);
-            p=[900,0,450,350];
-            set(h, 'Position', p);
+        function [] = save_data(obj)
+            obj.plot_all;
             figures=findobj(0,'type','figure');
-            fig_name= [pwd,'\',obj.algorithm_name,'_reports\',obj.dated_name,'.fig'];
-            savefig(figures,fig_name);
+            fig_name= [pwd,'\',obj.algorithm_name,'_reports\',obj.dated_name,'\',obj.dated_name,'_figures.fig'];
+            savefig(figures,fig_name);  
             zeroten_knobs_history=obj.knobs.zeroten_knobs_history;
             result_history=obj.error_function.result_history(:,1);
+            zeroten_knobs_genmean_history=obj.knobs.zeroten_knobs_genmean_history;
+            result_genmean_history=obj.error_function.result_genmean_history(:,1);
+            if exist([pwd,'\movies\',obj.dated_name],'dir')~=7
+                mkdir([pwd,'\movies\',obj.dated_name]);
+            end
+            mat_name =[pwd,'\',obj.algorithm_name,'_reports\',obj.dated_name,'\',obj.dated_name,'_allvariables.mat'];
+            save(mat_name);
             save([pwd,'\movies\',obj.dated_name,'\zeroten_knobs_history.mat'],'zeroten_knobs_history');
+            save([pwd,'\movies\',obj.dated_name,'\zeroten_knobs_genmean_history.mat'],'zeroten_knobs_genmean_history');
             save([pwd,'\movies\',obj.dated_name,'\result_history.mat'],'result_history');
+            save([pwd,'\movies\',obj.dated_name,'\result_genmean_history.mat'],'result_genmean_history');
         end    
         
         function [] = save_congestionPattern_matrix(obj)

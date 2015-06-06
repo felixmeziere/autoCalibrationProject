@@ -64,8 +64,6 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
               obj.inopts.UBounds = ones(size(obj.knobs.link_ids,1),1)*10;
               obj.inopts.LBounds = zeros(size(obj.knobs.link_ids,1),1);
               xstart=obj.knobs.rescale_knobs(obj.starting_point,1);
-              mat_name = Utilities.give_dated_name('cmaes_reports','','mat');
-              [~,obj.dated_name,~]=fileparts(mat_name);
               [lastPoint, lastValue, obj.numberOfEvaluations, obj.stopFlag, obj.out, bestEver]=cmaes(@(x)obj.evaluate_error_function(x,1), xstart, obj.insigma, obj.inopts);  
               load variablescmaes.mat
               bestEver.x=obj.knobs.rescale_knobs(bestEver.x,0);
@@ -73,8 +71,7 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
               obj.bestEver=bestEver;
               obj.bestEverErrorFunctionValue=bestEver.f;
               obj.numberOfIterations=countiter;
-              save(mat_name);
-              obj.save_figures_and_movie_data;
+                obj.save_data;
         end   % defined in AlgorithmBox   
    
         function [] = set_result_for_xls(obj)
@@ -107,8 +104,12 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
     end
     
     methods (Static, Access = public)
-        function [] = plot_cmaes_data() % plots data on the last running of cmaes.
-            plotcmaesdat;
+        function [] = plot_algorithm_data(figureNumber) % plots data on the last running of cmaes.
+            if nargin==1
+                plotcmaesdat(figureNumber)
+            else    
+                plotcmaesdat;
+            end
         end
     end
         

@@ -1,6 +1,6 @@
 classdef Knobs < handle
     
-    properties (SetAccess = ?AlgorithmBox)
+    properties %(SetAccess = ?AlgorithmBox)
         
         is_loaded=0;
         algorithm_box@AlgorithmBox;
@@ -23,6 +23,7 @@ classdef Knobs < handle
         current_value=[];
         knobs_history % consecutive values of the knobs during last run
         zeroten_knobs_history %same as before with the same 0-10 scale for all knobs
+        zeroten_knobs_genmean_history
         perfect_values
          
     end
@@ -33,6 +34,7 @@ classdef Knobs < handle
         knob_sensor_map
         knob_groups
         knob_groups_to_project
+        knob_group_indices
         
         %boundaries........................................................
         force_manual_knob_boundaries=0; % 1 if knob boundaries are set manually, 0 if they are set to [link's FD max capacity*number of lanes]/[max value of the link's demand template].
@@ -40,8 +42,10 @@ classdef Knobs < handle
 
         %values............................................................
         knob_group_flow_differences
-
+        constraint_equations_coeffs
+        
     end
+    
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %  Constructing                                                       %
@@ -157,7 +161,7 @@ classdef Knobs < handle
     
     methods (Access = public)
     
-        function [] = plot_zeroten_knobs_history(obj,figureNumber, zeroten_knobs_history, evaluation_number)
+        function [h] = plot_zeroten_knobs_history(obj,figureNumber, zeroten_knobs_history, evaluation_number)
             n=nargin;
             if (n<2)
                 h=figure;
@@ -169,13 +173,13 @@ classdef Knobs < handle
             else
                 if (n~=3) 
                     zeroten_knobs_history=obj.zeroten_knobs_history;
-                    p=[700,400,800,470];
-                    set(h, 'Position', p);
+%                     p=[700,400,800,470];
+%                     set(h, 'Position', p);
                     for i=1:size(obj.link_ids,1)
                         leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
                     end 
                 end
-            end    
+            end
             plot(zeroten_knobs_history);
             title('Knobs rescaled to 0-10 evolution, ordered linearly');
             xlabel('Number of BEATS evaluations');
@@ -185,11 +189,39 @@ classdef Knobs < handle
             end                 
         end 
         
+        function [] = plot_zeroten_knobs_genmean_history(obj,figureNumber, zeroten_genmean_knobs_history, evaluation_number)
+            n=nargin;
+            if (n<2)
+                h=figure;
+            else
+                h=figure(figureNumber);
+            end  
+            if (n==4)
+                zeroten_genmean_knobs_history=zeroten_genmean_knobs_history(1:evaluation_number,:);
+            else
+                if (n~=3) 
+                    zeroten_genmean_knobs_history=obj.zeroten_knobs_genmean_history;
+%                     p=[700,400,800,470];
+%                     set(h, 'Position', p);
+                    for i=1:size(obj.link_ids,1)
+                        leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
+                    end 
+                end
+            end
+            plot(zeroten_genmean_knobs_history);
+            title('Knobs generation mean rescaled to 0-10 evolution, ordered linearly');
+            xlabel('Number of BEATS evaluations');
+            ylabel('Knobs 0-10 values');
+            if (n<3)
+                legend(leg);
+            end                 
+        end 
+        
         function [] = plot_knob_history(obj,knob_link_id,figureNumber)
             if (nargin<3)
-                figure;
+                h=figure;
             else
-                figure(figureNumber);
+                h=figure(figureNumber);
             end
             index=find(obj.link_ids==knob_link_id);
             plot(obj.knobs_history(:,index));
@@ -270,7 +302,7 @@ classdef Knobs < handle
                 i=i-1;
             end    
         end
-        
+
         function [local_flow_difference] = get_unmonitored_flow_difference(obj, monitored_source_mainline_link_id, monitored_sink_mainline_link_id)
             source_index=find(obj.algorithm_box.linear_link_ids==monitored_source_mainline_link_id);
             sink_index=find(obj.algorithm_box.linear_link_ids==monitored_sink_mainline_link_id);
@@ -289,15 +321,8 @@ classdef Knobs < handle
             for i=1:size(local_monitored_sinks,2)
                 local_flow_difference=local_flow_difference-sum(obj.algorithm_box.normal_mode_bs.get_output_for_link_id(local_monitored_sinks(1,i)).flw_in_veh);
             end   
-        end    
-        
-        function [] = set_knob_group_flow_differences(obj)
-            for i=1:size(obj.knob_groups,2)
-                [source,sink]=obj.get_monitored_segment_for_knob_group(obj.knob_groups{1,i});
-                obj.knob_group_flow_differences(1,i)=obj.get_unmonitored_flow_difference(source,sink);
-            end
-        end
-        
+       end  
+                        
         function [] = set_auto_knob_boundaries_refined(obj, is_assistant)
             if (nargin>0 && is_assistant)
                 obj.underevaluation_tolerance_coefficient=input(['Enter the underevaluation tolerance coefficient for the flow going through the knob links : ']);
@@ -325,18 +350,15 @@ classdef Knobs < handle
                 end    
             end
             obj.knob_groups_to_project=unique(knob_groups_to_project);
-        end    
-        
-        function [knobs_on_correct_subspace]= project_involved_knob_groups_on_correct_flow_subspace(obj, knobs_vector)
-            knobs_on_correct_subspace=knobs_vector;
-            for i=1:size(obj.knob_groups_to_project)
+            number_knob_groups=size(obj.knob_groups_to_project,2);
+            obj.knob_group_indices=cell(1,number_knob_groups);
+            obj.constraint_equations_coeffs=cell(1,number_knob_groups);
+            for i=1:number_knob_groups
                 knob_group=cell2mat(obj.knob_groups{1,obj.knob_groups_to_project(i)});
-                indices=[];
                 constraint_equation_coeffs=[];
                 for j=1:size(knob_group)
                     index=find(obj.link_ids==knob_group(j));
-                    indices(end+1,1)=index;
-                    subvector=knobs_vector(indices,1);
+                    obj.knob_group_indices{1,i}(end+1,1)=index;
                     sum_of_template=obj.algorithm_box.get_sum_of_template_in_veh(obj.link_ids(index));
                     if ismember(obj.link_ids(index),obj.algorithm_box.link_ids_beats(obj.algorithm_box.source_mask_beats))
                         coeff=-1;
@@ -345,11 +367,21 @@ classdef Knobs < handle
                     end    
                     constraint_equation_coeffs(1,end+1)=coeff*sum_of_template;
                 end
+                obj.constraint_equations_coeffs{1,i}=constraint_equation_coeffs;
+            end    
+        end    
+        
+        function [knobs_on_correct_subspace]= project_involved_knob_groups_on_correct_flow_subspace(obj, knobs_vector)
+            knobs_on_correct_subspace=knobs_vector;
+            for i=1:size(obj.knob_groups_to_project)
+                knob_group=cell2mat(obj.knob_groups{1,obj.knob_groups_to_project(i)});
+                subvector=knobs_vector(obj.knob_group_indices{1,i},1);
+                constraint_equation_coeffs=obj.constraint_equations_coeffs{i};
                 flowdiff=obj.knob_group_flow_differences(1,obj.knob_groups_to_project(i));
                 otc=obj.overevaluation_tolerance_coefficient;
                 utc=obj.underevaluation_tolerance_coefficient;
-                [subvector_on_correct_subspace,fval]=quadprog(eye(size(knob_group,1)),-reshape(subvector,1,[]),[constraint_equation_coeffs;-constraint_equation_coeffs],[otc*flowdiff;-utc*flowdiff],[],[],obj.naive_boundaries_min(indices,1),obj.naive_boundaries_max(indices,1)); % minimization program
-                knobs_on_correct_subspace(indices,1)=subvector_on_correct_subspace;
+                [subvector_on_correct_subspace,fval]=quadprog(eye(size(knob_group,1)),-reshape(subvector,1,[]),[constraint_equation_coeffs;-constraint_equation_coeffs],[otc*flowdiff;-utc*flowdiff],[],[],obj.naive_boundaries_min(obj.knob_group_indices{1,i},1),obj.naive_boundaries_max(obj.knob_group_indices{1,i},1)); % minimization program
+                knobs_on_correct_subspace(obj.knob_group_indices{1,i},1)=subvector_on_correct_subspace;
             end    
         end
 
@@ -366,18 +398,36 @@ classdef Knobs < handle
         end
         
         %set the knobs in beats............................................
-        function [] = set_knobs_persistent(obj, knobs_vector)
+        function [] = set_knobs_persistent_deprecated(obj, knobs_vector)         
+%             for i= 1:size(obj.link_ids)
+%                 if (ismember(obj.link_ids(i),obj.algorithm_box.link_ids_beats(obj.algorithm_box.source_mask_beats)))
+%                     obj.algorithm_box.beats_simulation.beats.set.demand_knob_for_link_id(obj.link_ids(i),knobs_vector(i));
+%                 else
+%                     obj.algorithm_box.beats_simulation.beats.set.knob_for_offramp_link_id(obj.link_ids(i),knobs_vector(i));
+%                 end    
+%             end
+%             obj.current_value=knobs_vector;
+        end
+        
+        function [] = set_knobs_persistent(obj,knobs_vector)
             for i= 1:size(obj.link_ids)
-                if (ismember(obj.link_ids(i),obj.algorithm_box.link_ids_beats(obj.algorithm_box.source_mask_beats)))
-                    obj.algorithm_box.beats_simulation.beats.set.demand_knob_for_link_id(obj.link_ids(i),knobs_vector(i));
-                else
-                    obj.algorithm_box.beats_simulation.beats.set.knob_for_offramp_link_id(obj.link_ids(i),knobs_vector(i));
-                end    
+                obj.algorithm_box.beats_simulation.beats.set.demand_knob_for_link_id(obj.link_ids(i),knobs_vector(i));
             end
             obj.current_value=knobs_vector;
-        end
+        end     
 
     end    
     
+    methods (Access = ?PerformanceCalculator)
+        
+        function [knob_group_flow_differences] = set_knob_group_flow_differences(obj)
+            for i=1:size(obj.knob_groups,2)
+                [source,sink]=obj.get_monitored_segment_for_knob_group(obj.knob_groups{1,i});
+                knob_group_flow_differences(1,i)=obj.get_unmonitored_flow_difference(source,sink);
+            end
+            obj.knob_group_flow_differences=knob_group_flow_differences;
+        end
+        
+    end
 end
 

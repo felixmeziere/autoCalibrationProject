@@ -102,7 +102,8 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
                 end 
             else
                 error('Missing information on knob ids or boundaries, please set them before.');
-            end    
+            end
+            obj.knobs.set_knobs_persistent(obj.starting_point);
         end  %defined in the body
         
     end

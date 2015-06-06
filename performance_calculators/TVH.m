@@ -25,8 +25,8 @@ classdef TVH < PerformanceCalculator
             obj.result_from_beats = result;
             if (obj.result_from_pems~=0) && (obj.result_from_beats~=0)
                 obj.error_in_percentage=100*(obj.result_from_beats-obj.result_from_pems)/obj.result_from_pems;
+                obj.error_in_percentage_history=[obj.error_in_percentage_history;obj.error_in_percentage];
             end
-            obj.error_in_percentage_history=[obj.error_in_percentage_history;obj.error_in_percentage];
         end
         
         function [result] = calculate_from_pems(obj)
@@ -40,15 +40,15 @@ classdef TVH < PerformanceCalculator
               end
         end   
         
-        function [] = plot(obj,figureNumber)
+        function [h] = plot(obj,figureNumber)
             if (nargin<2)
                 h=figure;
             else
                 h=figure(figureNumber);
             end
             plot(obj.error_in_percentage_history);
-            p=[450,0,450,350];
-            set(h, 'Position', p);
+%             p=[450,0,450,350];
+%             set(h, 'Position', p);
             title('TVH error evolution (in percentage)');
             ylabel('TVH error in percentage');
             xlabel('Number of BEATS evaluations');            

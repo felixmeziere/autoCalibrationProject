@@ -13,6 +13,7 @@ classdef ErrorFunction < handle
         transformed_results
         error_in_percentage
         result_history % consecutive values of the errorFunction during last run
+        result_genmean_history
 
     end    
 
@@ -25,7 +26,6 @@ classdef ErrorFunction < handle
             if (obj.algorithm_box.beats_loaded==1 && obj.algorithm_box.pems.is_loaded==1 && obj.algorithm_box.masks_loaded==1)
                 if (nargin<2)
                     param=struct;
-
                 end
                 has_congestion_pattern=0;
                 if (~isfield(param,'performance_calculators'))
@@ -88,8 +88,8 @@ classdef ErrorFunction < handle
                 if (nargin<2 && first_time==0)
                     obj.algorithm_box.reset_beats;
                 end    
-                obj.calculate_pc_from_beats;
                 obj.calculate_pc_from_pems;
+                obj.calculate_pc_from_beats;
                 obj.calculate_error;  
                 obj.is_loaded=1;
             else
@@ -119,8 +119,8 @@ classdef ErrorFunction < handle
             result=sum(obj.transformed_results);
             error_in_percentage=obj.weights_and_exponents(1,:)*errors_in_percentage;
             obj.result=result;
-            obj.results=res;
-            obj.error_in_percentage=error_in_percentage;
+            obj.results=transpose(res);
+            obj.error_in_percentage=transpose(error_in_percentage);
         end  
         
         %plot functions...................................................
@@ -135,7 +135,7 @@ classdef ErrorFunction < handle
             end
         end 
         
-        function [] = plot_result_history(obj, figureNumber, result_history, evaluation_number)
+        function [h] = plot_result_history(obj, figureNumber, result_history, evaluation_number)
             n=nargin;
             if (n<2)
                 h=figure;
@@ -147,8 +147,8 @@ classdef ErrorFunction < handle
             else
                 if (n~=3)
                     result_history=obj.result_history;
-                    p=[30,400,700,470];
-                    set(h, 'Position', p);
+%                     p=[30,400,700,470];
+%                     set(h, 'Position', p);
                 end    
             end    
             plot(result_history(:,1));
@@ -156,6 +156,28 @@ classdef ErrorFunction < handle
             xlabel('Number of BEATS evaluations');
             ylabel('Error function value');
         end
+        
+        function [h] = plot_result_genmean_history(obj, figureNumber, result_genmean_history, evaluation_number)
+            n=nargin;
+            if (n<2)
+                h=figure;
+            else    
+                h=figure(figureNumber);
+            end
+            if (n==4)
+                result_history=result_genmean_history(1:evaluation_number,1);
+            else
+                if (n~=3)
+                    result_genmean_history=obj.result_genmean_history;
+%                     p=[30,400,700,470];
+%                     set(h, 'Position', p);
+                end    
+            end    
+            plot(result_genmean_history(:,1));
+            title('Error function generation mean evolution');
+            xlabel('Number of BEATS evaluations');
+            ylabel('Error function value');
+    end
         
         function [] = plot_all_performance_calculators(obj,starting_index)
             if (nargin<2)
@@ -188,6 +210,7 @@ classdef ErrorFunction < handle
         
         function [] = reset_for_new_run(obj)
             obj.result_history=[];
+            obj.result_genmean_history(1:size(obj.algorithm_box.knobs.link_ids,1),1)=0;
             for i=1:size(obj.performance_calculators,2)
                 obj.performance_calculators{1,i}.error_in_percentage_history=[];
             end    

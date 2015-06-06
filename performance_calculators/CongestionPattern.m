@@ -63,8 +63,9 @@ classdef CongestionPattern < PerformanceCalculator
             densities=obj.algorithm_box.beats_simulation.density_veh{1,1}(2:end,obj.linear_mainline_indices);
             result(densities>obj.critical_densities+6)=1; 
             obj.result_from_beats=result;
-            obj.error_in_percentage=100*sum(sum((obj.result_from_beats-obj.result_from_pems)))/sum(sum(obj.result_from_pems));
-%             obj.plot;
+            obj.error_in_percentage=100*sum(sum(abs(obj.result_from_beats-obj.result_from_pems)))/sum(sum(obj.result_from_pems));
+            obj.error_in_percentage_history=[obj.error_in_percentage_history;obj.error_in_percentage];
+
         end
         
         function [result] = calculate_from_pems(obj)
@@ -78,10 +79,12 @@ classdef CongestionPattern < PerformanceCalculator
                 result(uo:do,la:ra)=ones(do-uo+1,ra-la+1);
             end    
             obj.result_from_pems=result;
-            obj.error_in_percentage=100*sum(sum((obj.result_from_beats-obj.result_from_pems)))/sum(sum(obj.result_from_pems));
+            if (sum(sum(obj.result_from_pems))~=0) && (sum(sum(obj.result_from_beats~=0)))
+                obj.error_in_percentage=100*sum(sum((abs(obj.result_from_beats-obj.result_from_pems))))/sum(sum(obj.result_from_pems));
+            end    
         end    
 
-        function [] = plot(obj,figureNumber,frameNumber,frame)
+        function [h] = plot(obj,figureNumber,frameNumber,frame)
             if (nargin<2)
                 h=figure;
             else
@@ -89,8 +92,8 @@ classdef CongestionPattern < PerformanceCalculator
             end
             if (nargin<3)
                imagesc(obj.result_from_beats-obj.result_from_pems); 
-               p=[0,0,450,350];
-               set(h, 'Position', p);
+%                p=[0,0,450,350];
+%                set(h, 'Position', p);
                title('Contour plot : Congestion pattern matching');
             else
                imagesc(frame);
@@ -103,10 +106,10 @@ classdef CongestionPattern < PerformanceCalculator
         
         function [] = save_plot(obj)
             frame=obj.result_from_beats-obj.result_from_pems;
-            if exist([pwd,'\movies\',obj.algorithm_box.dated_name],'dir')~=7
-                mkdir([pwd,'\movies\',obj.algorithm_box.dated_name]);
+            if exist([pwd,'\movies\',obj.algorithm_box.dated_name,'\frames'],'dir')~=7
+                mkdir([pwd,'\movies\',obj.algorithm_box.dated_name,'\frames']);
             end
-            save([pwd,'\movies\',obj.algorithm_box.dated_name,'\',Utilities.get_matfile_number(['movies\',obj.algorithm_box.dated_name]),'.mat'],'frame');
+            save([pwd,'\movies\',obj.algorithm_box.dated_name,'\frames\',Utilities.get_matfile_number(['movies\',obj.algorithm_box.dated_name,'\frames']),'.mat'],'frame');
         end    
         
     end
