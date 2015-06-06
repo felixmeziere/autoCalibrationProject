@@ -273,12 +273,6 @@ classdef (Abstract) AlgorithmBox < handle
                 zeroten_knob_values=obj.knobs.rescale_knobs(knob_values,1);
                 obj.knobs.knobs_history(end+1,:)=reshape(knob_values,1,[]);
                 obj.knobs.zeroten_knobs_history(end+1,:)=reshape(zeroten_knob_values,1,[]);
-                nknobs=size(obj.knobs.link_ids,1);
-                if (obj.numberOfEvaluations>nknobs)
-                    last=obj.numberOfEvaluations-mod(obj.numberOfEvaluations,nknobs);
-                    obj.knobs.zeroten_knobs_genmean_history(end+1,1:nknobs)=mean(obj.knobs.zeroten_knobs_history(last-nknobs+1:last,:),1);
-                    obj.error_function.result_genmean_history(end+1,1:nknobs)=mean(obj.error_function.result_history(last-nknobs+1:last,:),1);
-                end
                 disp(['Knobs vector and values being tested for evaluation # ',num2str(obj.numberOfEvaluations),' :']);
                 disp(' ');
                 disp(['               Demand Id :','                 Link Id :','                                    Value, min and max:','           Value on a scale from 0 to 10:']);
@@ -301,8 +295,6 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.numberOfEvaluations=obj.numberOfEvaluations+1;
                 obj.plot_zeroten_knobs_history(1);
                 obj.plot_result_history(2);
-                obj.error_function.plot_result_genmean_history(3);
-                obj.knobs.plot_zeroten_knobs_genmean_history(4);
                 obj.plot_all_performance_calculators(5);
                 drawnow;
                 obj.save_congestionPattern_matrix;
@@ -487,7 +479,7 @@ classdef (Abstract) AlgorithmBox < handle
         
         function [movie] = plot_movie(obj,dated_name,figureNumber,congestion_pattern_only,tosave,noncongestion_refresh,stop_frame)
             if(nargin<6)
-                noncongestion_refresh=10;
+                noncongestion_refresh=size(obj.knobs.link_ids,1);
             end    
             if (nargin<2)
                 dated_name=obj.dated_name;
@@ -506,6 +498,12 @@ classdef (Abstract) AlgorithmBox < handle
             else    
                 load([directory,'zeroten_knobs_history.mat']);
             end
+            if exist([directory,'result_genmean_history.mat'],'file')==2
+                load([directory,'result_genmean_history.mat']);
+                result_history=result_genmean_history;
+            else    
+                load([directory,'result_genmean_history.mat']);
+            end
             max_error=max(result_history);
             if (nargin<5)
                 tosave=0;
@@ -515,7 +513,7 @@ classdef (Abstract) AlgorithmBox < handle
             else    
                 D = dir([pwd,'\movies\',dated_name,'\frames\*.mat']);
                 Num = length(D(not([D.isdir])));
-                stop_frame=Num+1;
+                stop_frame=Num;
             end
             movie(Num) = struct('cdata',[],'colormap',[]);
             p=[100,50,1300,700];
@@ -624,7 +622,7 @@ classdef (Abstract) AlgorithmBox < handle
     
     methods (Access = public) %supposed to be private but public for debug reasons
         
-        %initial loading...................................................
+        %initial loading and setting stuff.................................
         function [] = load_beats(obj)
             if (~strcmp(obj.scenario_ptr,''))
                 obj.beats_loaded=0;
@@ -707,10 +705,28 @@ classdef (Abstract) AlgorithmBox < handle
             obj.error_function.reset_for_new_run;
             obj.knobs.knobs_history=[];
             obj.knobs.zeroten_knobs_history=[];
-            obj.knobs.zeroten_knobs_genmean_history(1:size(obj.knobs.link_ids,1),1)=0;
+            obj.knobs.zeroten_knobs_genmean_history=[];
             obj.dated_name=Utilities.give_dated_name([obj.algorithm_name,'_reports\']);
             mkdir([pwd,'\',obj.algorithm_name,'_reports\',obj.dated_name]);
             mkdir([pwd,'\movies\',obj.dated_name,'\frames']);
+        end    
+        
+        function [] = set_genmean_data(obj)
+            nknobs=size(obj.knobs.link_ids,1);
+            obj.error_function.result_genmean_history=[];
+            obj.knobs.zeroten_knobs_genmean_history=[];
+            for i=1:obj.numberOfEvaluations
+                if i<=size(obj.knobs.zeroten_knobs_history,1)
+                    last=i-mod(i,nknobs);
+                    if (last<=obj.numberOfEvaluations-nknobs)
+                        obj.knobs.zeroten_knobs_genmean_history(end+1,1:nknobs)=mean(obj.knobs.zeroten_knobs_history(last+1:last+nknobs,1:nknobs),1);
+                        obj.error_function.result_genmean_history(end+1,1)=mean(obj.error_function.result_history(last+1:last+nknobs,1),1);
+                    else
+                        obj.knobs.zeroten_knobs_genmean_history(end+1,1:nknobs)=mean(obj.knobs.zeroten_knobs_history(last+1-nknobs:last,1:nknobs),1);
+                        obj.error_function.result_genmean_history(end+1,1)=mean(obj.error_function.result_history(last+1-nknobs:last,1),1);
+                    end    
+                end     
+            end
         end    
         
         %get link lengths in beats or pems data matching format............
@@ -917,6 +933,8 @@ classdef (Abstract) AlgorithmBox < handle
             CPindex=obj.error_function.find_performance_calculator('CongestionPattern');
             obj.error_function.performance_calculators{CPindex}.save_plot;
         end    
+        
+        
         
     end    
      

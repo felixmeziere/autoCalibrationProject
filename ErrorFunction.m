@@ -210,7 +210,7 @@ classdef ErrorFunction < handle
         
         function [] = reset_for_new_run(obj)
             obj.result_history=[];
-            obj.result_genmean_history(1:size(obj.algorithm_box.knobs.link_ids,1),1)=0;
+            obj.result_genmean_history=[];
             for i=1:size(obj.performance_calculators,2)
                 obj.performance_calculators{1,i}.error_in_percentage_history=[];
             end    

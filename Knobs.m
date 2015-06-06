@@ -1,6 +1,6 @@
 classdef Knobs < handle
     
-    properties %(SetAccess = ?AlgorithmBox)
+    properties (SetAccess = ?AlgorithmBox)
         
         is_loaded=0;
         algorithm_box@AlgorithmBox;

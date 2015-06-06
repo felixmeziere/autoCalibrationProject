@@ -39,8 +39,7 @@ Thumbs.db
 #Other#
 #######
 *.asv
-*cmaes_reports/*
-*movies/*
+*.avi
 variablescmaes.mat
 *.dat
 testAlgo.m

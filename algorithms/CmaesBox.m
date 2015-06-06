@@ -71,7 +71,8 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
               obj.bestEver=bestEver;
               obj.bestEverErrorFunctionValue=bestEver.f;
               obj.numberOfIterations=countiter;
-                obj.save_data;
+              obj.set_genmean_data;
+              obj.save_data;
         end   % defined in AlgorithmBox   
    
         function [] = set_result_for_xls(obj)
