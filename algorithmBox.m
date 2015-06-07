@@ -293,9 +293,9 @@ classdef (Abstract) AlgorithmBox < handle
                 end                
                 obj.error_function.result_history(end+1,1)=result;
                 obj.numberOfEvaluations=obj.numberOfEvaluations+1;
-                obj.plot_zeroten_knobs_history(1);
-                obj.plot_result_history(2);
-                obj.plot_all_performance_calculators(5);
+%                 obj.plot_zeroten_knobs_history(1);
+%                 obj.plot_result_history(2);
+%                 obj.plot_all_performance_calculators(5);
                 drawnow;
                 obj.save_congestionPattern_matrix;
             else
