@@ -104,6 +104,16 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
        
     end
     
+    methods %(Access = protected)
+    
+        function [figure_title] = get_figure_title(obj)
+            figure_title=['CMA-ES : ','InSigma=',num2str(obj.insigma),', Knobs tolerance range=',...
+                '[',num2str(obj.knobs.underevaluation_tolerance_coefficient),',',num2str(obj.knobs.overevaluation_tolerance_coefficient),']',...
+                ', Error Function=',obj.error_function.name];
+        end    
+        
+    end    
+    
     methods (Static, Access = public)
         function [] = plot_algorithm_data(figureNumber) % plots data on the last running of cmaes.
             if nargin==1

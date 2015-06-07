@@ -478,12 +478,16 @@ classdef (Abstract) AlgorithmBox < handle
         end
         
         function [movie] = plot_movie(obj,dated_name,figureNumber,congestion_pattern_only,tosave,noncongestion_refresh,stop_frame)
+            a=obj;
             if(nargin<6)
                 noncongestion_refresh=size(obj.knobs.link_ids,1);
             end    
-            if (nargin<2)
+            if (nargin<2 || strcmp(dated_name,obj.dated_name))
                 dated_name=obj.dated_name;
+            else
+                load([pwd,'\',obj.algorithm_name,'_reports\',dated_name,'\',dated_name,'_allvariables.mat']);
             end    
+            figure_title=obj.get_figure_title;
             if (nargin<3)
                 h=figure;
                 figureNumber=h.Number;
@@ -520,6 +524,8 @@ classdef (Abstract) AlgorithmBox < handle
             set(h, 'Position', p);
             i=1;
             flag=1;
+            h.Name=figure_title;
+            suptitle(figure_title);
             if (nargin>3 && congestion_pattern_only)
                 while flag && i<=stop_frame
                     if exist([directory,num2str(i),'.mat'],'file')==2
@@ -537,15 +543,15 @@ classdef (Abstract) AlgorithmBox < handle
             else
                 while flag && i<=stop_frame
                     if exist([pwd,'\movies\',dated_name,'\frames\',num2str(i),'.mat'],'file')==2
-                        if (mod(i,noncongestion_refresh)==0)
-                            subplot(3,2,1);
+                        if (mod(i,noncongestion_refresh)==0 || i==1)
+                            subplot(20,2,[3,5,7,9,11]);
                             obj.knobs.plot_zeroten_knobs_history(figureNumber,zeroten_knobs_history,i);
                             axis([0,Num,0,10]);
                             line([i i],[0,10],'Color',[1 0 0]);
                             hold on
                             plot(i,zeroten_knobs_history(i,:),'r.','MarkerSize',20)
                             hold off
-                            subplot(3,2,2);
+                            subplot(20,2,[4,6,8,10,12]);
                             obj.error_function.plot_result_history(figureNumber,result_history, i);
                             axis([0,Num,0,max_error]);
                             line([i i],[0,max_error],'Color',[1 0 0]);
@@ -554,9 +560,10 @@ classdef (Abstract) AlgorithmBox < handle
                             hold off
                         end    
                         load(['movies\',dated_name,'\frames\',num2str(i),'.mat']);
-                        subplot(3,2,[4:6]);
+                        subplot(12,2,[11:24]);
                         cp=obj.error_function.performance_calculators{obj.error_function.find_performance_calculator('CongestionPattern')};
                         cp.plot(figureNumber,i,frame);
+                        figure(figureNumber)
                         drawnow;
                         if (tosave)
                             movie(i)=getframe(figureNumber);
@@ -565,7 +572,8 @@ classdef (Abstract) AlgorithmBox < handle
                     else flag=0;
                     end
                 end
-            end    
+            end
+            obj=a;
         end
         
         function [] = make_movie(obj,dated_name,stop_frame)
@@ -597,6 +605,7 @@ classdef (Abstract) AlgorithmBox < handle
                         obj.make_movie(list(i).name);
                     end
                 end
+                close all;
             end    
         end    
         
@@ -619,6 +628,10 @@ classdef (Abstract) AlgorithmBox < handle
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %  Privates and Hidden                                                %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
+    
+    methods %(Abstract, Access= protected)
+        [figure_title] = get_figure_title(obj)
+    end    
     
     methods (Access = public) %supposed to be private but public for debug reasons
         
