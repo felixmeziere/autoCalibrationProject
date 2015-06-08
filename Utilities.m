@@ -62,11 +62,11 @@ classdef Utilities
         
         function [directory_name] = give_dated_name(folder_name)
               i=1;
-              name=strcat(folder_name,'\',datestr(today)); 
+              name=strcat(folder_name,'\',datestr(date)); 
               while (exist(strcat(pwd,'\',name,'_',num2str(i)),'dir')==7)
                   i=i+1;
               end
-              directory_name=strcat(datestr(today),'_',num2str(i));
+              directory_name=strcat(datestr(date),'_',num2str(i));
         end    
         
         function [number] = get_matfile_number(folder_name)

@@ -34,6 +34,7 @@ classdef (Abstract) AlgorithmBox < handle
         current_xls_program_column=2; % in the xls program, number (not 'B' as in Excel) of the config column currently used.
         normal_mode_bs@BeatsSimulation %temporary. Normal mode already run beatsSimulation to test beats as pems real scenario mode
         res_history
+        
     end
                 
     properties (SetAccess = protected)
@@ -100,6 +101,7 @@ classdef (Abstract) AlgorithmBox < handle
         
         two_sensors_links
         link_ids_beats % all the link ids of the scenario. For practical reasons.
+        link_ids_pems
         linear_link_ids      
 
     end    
@@ -666,7 +668,7 @@ classdef (Abstract) AlgorithmBox < handle
             %sets the masks for further link selection.
             if (obj.beats_loaded && obj.pems.is_loaded)
                 sensor_link = obj.beats_simulation.scenario_ptr.get_sensor_link_map;
-                good_sensor_mask_pems_r = all(~isnan(obj.pems.data.flw), 1);
+                good_sensor_mask_pems_r = logical(all(~isnan(obj.pems.data.flw)).*any(obj.pems.data.flw));
                 good_sensor_ids_r=obj.pems.vds2id(good_sensor_mask_pems_r,2);
                 good_sensor_link_r=sensor_link(ismember(sensor_link(:,1), good_sensor_ids_r),:);
                 good_sensor_link=zeros(1,2);
@@ -698,6 +700,7 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.good_mainline_mask_pems=logical(obj.good_sensor_mask_pems.*obj.mainline_mask_pems);
                 obj.good_source_mask_pems=logical(obj.good_sensor_mask_pems.*obj.source_mask_pems);
                 obj.good_sink_mask_pems=logical(obj.good_sensor_mask_pems.*obj.sink_mask_pems);
+                obj.link_ids_pems=sensor_link(:,2);
                 TVmiles=TVM(obj);
                 obj.TVM_reference_values.beats=TVmiles.calculate_from_beats;
                 obj.TVM_reference_values.pems=TVmiles.calculate_from_pems;

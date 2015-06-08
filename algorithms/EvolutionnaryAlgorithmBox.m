@@ -8,7 +8,7 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
         
         starting_point=[] % (nxp) array containing the initial population : each column is a knob values array.
         normopts=struct;
-        population_size;
+        initial_population_size;
         
     end    
     
@@ -20,7 +20,7 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
         
         function [] = ask_for_starting_point(obj)
             if (obj.knobs.is_loaded)
-                 obj.population_size = input(['Size of the population : ']);
+                 obj.initial_population_size = input(['Size of the population : ']);
                  method='0';
                  while (~strcmp(method,'uniform') && ~strcmp(method,'normal') && ~strcmp(method,'manual')) 
                     method = input(['How should the initial population be created ? (manual/uniform/normal) : '],'s');
@@ -36,7 +36,7 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
                      end                        
                      obj.set_starting_point('normal');
                  elseif (strcmp(method,'manual'))
-                    for i = 1:obj.population_size;
+                    for i = 1:obj.initial_population_size;
                         disp(['Individual ', num2str(i)]);
                         for k = 1:size(obj.knobs.link_ids,1)
                             p=-1000;
@@ -65,7 +65,7 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
             
             if ~(isempty(obj.knobs.link_ids) || isempty(obj.knobs.boundaries_min) || isempty(obj.knobs.boundaries_max))
                 if (strcmp(mode, 'uniform'))
-                    obj.starting_point=rand(size(obj.knobs.link_ids,1),obj.population_size);
+                    obj.starting_point=rand(size(obj.knobs.link_ids,1),obj.initial_population_size);
                     disp('Initial Population with uniform distribution :');
                     for i = 1:size(obj.knobs.link_ids,1)
                         obj.starting_point(i,:)=obj.starting_point(i,:)*(obj.knobs.boundaries_max(i,1)-obj.knobs.boundaries_min(i,1));
@@ -78,7 +78,7 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
                     obj.normopts.SIGMAS='';
                 elseif (strcmp(mode, 'normal'))
                     if (size(obj.normopts.CENTERS,1)==size(obj.knobs.link_ids,1) && size(obj.normopts.SIGMAS,1)==size(obj.knobs.link_ids,1))
-                        obj.starting_point=randn(size(obj.knobs.link_ids,1), obj.population_size);
+                        obj.starting_point=randn(size(obj.knobs.link_ids,1), obj.initial_population_size);
                         disp('Initial Population with normal distribution :');
                         for i = 1:size(obj.knobs.link_ids,1)
                             knob=obj.starting_point(i,:);

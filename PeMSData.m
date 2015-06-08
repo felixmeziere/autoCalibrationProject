@@ -57,7 +57,7 @@ classdef PeMSData < handle
                 obj.link_ids=reshape(sensor_link(:,2),1,[]);
                 obj.vds2id = obj.algorithm_box.beats_simulation.scenario_ptr.get_sensor_vds2id_map;
                 obj.peMS5minData.load(obj.processed_folder,  obj.vds2id(:,1), obj.days);
-                obj.data=obj.peMS5minData.get_data_batch_aggregate(obj.vds2id(:,1), obj.days(obj.current_day), 'smooth', true);
+                obj.data=obj.peMS5minData.get_data_batch_aggregate(obj.vds2id(:,1), obj.days(obj.current_day), 'smooth', true, 'fill',true);
                 obj.data.flw_in_veh=obj.data.flw/12;
                 obj.data.occ=obj.data.occ;
                 obj.is_loaded=1;
