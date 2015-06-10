@@ -190,11 +190,11 @@
         defopts.TolUpX       = '1e3*max(insigma) % stop if x-changes larger TolUpX';
         defopts.TolFun       = '1e-12 % stop if fun-changes smaller TolFun';
         defopts.TolHistFun   = '1e-13 % stop if back fun-changes smaller TolHistFun';
-        defopts.StopOnStagnation = 'on  % stop when fitness stagnates for a long time';
+        defopts.StopOnStagnation = 'off  % stop when fitness stagnates for a long time';
         % TODO: stagnation has four parameters for the period: min = 120, const = 30N/lam, rel = 0.2, max = 2e5
         % defopts.StopOnStagnation = '[120 30*N/popsize 0.2 2e5]  % [min const rel_iter max] measuring period';
         defopts.StopOnWarnings = 'yes  % ''no''==''off''==0, ''on''==''yes''==1 ';
-        defopts.StopOnEqualFunctionValues = '2 + N/3  % number of iterations';  
+        defopts.StopOnEqualFunctionValues = '1000 %2 + N/3  % number of iterations';  
 
         % Options defaults: Other
         defopts.DiffMaxChange = 'Inf  % maximal variable change(s), can be Nx1-vector';
@@ -1429,15 +1429,15 @@
             end
           end
           % Adjust step size in case of equal function values (flat fitness)
-          % isequalfuncvalues = 0; 
+          isequalfuncvalues = 0; 
           if fitness.sel(1) == fitness.sel(1+ceil(0.1+lambda/4))
-            % isequalfuncvalues = 1; 
+            isequalfuncvalues = 1; 
             if stopOnEqualFunctionValues
-              arrEqualFunvals = [countiter arrEqualFunvals(1:end-1)];
-              % stop if this happens in more than 33%
-              if arrEqualFunvals(end) > countiter - 3 * length(arrEqualFunvals)
-                stopflag(end+1) = {'equalfunvals'}; 
-              end
+%               %arrEqualFunvals = [countiter arrEqualFunvals(1:end-1)];
+%               % stop if this happens in more than 33%
+%               %if arrEqualFunvals(end) > countiter - 3 * length(arrEqualFunvals)
+%                % stopflag(end+1) = {'equalfunvals'}; 
+%               %end
             else
               if flgWarnOnEqualFunctionValues
                 warning(['Iteration ' num2str(countiter) ...

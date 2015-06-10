@@ -32,17 +32,16 @@ classdef TVM < PerformanceCalculator
         
         function [result] = calculate_from_pems(obj) %compute TVM on pems data on monitored mainline links
             all_lengths=obj.algorithm_box.beats_simulation.scenario_ptr.get_link_lengths('us');
-            good_lengths=zeros(1,sum(obj.algorithm_box.good_mainline_mask_pems));    
-            link_ids_pems=unique(obj.algorithm_box.link_ids_pems);
-            i=1;
-            for k=1:size(link_ids_pems,2)
-                link_mask=ismember(obj.algorithm_box.link_ids_beats,link_ids_pems(1,k));
-                if sum(link_mask.*obj.algorithm_box.good_mainline_mask_beats)==1
-                    good_lengths(1,i)=all_lengths(1,link_mask);
-                    i=i+1;
+            link_ids=unique(obj.algorithm_box.pems.link_ids,'stable');
+            count=1;
+            for k=1:size(link_ids,2)
+                link_mask=ismember(obj.algorithm_box.link_ids_beats,link_ids(1,k));
+                if any(link_mask.*obj.algorithm_box.good_mainline_mask_beats)
+                    good_lengths(1,count)=all_lengths(link_mask);
+                    count=count+1;
                 end
             end
-            result =sum(sum(obj.algorithm_box.pems.data.flw(:,obj.algorithm_box.good_mainline_mask_pems).*repmat(good_lengths,size(obj.algorithm_box.pems.data.flw,1),1),2)); %sum over time and links
+            result=sum(sum(obj.algorithm_box.pems.data.flw_in_veh(:,obj.algorithm_box.good_mainline_mask_pems).*repmat(good_lengths,size(obj.algorithm_box.pems.data.flw,1),1),2)); %sum over time and links
             obj.result_from_pems=result;
         end    
         

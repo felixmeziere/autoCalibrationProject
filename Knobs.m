@@ -307,19 +307,21 @@ classdef Knobs < handle
             source_index=find(obj.algorithm_box.linear_link_ids==monitored_source_mainline_link_id);
             sink_index=find(obj.algorithm_box.linear_link_ids==monitored_sink_mainline_link_id);
             local_segment_link_ids=obj.algorithm_box.linear_link_ids(1,source_index:sink_index);
-            all_monitored_sources=obj.algorithm_box.link_ids_beats(obj.algorithm_box.good_source_mask_beats);
-            all_monitored_sinks=obj.algorithm_box.link_ids_beats(obj.algorithm_box.good_sink_mask_beats);
+            all_monitored_onramps=obj.algorithm_box.link_ids_beats(logical(obj.algorithm_box.good_source_mask_beats.*~obj.algorithm_box.mainline_mask_beats));
+            all_monitored_offramps=obj.algorithm_box.link_ids_beats(logical(obj.algorithm_box.good_sink_mask_beats.*~obj.algorithm_box.mainline_mask_beats));
             local_monitored_sources(1,1)=monitored_source_mainline_link_id;
-            number_local_monitored_sources=sum(ismember(local_segment_link_ids,all_monitored_sources))+1;
-            local_monitored_sources(1,2:number_local_monitored_sources)=local_segment_link_ids(ismember(local_segment_link_ids,all_monitored_sources));
-            local_monitored_sinks=local_segment_link_ids(ismember(local_segment_link_ids,all_monitored_sinks));
+            number_local_monitored_sources=sum(ismember(local_segment_link_ids,all_monitored_onramps))+1;
+            local_monitored_sources(1,2:number_local_monitored_sources)=local_segment_link_ids(ismember(local_segment_link_ids,all_monitored_onramps));
+            local_monitored_sinks=local_segment_link_ids(ismember(local_segment_link_ids,all_monitored_offramps));
             local_monitored_sinks(1,end+1)=monitored_sink_mainline_link_id;
             local_flow_difference=0;
             for i=1:size(local_monitored_sources,2)
-                local_flow_difference=local_flow_difference+sum(obj.algorithm_box.normal_mode_bs.get_output_for_link_id(local_monitored_sources(1,i)).flw_in_veh);
+                column_mask_in_pems_data=ismember(obj.algorithm_box.pems.link_ids,local_monitored_sources(1,i));
+                local_flow_difference=local_flow_difference+sum(obj.algorithm_box.pems.data.flw_in_veh(:,column_mask_in_pems_data),obj.algorithm_box.current_day);
             end
             for i=1:size(local_monitored_sinks,2)
-                local_flow_difference=local_flow_difference-sum(obj.algorithm_box.normal_mode_bs.get_output_for_link_id(local_monitored_sinks(1,i)).flw_in_veh);
+                column_mask_in_pems_data=ismember(obj.algorithm_box.pems.link_ids,local_monitored_sinks(1,i));
+                local_flow_difference=local_flow_difference-sum(obj.algorithm_box.pems.data.flw_in_veh(:,column_mask_in_pems_data),obj.algorithm_box.current_day);
             end   
        end  
                         

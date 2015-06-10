@@ -30,7 +30,11 @@ equilibrium popsize/time
 	functions at the end of algorithmbox
 
 
+cmaes modified :
 
+stoponstagnation
+stoponequalfunvalues
+1433-1451 (funval)
 										
 
 0770 0260 	
