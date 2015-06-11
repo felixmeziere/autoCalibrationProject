@@ -21,7 +21,9 @@ classdef TVH < PerformanceCalculator
         
         function [result] = calculate_from_beats(obj)
             dt_hr=obj.algorithm_box.beats_simulation.out_dt/3600;
-            result = sum(obj.algorithm_box.beats_simulation.compute_performance(obj.algorithm_box.good_mainline_mask_beats).tot_veh)*dt_hr; %sum over time
+            all_lengths=obj.algorithm_box.beats_simulation.scenario_ptr.get_link_lengths('us');
+            good_link_lengths=all_lengths(obj.algorithm_box.good_mainline_mask_beats);
+            result = sum(sum(obj.algorithm_box.beats_simulation.density_veh{1,1}(:,obj.algorithm_box.good_mainline_mask_beats),1)./good_link_lengths,2)*dt_hr; %sum over time
             obj.result_from_beats = result;
             if (obj.result_from_pems~=0) && (obj.result_from_beats~=0)
                 obj.error_in_percentage=100*(obj.result_from_beats-obj.result_from_pems)/obj.result_from_pems;
@@ -30,7 +32,9 @@ classdef TVH < PerformanceCalculator
         end
         
         function [result] = calculate_from_pems(obj)
-            result =sum(sum(obj.algorithm_box.pems.data.occ(:,obj.algorithm_box.good_mainline_mask_pems))); %sum over time and links
+%             kilometers_per_miles=1.609344;
+            dt_hr=1/12;
+            result=sum(sum(obj.algorithm_box.pems.data.dty(:,obj.algorithm_box.good_mainline_mask_pems)))*dt_hr;%*kilometers_per_miles; %sum over time and links
             obj.result_from_pems = result;
         end   
         

@@ -69,7 +69,6 @@ classdef (Abstract) AlgorithmBox < handle
     properties (Hidden, SetAccess = protected)
         
         %loading properties...............................................
-        
         scenario_ptr=''; % adress of the beats scenario xml file.
         freeway_name=''; %the name of the freeway extracted from the name of scenario file.
         xls_results@char % address of the excel file containing the results, with a format that fits to the method obj.send_result_to_xls.
@@ -81,7 +80,6 @@ classdef (Abstract) AlgorithmBox < handle
         
         %masks pointing at the links with working sensors used on beats 
         %output or on pems data............................................
-        
         mainline_mask_beats
         good_mainline_mask_beats
         source_mask_beats
@@ -98,8 +96,9 @@ classdef (Abstract) AlgorithmBox < handle
         good_sensor_mask_pems
         
         %properties with infos on the scenario.............................
-        
-        two_sensors_links
+        multiple_sensor_index2vds2id2link % vds2id2link of the sensors which are on links with at least two sensors
+        multiple_sensor_vds_to_use=0; % tuple containing the vds of the sensors to keep in the precedent situation. Order or grouping is not important. If multiple vds for one link in this property, it means that their flow and dty_veh value will be summed and their speeds will be averaged.
+        sensor_link
         link_ids_beats % all the link ids of the scenario. For practical reasons.
         linear_link_ids      
 
@@ -127,7 +126,7 @@ classdef (Abstract) AlgorithmBox < handle
             cd(name);   
         end 
         
-        %load for single run from xls file.................................
+        %load for single run from xls file (using load_xls is better)......
         function [] = load_properties_from_xls(obj) % load the properties from an excel file in the format described underneath.
             %properties file : an xls file containing the AlgorithmBox
             %properties to set in the first column and the corresponding
@@ -146,6 +145,7 @@ classdef (Abstract) AlgorithmBox < handle
             obj.load_beats;
             obj.pems.load;
             obj.set_masks_and_reference_values;
+            obj.solve_multiple_sensor_link_conflicts;
             obj.knobs.set_demand_ids;
             obj.knobs.current_value=ones(size(obj.knobs.link_ids,1));
             obj.link_ids_beats=obj.beats_simulation.scenario_ptr.get_link_ids;      
@@ -164,6 +164,7 @@ classdef (Abstract) AlgorithmBox < handle
         function [] = run_assistant(obj) % assistant to set all the parameters for a single run in the command window.
             obj.ask_for_beats_simulation;
             obj.ask_for_pems_data;
+            obj.ask_for_solving_multiple_sensors_conflicts;
             obj.ask_for_errorFunction;
             obj.ask_for_knobs;
             obj.ask_for_algorithm_parameters;
@@ -202,6 +203,21 @@ classdef (Abstract) AlgorithmBox < handle
              obj.current_day=input(['Enter the position of the day to study among all the days entered (e.g. 3) : ']);
              obj.knobs.set_auto_knob_boundaries;
         end
+        
+        function [] = ask_for_solving_multiple_sensors_conflicts(obj)
+            if (size(obj.multiple_sensor_index2vds2id2link,1)>0)
+                disp('Below is the list of conflictual links with the info on their sensors. There is a method to plot these conflicts.');
+                disp(' PeMS column:       VDS: Sensor id :    Link id:   ');
+                disp(obj.multiple_sensor_index2vds2id2link);
+                nsensors=input(['Among the ',num2str(size(obj.multiple_sensor_index2vds2id2link,1)), ' conflictual sensors, how many do you want to keep ? (if on the same link, flows will be summed, non-zero speeds and densities will be averaged) : ']);
+                obj.multiple_sensor_vds_to_use=[];
+                for i=1:nsensors
+                    obj.multiple_sensor_vds_to_use(i)=input(['VDS of sensor number ',num2str(i),' : ']);
+                end
+                obj.solve_multiple_sensor_link_conflicts;
+            end    
+        end  
+        
     end    
             
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -277,7 +293,7 @@ classdef (Abstract) AlgorithmBox < handle
                 if ~obj.knobs.isnaive_boundaries
                     knob_values=obj.knobs.project_involved_knob_groups_on_correct_flow_subspace(knob_values);
                 end    
-                knob_values=obj.project_on_correct_TVM_subspace(knob_values);
+%                 knob_values=obj.project_on_correct_TVM_subspace(knob_values);
                 zeroten_knob_values=obj.knobs.rescale_knobs(knob_values,1);
                 obj.knobs.knobs_history(end+1,:)=reshape(knob_values,1,[]);
                 obj.knobs.zeroten_knobs_history(end+1,:)=reshape(zeroten_knob_values,1,[]);
@@ -594,6 +610,7 @@ classdef (Abstract) AlgorithmBox < handle
                 end
                 vidObj = VideoWriter(videoname);
                 open(vidObj);
+                disp(['WRITTING MOVIE TO ',videoname]);
                 writeVideo(vidObj,M);
                 close(vidObj);
             else
@@ -601,12 +618,14 @@ classdef (Abstract) AlgorithmBox < handle
             end    
         end    
         
-        function [] = make_nonmade_movies(obj,stop_frame)
+        function [] = make_notmade_movies(obj,stop_frame)
             dirname=[pwd,'\movies\'];
             list=dir(dirname);
             for i=1:size(list,1)
                 videoname=[dirname,list(i).name,'.avi'];
-                if (list(i).isdir && exist(videoname,'file')~=2 && ~strcmp(list(i).name,'..') && ~strcmp(list(i).name,'.'))
+                if (list(i).isdir && exist(videoname,'file')~=2 && ~strcmp(list(i).name,'..') ...
+                        && ~strcmp(list(i).name,'.') && exist([dirname,list(i).name,...
+                        '\zeroten_knobs_history.mat'],'file')==2)
                     if nargin==2
                         obj.make_movie(list(i).name,stop_frame);
                     else    
@@ -614,6 +633,7 @@ classdef (Abstract) AlgorithmBox < handle
                     end
                 end
                 close all;
+                drawnow;
             end    
         end    
         
@@ -629,6 +649,47 @@ classdef (Abstract) AlgorithmBox < handle
         
         function [] = plot_pems_freeway_contour(obj,figureNumber,is_average,firstday,lastday)
             obj.pems.plot_freeway_contour(obj,figureNumber,is_average,firstday,lastday);    
+        end    
+        
+        function [] = plot_multiple_sensor_link_conflicts(obj)
+            unique_multiple_sensor_link_ids=unique(obj.multiple_sensor_index2vds2id2link(:,4),'stable');
+            for i=1:size(unique_multiple_sensor_link_ids,1)
+                link_id=unique_multiple_sensor_link_ids(i,1);
+                indices=find(obj.pems.link_ids==link_id);
+                leg={};
+                h=figure;
+                for j=1:size(indices,2)
+                    plot(obj.pems.data.flw_in_veh(:,indices(j)));
+                    leg{j}=['Link ID = ',num2str(link_id),' | VDS = ',num2str(obj.pems.vds2id(indices(j),1)),' | SensorID = ',num2str(obj.sensor_link(indices(j),1)),' PeMS profile.'];
+                    hold on
+                end
+                h.Name=['Flow profiles for link id ',num2str(link_id)];
+                title(['Flow profiles for link id ',num2str(link_id)]);
+                legend(leg);
+                hold off
+                leg={};
+                h=figure;
+                for j=1:size(indices,2)
+                    plot(obj.pems.data.spd(:,indices(j)));
+                    leg{j}=['Link ID = ',num2str(link_id),' | VDS = ',num2str(obj.pems.vds2id(indices(j),1)),' | SensorID = ',num2str(obj.sensor_link(indices(j),1)),' PeMS profile.'];
+                    hold on
+                end
+                h.Name=['Speed profiles for link id ',num2str(link_id)];
+                title(['Speed profiles for link id ',num2str(link_id)]);
+                legend(leg);
+                hold off
+                leg={};
+                h=figure;
+                for j=1:size(indices,2)
+                    plot(obj.pems.data.dty(:,indices(j)));
+                    leg{j}=['Link ID = ',num2str(link_id),' | VDS = ',num2str(obj.pems.vds2id(indices(j),1)),' | SensorID = ',num2str(obj.sensor_link(indices(j),1)),' PeMS profile.'];
+                    hold on
+                end
+                h.Name=['Density profiles for link id ',num2str(link_id)];
+                title(['Density profiles for link id ',num2str(link_id)]);
+                legend(leg);
+                hold off
+            end   
         end    
         
     end    
@@ -670,18 +731,16 @@ classdef (Abstract) AlgorithmBox < handle
         function [] = set_masks_and_reference_values(obj)
             %sets the masks for further link selection.
             if (obj.beats_loaded && obj.pems.is_loaded)
-                sensor_link = obj.beats_simulation.scenario_ptr.get_sensor_link_map;
+                obj.sensor_link = obj.beats_simulation.scenario_ptr.get_sensor_link_map;
                 good_sensor_mask_pems_r = logical(all(~isnan(obj.pems.data.flw(:,:,obj.current_day))).*any(obj.pems.data.flw(:,:,obj.current_day)));
                 good_sensor_ids_r=obj.pems.vds2id(good_sensor_mask_pems_r,2);
-                good_sensor_link_r=sensor_link(ismember(sensor_link(:,1), good_sensor_ids_r),:);
+                good_sensor_link_r=obj.sensor_link(ismember(obj.sensor_link(:,1), good_sensor_ids_r),:);
                 good_sensor_link=zeros(1,2);
                 k=1;
                 for i= 1:size(good_sensor_link_r(:,2),1)
                     if (~ismember(good_sensor_link_r(i,2),good_sensor_link(:,2)))
                         good_sensor_link(k,:)=good_sensor_link_r(i,:);
                         k=k+1;
-                    else
-                        obj.two_sensors_links(end+1)=good_sensor_link_r(i,2);
                     end    
                 end
                 good_sensor_ids=good_sensor_link(:,1);
@@ -693,9 +752,9 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.sink_mask_beats=obj.beats_simulation.scenario_ptr.is_sink_link;
                 source_link_ids=obj.link_ids_beats(1,obj.source_mask_beats);
                 sink_link_ids=obj.link_ids_beats(1,obj.sink_mask_beats);
-                obj.mainline_mask_pems=reshape(ismember(sensor_link(:,2), mainline_link_ids),1,[]);
-                obj.source_mask_pems=reshape(ismember(sensor_link(:,2), source_link_ids),1,[]);
-                obj.sink_mask_pems=reshape(ismember(sensor_link(:,2), sink_link_ids),1,[]);
+                obj.mainline_mask_pems=reshape(ismember(obj.sensor_link(:,2), mainline_link_ids),1,[]);
+                obj.source_mask_pems=reshape(ismember(obj.sensor_link(:,2), source_link_ids),1,[]);
+                obj.sink_mask_pems=reshape(ismember(obj.sensor_link(:,2), sink_link_ids),1,[]);
                 obj.good_sensor_mask_beats=ismember(obj.link_ids_beats, good_sensor_link_ids);
                 obj.good_mainline_mask_beats=logical(obj.good_sensor_mask_beats.*obj.mainline_mask_beats);
                 obj.good_source_mask_beats=logical(obj.good_sensor_mask_beats.*obj.source_mask_beats);
@@ -703,6 +762,7 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.good_mainline_mask_pems=logical(obj.good_sensor_mask_pems.*obj.mainline_mask_pems);
                 obj.good_source_mask_pems=logical(obj.good_sensor_mask_pems.*obj.source_mask_pems);
                 obj.good_sink_mask_pems=logical(obj.good_sensor_mask_pems.*obj.sink_mask_pems);
+                obj.set_multiple_sensor_index2vds2id2link;
                 TVmiles=TVM(obj);
                 obj.TVM_reference_values.beats=TVmiles.calculate_from_beats;
                 obj.TVM_reference_values.pems=TVmiles.calculate_from_pems;
@@ -745,6 +805,70 @@ classdef (Abstract) AlgorithmBox < handle
                     end    
                 end     
             end
+        end
+       
+        %solving multiple sensors in one link conflicts
+        function [] = set_multiple_sensor_index2vds2id2link(obj)
+            if (obj.beats_loaded && obj.pems.is_loaded)
+                obj.multiple_sensor_index2vds2id2link=[];
+                unique_link_ids=unique(obj.sensor_link(:,2),'stable');
+                vds=obj.pems.vds2id(:,1);
+                for i=1:size(unique_link_ids,1)
+                    indexes=find(obj.sensor_link(:,2)==unique_link_ids(i,1));
+                    if (size(indexes,1)>1)
+                        obj.multiple_sensor_index2vds2id2link([end+1,end+sum(ismember(obj.sensor_link(:,2),unique_link_ids(i,1)))],:)=[indexes,vds(indexes,1),obj.sensor_link(indexes,:)];
+                    end    
+                end
+            else
+                error('Please, load BEATS and PeMS before solving multiple sensors conflicts');
+            end    
+        end 
+        
+        function [] = solve_multiple_sensor_link_conflicts(obj)
+            if (obj.multiple_sensor_vds_to_use~=0)
+                disp('SOLVING "MULTIPLE SENSORS ON THE SAME LINK" CONFLICTS.');
+                obj.set_multiple_sensor_index2vds2id2link;
+                info=obj.multiple_sensor_index2vds2id2link;
+                tokeep=obj.multiple_sensor_vds_to_use;
+                flw_profiles=zeros(size(obj.pems.data.flw,1),size(info,1),size(obj.pems.days,2));
+                spd_profiles=zeros(size(obj.pems.data.flw,1),size(info,1),size(obj.pems.days,2));
+                dty_profiles=zeros(size(obj.pems.data.flw,1),size(info,1),size(obj.pems.days,2));
+                for k=1:size(obj.pems.days,2)
+                    profile_index=1;
+                    link_id=info(1,4);
+                    spd_count=1;
+                    for i=1:size(info,1)
+                        if link_id~=info(i,4)
+                            spd_profiles(:,profile_index,k)=spd_profiles(:,profile_index,k)/spd_count;
+                            profile_index=i;
+                            link_id=info(i,4);
+                            spd_count=1;
+                        end    
+                        if (ismember(info(i,2),tokeep))
+                            ind=info(i,1);
+                            if any(obj.pems.data.flw(:,ind,k),1)
+                                flw_profiles(:,profile_index,k)=flw_profiles(:,profile_index,k)+obj.pems.data.flw(:,ind,k);
+                            end    
+                            if any(obj.pems.data.dty(:,ind,k))
+                                dty_profiles(:,profile_index,k)=dty_profiles(:,profile_index,k)+obj.pems.data.dty(:,ind,k);                         
+                            end
+                            if any(obj.pems.data.spd(:,ind,k))
+                                spd_profiles(:,profile_index,k)=spd_profiles(:,profile_index,k)+obj.pems.data.spd(:,ind,k);
+                                spd_count=spd_count+1;
+                            end    
+                        else
+                            profile_index=profile_index+1;
+                        end
+                    end 
+                    flw_profiles(:,~any(flw_profiles(:,:,k),1),k)=nan;
+                    spd_profiles(:,~any(spd_profiles(:,:,k),1),k)=nan;
+                    dty_profiles(:,~any(dty_profiles(:,:,k),1),k)=nan;
+                end    
+                obj.pems.data.flw(:,info(:,1),:)=flw_profiles;
+                obj.pems.data.spd(:,info(:,1),:)=spd_profiles;
+                obj.pems.data.dty(:,info(:,1),:)=dty_profiles;
+                obj.set_masks_and_reference_values;
+            end    
         end    
         
         %get link lengths in beats or pems data matching format............

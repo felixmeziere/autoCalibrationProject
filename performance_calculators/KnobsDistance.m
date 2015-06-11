@@ -46,8 +46,8 @@ classdef KnobsDistance < PerformanceCalculator
             end    
         end    
             
-        function [result] = calculate_from_pems(obj)    
-            if (knobs.isnaive_boundaries)
+        function [result] = calculate_from_pems(obj) 
+            if (obj.algorithm_box.knobs.isnaive_boundaries)
                 result=nan;
                 obj.result_from_beats=0;
                 obj.result_from_pems=result;

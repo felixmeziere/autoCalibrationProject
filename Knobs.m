@@ -229,8 +229,8 @@ classdef Knobs < handle
             title(['Knob ',number,' (',num2str(knob_link_id),') evolution']);
             xlabel('Number of BEATS evaluations');
             ylabel('Knob values');  
-        end    
-        
+        end  
+                
     end    
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
