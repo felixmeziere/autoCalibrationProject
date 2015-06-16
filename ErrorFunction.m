@@ -51,30 +51,8 @@ classdef ErrorFunction < handle
                 for i = 1:size(names,1)
                     weight_and_exponent=getfield(param.performance_calculators,char(names(i)));
                     obj.weights_and_exponents(1,i)=weight_and_exponent(1);
-                    obj.weights_and_exponents(2,i)=weight_and_exponent(2);
-                    if strcmpi(names(i),'CongestionPattern') 
-                        if isfield(obj.algorithm_box.temp,'congestion_patterns')
-                            first_time=0;
-                            change_rectangles=-1;
-                            if (nargin<2)
-                                while (change_rectangles~=1 && change_rectangles ~= 0)
-                                    change_rectangles=input(['Do you want to change the rectangles (instead of leaving them as they were until now) (1=yes/0=no) ? : ']);
-                                end
-                            end    
-                            if change_rectangles==1
-                                obj.algorithm_box.remove_field_from_property('temp','congestion_patterns');
-                                obj.performance_calculators{i}=CongestionPattern(obj.algorithm_box);
-                                obj.algorithm_box.temp.congestion_patterns=obj.performance_calculators{i}.rectangles;
-                            else    
-                                obj.performance_calculators{i}=CongestionPattern(obj.algorithm_box, obj.algorithm_box.temp.congestion_patterns);
-                            end
-                        else
-                            obj.performance_calculators{i}=CongestionPattern(obj.algorithm_box);
-                            obj.algorithm_box.temp.congestion_patterns=obj.performance_calculators{i}.rectangles;
-                        end
-                    else    
-                        obj.performance_calculators{i}=eval(strcat(char(names(i)),'(obj.algorithm_box)'));
-                    end
+                    obj.weights_and_exponents(2,i)=weight_and_exponent(2);  
+                    obj.performance_calculators{i}=eval(strcat(char(names(i)),'(obj.algorithm_box)'));
                     if (i==1)
                         obj.name=strcat('(',num2str(obj.weights_and_exponents(1,i)),'*',names(1),')','^',num2str(obj.weights_and_exponents(2,i)));
                     else    
@@ -204,11 +182,12 @@ classdef ErrorFunction < handle
             end
             if index==0
                 string=['Sorry, no ',performance_calculator_name,' among the performance calculators of this error function.'];
-                disp(string);
+                error(string);
             end    
         end    
         
         function [] = reset_for_new_run(obj)
+            obj.calculate_pc_from_pems;
             obj.result_history=[];
             obj.result_genmean_history=[];
             for i=1:size(obj.performance_calculators,2)

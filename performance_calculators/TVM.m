@@ -41,23 +41,22 @@ classdef TVM < PerformanceCalculator
                     count=count+1;
                 end
             end
-            result=sum(sum(obj.algorithm_box.pems.data.flw_in_veh(:,obj.algorithm_box.good_mainline_mask_pems).*repmat(good_lengths,size(obj.algorithm_box.pems.data.flw,1),1),2)); %sum over time and links
+            result=sum(sum(obj.algorithm_box.pems.data.flw_in_veh(:,obj.algorithm_box.good_mainline_mask_pems,obj.algorithm_box.current_day).*repmat(good_lengths,size(obj.algorithm_box.pems.data.flw,1),1),2)); %sum over time and links
             obj.result_from_pems=result;
         end    
         
         function [h] = plot(obj,figureNumber)
-            if (nargin<2)
-                h=figure;
-            else
-                h=figure(figureNumber);
-            end
-            plot(obj.error_in_percentage_history);
-%             p=[900,0,450,350];
-%             set(h, 'Position', p);
-            title('TVM error evolution (in percentage)');
-            ylabel('TVM error in percentage');
-            xlabel('Number of BEATS evaluations');            
-            
+%             if (nargin<2)
+%                 h=figure;
+%             else
+%                 h=figure(figureNumber);
+%             end
+%             plot(obj.error_in_percentage_history);
+% %             p=[900,0,450,350];
+% %             set(h, 'Position', p);
+%             title('TVM error evolution (in percentage)');
+%             ylabel('TVM error in percentage');
+%             xlabel('Number of BEATS evaluations');            
         end    
     end
 end

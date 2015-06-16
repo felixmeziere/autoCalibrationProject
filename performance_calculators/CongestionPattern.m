@@ -19,9 +19,15 @@ classdef CongestionPattern < PerformanceCalculator
         
     end    
     
+    properties (Hidden, SetAccess=protected)
+        
+        first_load=1;
+
+    end    
+    
     methods (Access = public)
         
-        function [obj] = CongestionPattern(algoBox, congestion_patterns)
+        function [obj] = CongestionPattern(algoBox)
             if (nargin<1)
                 error('You must enter an AlgorithmBox as argument of any performance calculator constructor.');
             elseif (algoBox.beats_loaded==1 && algoBox.pems.is_loaded==1)
@@ -33,7 +39,21 @@ classdef CongestionPattern < PerformanceCalculator
                 %OUTPUT_DT set to 5 minutes).
                 %RECTANGLES HAVE TO BE DISJOINED
                 obj.algorithm_box=algoBox;
-                if nargin<2
+                if isfield(obj.algorithm_box.temp,'congestion_patterns')
+                    change_rectangles=-1;
+                    if (obj.first_load~=1)
+                        while (change_rectangles~=1 && change_rectangles ~= 0)
+                            change_rectangles=input(['Do you want to change the rectangles (instead of leaving them as they were until now) (1=yes/0=no) ? : ']);
+                        end
+                    end    
+                    if change_rectangles==1
+                        obj.algorithm_box.remove_field_from_property('temp','congestion_patterns');
+                        obj.algorithm_box.temp.congestion_patterns=obj.rectangles;
+                    end
+                else
+                    obj.algorithm_box.temp.congestion_patterns=obj.rectangles;
+                end
+                if change_rectangles==1
                     nrectangles=input(['How many rectangles will this "CongestionPattern" have ? : ']);
                     congestion_patterns=cell(nrectangles,1);
                     for i=1:nrectangles
@@ -41,8 +61,11 @@ classdef CongestionPattern < PerformanceCalculator
                         congestion_patterns{i,1}.right_absciss=input(['Right absciss of rectangle number ' , num2str(i), '(absciss of linear mainline id) : ']);
                         congestion_patterns{i,1}.up_ordinate=input(['Up (earliest) ordinate of rectangle number ' , num2str(i), '(beginning time) : ']);
                         congestion_patterns{i,1}.down_ordinate=input(['Down (latest) absciss of rectangle number ' , num2str(i), '(end time) : '] );
-                    end    
-                end    
+                    end
+                else
+                    congestion_patterns=obj.algorithm_box.temp.congestion_patterns;
+                end
+                
                 if isfield(congestion_patterns{1,1},'left_absciss') && isfield(congestion_patterns{1,1},'right_absciss') && isfield(congestion_patterns{1,1},'up_ordinate') && isfield(congestion_patterns{1,1},'down_ordinate')
                     obj.rectangles=congestion_patterns;
                     obj.vertical_size=size(obj.algorithm_box.beats_simulation.outflow_veh{1,1},1);
@@ -54,6 +77,7 @@ classdef CongestionPattern < PerformanceCalculator
                     else error('Argument congestion_patterns not in the right format. Please see code comments.');     
                 end
                 obj.calculate_from_pems;
+                obj.first_load=0;
             else error('Beats simulation and PeMS data must be loaded first.')
             end
         end    

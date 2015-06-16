@@ -3,52 +3,73 @@ classdef (Abstract) AlgorithmBox < handle
     %   Contains the properties and methods that are used by any algorithm for
     %   the automatic calibration problem (for now, tuning only source and
     %   sink knobs). This allows you to run a program set in an excel
-    %   file and automaticlly registers the results in another excel file.
+    %   file and automatically registers the results as : another excel file,
+    %   an accelerated movie and all the variables and plots containing info 
+    %   on the algorithm progress.
     
-    %CHECK THAT MONITORED TEMPLATES ARE THE EXACT SAME AS PEMS DATA.
-    %I AM USING BEATS OUTPUT WITH KNOBS SET TO ONE INSTEAD OF TEMPLATES FOR
-    %REFINING THE KNOB BOUNDARIES (IN THEORY, THEIR SUM SHOULD BE THE
-    %SAME).
+    %The object oriented programming paradigms are not respected : most of
+    %objects' constructors use this class (AlgorithmBox) as only argument
+    %and AlgorithmBox can access many of their properties, so they are not 
+    %independent at all. I have used objects mainly as a way of splitting 
+    %the code in many files instead of having a big messy file. The objects
+    %should be seen as a way of grouping the properties and methods used 
+    %for a common purpose.
     
+    %These objects are : BeatsSimulation, PeMS5mindata, PemsData, 
+    %ErrorFunction, PerformanceCalculator, Knobs. 
+    
+    %The only implementation of AlgorithmBox coded at this day is CmaesBox,
+    %inheriting from EvolutionnaryAlgorithmBox < AlgorithmBox.
+    
+    %There are two ways of setting up a scenario for calibration. One is
+    %using the assistant, which will ask succesively each parameter in the
+    %matlab command window, to run the algorithm once. This can be seen as
+    %a tutorial to understand everything that comes into play in this
+    %calibration.
+    %The other way is using an xls(x) file that will load automatically all
+    %the parameters. This will allow to use the AlgorithmBox.run_program
+    %method that executes several consecutive times the algorithm with 
+    %different parameters (each column of the xls file is one set of 
+    %parameters). The parameters in the xls file are entered in a way such
+    %that eval(obj.'parameter in excel first column'='value in excel
+    %current column') works.
+        
     properties (Abstract, Constant)
         
-        algorithm_name %name used sometimes.
+        algorithm_name %name of the algorithm in the subclass, used sometimes.
         
     end    
     
     properties (Abstract, Access = public)
         
-        starting_point %starting vector or matrix. If the starting point is a matrix (e.g. if is a population for an evolutionnary algorithm), the columns are vectors (individuals) and the rows are knobs.
+        starting_point %starting vector or matrix. If the starting point is a matrix (e.g. if it is a population for an evolutionnary algorithm), the columns are vectors (individuals) and the rows are knobs.
         
     end    
     
     properties (Access = public)
         
         %manually modificable properties...................................
-        beats_parameters=struct; % the parameters passed to BeatsSimulation.run_beats(beats_parameters).
-        error_function@ErrorFunction % instance of ErrorFunction class, containing all the properties and methods to compute the difference between pems and beats output (this is the fitness function to minimize).
         number_runs=1; % the number of times the algorithm will run before going to the next column if an xls program is run. 
         maxEval=90; % maximum number of times that beats will run.
-        maxIter=30; % maximum number of iterations of the algorithm (can be different in Evolutionnary Algorithms for example).
-        stopFValue=1000; % the algorithm will stop if a smaller value is reached by error_calculator (this is the goal).
-        current_xls_program_column=2; % in the xls program, number (not 'B' as in Excel) of the config column currently used.
-        res_history
+        maxIter=30; % maximum number of iterations of the algorithm (can be different from maxEval, in Evolutionnary Algorithms for example : each generation is several beats executions).
+        stopFValue=0; % the algorithm will stop if a smaller value is reached by error_calculator (this is the goal).
+        current_xls_program_column=2; % in the xls program, number of the config column currently used (2 is B in excel for example).
         
     end
                 
     properties (SetAccess = protected)
         
-        %visible input porperties..........................................
-        
-        beats_simulation@BeatsSimulation % the BeatsSimulation object that will run and be overwritten at each algorithm iteration.
-        pems@PeMSData % the pems data to compare with the beats results. Input fields : 'days' (e.g. datenum(2014,10,1):datenum(2014,10,10)); 'district' (e.g. 7); 'processed_folder'(e.g. C:\Code). Output Fields : 'data' 
-        initialization_method@char % initialization method must be 'normal', 'uniform' or 'manual'.
-        TVM_reference_values=struct; %TVM values from pems and beats with all knobs set to one.
+        %visible input properties..........................................
+        beats_parameters=struct; % struct containing the parameters passed to BeatsSimulation (BeatsSimulation.create_beats_object(obj.beats_parameters)).
+        beats_simulation@BeatsSimulation % the BeatsSimulation object that will run, output results and be overwritten at each algorithm iteration.
+        pems@PeMSData % the pems data to compare with the beats results. Input fields : 'days' (e.g. datenum(2014,10,1):datenum(2014,10,10)); 'district' (e.g. 7); 'processed_folder'(e.g. C:\Code\pems\processed). Output Fields : 'data'. 
+        error_function@ErrorFunction % instance of ErrorFunction class, containing all the properties and methods to compute the difference between pems and beats output (this computes the fitness function to minimize).
+        initialization_method@char % initialization method must be 'normal', 'uniform' or 'manual'. Normal will
+        TVM_reference_values=struct; %TVM values from pems and beats with all knobs set to one. Used to project the beats knobs input in the correct TVM subspace.
         knobs@Knobs % Knobs class instance with all the properties and methods relative to the knobs of the scenario.
         current_day=1; %current day used in the pems data loaded.
         
         %visible output properties.........................................
-        
         result_for_xls@cell % result of the algorithm to be outputed to the xls file.
         out % struct with various histories and solutions.
         bestEverErrorFunctionValue % smallest error_calculator value reached during the execution. Extracted from out.
@@ -56,7 +77,7 @@ classdef (Abstract) AlgorithmBox < handle
         numberOfIterations=1; % number of iterations of the algorithm (different than the number of evaluations for evolutionnary algorithms for example).
         numberOfEvaluations=1; % number of times beats ran a simulation. Extracted from out.
         stopFlag; % reason why the algorithm stopped. Extracted from out.
-        convergence % convergence speed. 
+        convergence % convergence speed. Not used for now.
         
     end
     
@@ -98,6 +119,7 @@ classdef (Abstract) AlgorithmBox < handle
         %properties with infos on the scenario.............................
         multiple_sensor_index2vds2id2link % vds2id2link of the sensors which are on links with at least two sensors
         multiple_sensor_vds_to_use=0; % tuple containing the vds of the sensors to keep in the precedent situation. Order or grouping is not important. If multiple vds for one link in this property, it means that their flow and dty_veh value will be summed and their speeds will be averaged.
+        vds_sensors_to_delete=0; %tuple with sensors to delete. Useful to solve problems like HOV line biais.
         sensor_link
         link_ids_beats % all the link ids of the scenario. For practical reasons.
         linear_link_ids      
@@ -145,6 +167,7 @@ classdef (Abstract) AlgorithmBox < handle
             obj.load_beats;
             obj.pems.load;
             obj.set_masks_and_reference_values;
+            obj.delete_choosen_sensors;
             obj.solve_multiple_sensor_link_conflicts;
             obj.knobs.set_demand_ids;
             obj.knobs.current_value=ones(size(obj.knobs.link_ids,1));
@@ -164,11 +187,11 @@ classdef (Abstract) AlgorithmBox < handle
         function [] = run_assistant(obj) % assistant to set all the parameters for a single run in the command window.
             obj.ask_for_beats_simulation;
             obj.ask_for_pems_data;
+            obj.ask_for_vds_sensors_to_delete;
             obj.ask_for_solving_multiple_sensors_conflicts;
-            obj.ask_for_errorFunction;
             obj.ask_for_knobs;
+            obj.ask_for_errorFunction;
             obj.ask_for_algorithm_parameters;
-            obj.ask_for_starting_point;
             disp('ALL SETTINGS LOADED, ALGORITHM READY TO RUN');
         end
        
@@ -200,8 +223,10 @@ classdef (Abstract) AlgorithmBox < handle
         end
         
         function [] = ask_for_current_day(obj)
-             obj.current_day=input(['Enter the position of the day to study among all the days entered (e.g. 3) : ']);
-             obj.knobs.set_auto_knob_boundaries;
+             obj.current_day=input(['Enter the position of the day to study among all the days entered (e.g. 3, last day +1 is average of all days) : ']);
+             if size(obj.knobs,1)~=0
+                 obj.knobs.set_auto_knob_boundaries;
+             end
         end
         
         function [] = ask_for_solving_multiple_sensors_conflicts(obj)
@@ -218,6 +243,20 @@ classdef (Abstract) AlgorithmBox < handle
             end    
         end  
         
+        function [] = ask_for_vds_sensors_to_delete(obj)
+            ndelete=input(['How many sensors would you like to delete (Useful to solve issues like HOV line biais) : ']);
+            obj.vds_sensors_to_delete=[];
+            for i=1:ndelete
+                obj.vds_sensors_to_delete(i)=input(['VDS of sensor number ',num2str(i),' : ']);
+            end    
+            obj.delete_choosen_sensors;
+        end    
+        
+        function [] = ask_for_changing_congestionPattern_rectangles_if_exist(obj)
+            cp=obj.error_function.find_performance_calculator('CongestionPattern');
+            obj.error_function.performance_calculators{cp}=CongestionPattern(obj);
+        end    
+
     end    
             
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -317,10 +356,11 @@ classdef (Abstract) AlgorithmBox < handle
                 end                
                 obj.error_function.result_history(end+1,1)=result;
                 obj.numberOfEvaluations=obj.numberOfEvaluations+1;
-%                 obj.plot_zeroten_knobs_history(1);
-%                 obj.plot_result_history(2);
-%                 obj.plot_all_performance_calculators(5);
-%                 drawnow;
+                obj.plot_zeroten_knobs_history(1);
+                obj.plot_result_history(2);
+                obj.plot_all_performance_calculators(5);
+%                 obj.plot_performance_calculator_if_exists('CongestionPattern');
+                drawnow;
                 obj.save_congestionPattern_matrix;
             else
                 error('The matrix with knobs values given does not match the number of knobs to tune or is not a column vector.');
@@ -346,7 +386,7 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.current_xls_program_column=obj.current_xls_program_column+1;
                 obj.is_loaded=0;
             end
-           obj.make_nonmade_movies;
+           obj.make_notmade_movies;
         end % run the program defined by the input Excel file and write its results in the output Excel file.        
         
     end
@@ -512,12 +552,6 @@ classdef (Abstract) AlgorithmBox < handle
                 load([pwd,'\',obj.algorithm_name,'_reports\',dated_name,'\',dated_name,'_allvariables.mat']);
             end    
             figure_title=obj.get_figure_title;
-            if (nargin<3)
-                h=figure;
-                figureNumber=h.Number;
-            else
-                h=figure(figureNumber);
-            end    
             directory=[pwd,'\movies\',dated_name,'\'];
             load([directory,'result_history.mat']);
             if exist([directory,'zeroten_knobs_genmean_history.mat'],'file')==2
@@ -543,6 +577,13 @@ classdef (Abstract) AlgorithmBox < handle
                 Num = length(D(not([D.isdir])));
                 stop_frame=Num;
             end
+            close all
+            if (nargin<3)
+                h=figure;
+                figureNumber=h.Number;
+            else
+                h=figure(figureNumber);
+            end    
             movie(Num) = struct('cdata',[],'colormap',[]);
             p=[100,50,1300,700];
             set(h, 'Position', p);
@@ -702,7 +743,7 @@ classdef (Abstract) AlgorithmBox < handle
     %  Privates and Hidden                                                %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
     
-    methods %(Abstract, Access= protected)
+    methods (Abstract, Access= protected)
         [figure_title] = get_figure_title(obj)
     end    
     
@@ -764,8 +805,14 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.good_sink_mask_pems=logical(obj.good_sensor_mask_pems.*obj.sink_mask_pems);
                 obj.set_multiple_sensor_index2vds2id2link;
                 TVmiles=TVM(obj);
+                if (size(obj.knobs,1)~=0 && all(obj.knobs.current_value~=ones(size(obj.knobs.link_ids,1),1)))
+                    obj.reset_beats;
+                end    
                 obj.TVM_reference_values.beats=TVmiles.calculate_from_beats;
                 obj.TVM_reference_values.pems=TVmiles.calculate_from_pems;
+                if (size(obj.error_function,1)~=0 && obj.error_function.is_loaded==1)
+                    obj.error_function.calculate_pc_from_pems;
+                end    
                 obj.masks_loaded=1;
             else
                 error('Beats simulation and PeMS data must be loaded before setting the masks and reference values.');
@@ -774,7 +821,9 @@ classdef (Abstract) AlgorithmBox < handle
         
         function [] = reset_beats(obj)
             obj.beats_simulation.beats.reset();
-            obj.knobs.set_knobs_persistent(ones(size(obj.knobs.link_ids,1),1));
+            if size(obj.knobs,1)~=0
+                obj.knobs.set_knobs_persistent(ones(size(obj.knobs.link_ids,1),1));
+            end    
             disp('RUNNING BEATS A FIRST TIME FOR REFERENCE DATA.');
             obj.beats_simulation.run_beats_persistent;
         end
@@ -830,10 +879,11 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.set_multiple_sensor_index2vds2id2link;
                 info=obj.multiple_sensor_index2vds2id2link;
                 tokeep=obj.multiple_sensor_vds_to_use;
-                flw_profiles=zeros(size(obj.pems.data.flw,1),size(info,1),size(obj.pems.days,2));
-                spd_profiles=zeros(size(obj.pems.data.flw,1),size(info,1),size(obj.pems.days,2));
-                dty_profiles=zeros(size(obj.pems.data.flw,1),size(info,1),size(obj.pems.days,2));
-                for k=1:size(obj.pems.days,2)
+                ndays=size(obj.pems.days,2);
+                flw_profiles=zeros(size(obj.pems.data.flw,1),size(info,1),ndays);
+                spd_profiles=zeros(size(obj.pems.data.flw,1),size(info,1),ndays);
+                dty_profiles=zeros(size(obj.pems.data.flw,1),size(info,1),ndays);
+                for k=1:ndays
                     profile_index=1;
                     link_id=info(1,4);
                     spd_count=1;
@@ -864,12 +914,32 @@ classdef (Abstract) AlgorithmBox < handle
                     spd_profiles(:,~any(spd_profiles(:,:,k),1),k)=nan;
                     dty_profiles(:,~any(dty_profiles(:,:,k),1),k)=nan;
                 end    
-                obj.pems.data.flw(:,info(:,1),:)=flw_profiles;
-                obj.pems.data.spd(:,info(:,1),:)=spd_profiles;
-                obj.pems.data.dty(:,info(:,1),:)=dty_profiles;
+                obj.pems.data.flw(:,info(:,1),1:end-1)=flw_profiles;
+                obj.pems.data.spd(:,info(:,1),1:end-1)=spd_profiles;
+                obj.pems.data.dty(:,info(:,1),1:end-1)=dty_profiles;
+                obj.pems.data.flw(:,:,end)=mean(obj.pems.data.flw(:,:,1:end-1),3);
+                obj.pems.data.dty(:,:,end)=mean(obj.pems.data.dty(:,:,1:end-1),3);
+                obj.pems.data.spd(:,:,end)=mean(obj.pems.data.spd(:,:,1:end-1),3);
+                obj.pems.data.flw_in_veh=obj.pems.data.flw/12;
                 obj.set_masks_and_reference_values;
             end    
         end    
+        
+        %solving particular situations (like HOV pbs) by deleting a sensor.
+        function [] = delete_choosen_sensors(obj)
+            if (obj.vds_sensors_to_delete~=0)
+                disp('DELETING CHOOSEN SENSORS.');
+                for i=1:size(obj.vds_sensors_to_delete,2)
+                    index=find(obj.pems.vds2id(:,1)==obj.vds_sensors_to_delete(i));
+                    obj.pems.data.flw(:,index,:)=nan;
+                    obj.pems.data.dty(:,index,:)=nan;
+                    obj.pems.data.spd(:,index,:)=nan;
+                    obj.pems.data.flw_in_veh(:,index,:)=nan;   
+                    obj.set_masks_and_reference_values;
+                end
+            end    
+        end    
+        
         
         %get link lengths in beats or pems data matching format............
         function [lengths] = get_link_lengths_miles_pems(obj,link_mask_pems, same_link_mask_beats)
@@ -1079,8 +1149,11 @@ classdef (Abstract) AlgorithmBox < handle
         end    
         
         function [] = save_congestionPattern_matrix(obj)
-            CPindex=obj.error_function.find_performance_calculator('CongestionPattern');
-            obj.error_function.performance_calculators{CPindex}.save_plot;
+            try
+                CPindex=obj.error_function.find_performance_calculator('CongestionPattern');
+                obj.error_function.performance_calculators{CPindex}.save_plot;
+            catch
+            end    
         end    
         
         

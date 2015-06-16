@@ -14,11 +14,12 @@ classdef PeMSData < handle
 
     end
     
-    properties (Hidden, SetAccess=?AlgorithmBox)
+    properties %(Hidden, SetAccess=?AlgorithmBox)
         
         link_ids % list of the link ids corresponding to the pems data columns, in linear order.
         linear_link_ids
         vds2id
+        vds2id2link
         
     end    
     
@@ -30,13 +31,28 @@ classdef PeMSData < handle
         
         function [obj] = run_assistant(obj)
             if (obj.algorithm_box.beats_loaded==1)
-                startyear=input(['Enter PeMS data beginning year (integer) : ']);
-                startmonth=input(['Enter PeMS data beginning month (integer) : ']);
-                startday=input(['Enter PeMS data beginning day (integer) : ']);
-                endyear=input(['Enter PeMS data end year (integer) : ']);
-                endmonth=input(['Enter PeMS data end month (integer) : ']);
-                endday=input(['Enter PeMS data end day (integer) : ']);
-                obj.days = (datenum(startyear, startmonth, startday):datenum(endyear, endmonth, endday));
+                isSegment=-1;
+                while isSegment ~=1 && isSegment~=0
+                    isSegment=input(['PeMS data : Do you want to work on several days in a row (yes=1, no=0) ? : ']);
+                end
+                if isSegment
+                    startyear=input(['Enter PeMS data beginning year (integer) : ']);
+                    startmonth=input(['Enter PeMS data beginning month (integer) : ']);
+                    startday=input(['Enter PeMS data beginning day (integer) : ']);
+                    endyear=input(['Enter PeMS data end year (integer) : ']);
+                    endmonth=input(['Enter PeMS data end month (integer) : ']);
+                    endday=input(['Enter PeMS data end day (integer) : ']);
+                    obj.days = (datenum(startyear, startmonth, startday):datenum(endyear, endmonth, endday));
+                else
+                    numdays=input('How many days do you want to work on ? : ');
+                    obj.days=zeros(1,numdays);
+                    for i=1:numdays
+                        year=input(['Enter day ',num2str(i),' year (integer) : ']);
+                        month=input(['Enter day ',num2str(i),' month (integer) : ']);
+                        day=input(['Enter day ',num2str(i),' number of day in the month (integer) : ']);
+                        obj.days(1,i)=datenum(year, month, day);
+                    end    
+                end    
                 obj.district = input(['Enter district : ']);
                 obj.processed_folder = input(['Enter the adress of the PeMS processed folder : '], 's');
                 obj.load;
@@ -54,8 +70,13 @@ classdef PeMSData < handle
                         with_flow=1;
                     end    
                     if (nargin<5)
+                        if obj.algorithm_box.current_day>size(obj.days,2)
+                            firstday=1;
+                            lastday=1;
+                        else    
                         firstday=obj.algorithm_box.current_day;
                         lastday=obj.algorithm_box.current_day;
+                        end
                         is_average=0;
                     end
                     mask=obj.algorithm_box.send_mask_pems_to_linear_mainline_space(obj.algorithm_box.good_mainline_mask_pems);
@@ -167,6 +188,9 @@ classdef PeMSData < handle
                 obj.data.flw(:,~any(obj.data.flw,1))=nan;
                 obj.data.dty(:,~any(obj.data.dty,1))=nan;
                 obj.data.spd(:,~any(obj.data.spd,1))=nan;
+                obj.data.flw(:,:,end+1)=mean(obj.data.flw(:,:,:),3);
+                obj.data.dty(:,:,end+1)=mean(obj.data.dty(:,:,:),3);
+                obj.data.spd(:,:,end+1)=mean(obj.data.spd(:,:,:),3);
                 obj.data.flw_in_veh=obj.data.flw/12;
                 unique_linear_link_ids=obj.algorithm_box.linear_link_ids(ismember(obj.algorithm_box.linear_link_ids,obj.link_ids));
                 obj.linear_link_ids=[];
@@ -176,6 +200,7 @@ classdef PeMSData < handle
                         obj.linear_link_ids(1,end+1)=ids(j);
                     end    
                 end    
+                obj.vds2id2link=[obj.vds2id,reshape(obj.link_ids,[],1)];
                 obj.is_loaded=1;
                 disp('PeMS DATA LOADED.');
             else

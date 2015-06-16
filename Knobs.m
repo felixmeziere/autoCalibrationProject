@@ -1,6 +1,6 @@
 classdef Knobs < handle
     
-    properties (SetAccess = ?AlgorithmBox)
+    properties %(SetAccess = ?AlgorithmBox)
         
         is_loaded=0;
         algorithm_box@AlgorithmBox;
@@ -129,7 +129,7 @@ classdef Knobs < handle
             if (nargin<3)
                 is_assistant=0;
             end    
-            for i=1:size(obj.link_ids)    
+            for i=1:size(obj.link_ids,1)    
                 maxTemplateValue=max(obj.algorithm_box.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.link_ids(i)).demand);       
                 lanes=obj.algorithm_box.beats_simulation.scenario_ptr.get_link_byID(obj.link_ids(i)).ATTRIBUTE.lanes;
                 FDcapacity=obj.algorithm_box.beats_simulation.scenario_ptr.get_fds_with_linkIDs(obj.link_ids(i)).capacity*lanes;
@@ -147,6 +147,9 @@ classdef Knobs < handle
                 disp('Naive knob boundaries set automatically :');
 
             end
+            if (size(obj.algorithm_box.error_function,1)~=0)
+                obj.algorithm_box.error_function.calculate_pc_from_pems;
+            end    
             for i=1:size(obj.link_ids)
                 disp(['Knob ', num2str(obj.demand_ids(i,1)), ' | ', num2str(obj.link_ids(i,1)), ' minimum : ',num2str(obj.boundaries_min(i,1))]);
                 disp(['Knob ', num2str(obj.demand_ids(i,1)), ' | ', num2str(obj.link_ids(i,1)), ' maximum : ',num2str(obj.boundaries_max(i,1))]);
@@ -252,10 +255,10 @@ classdef Knobs < handle
         %functions to refine the auto boundaries to realistic ones, taking 
         %local monitored flows for each knob into account..................
         
-        function [] = set_knob_groups(obj) %assumes a mainline link is monitored before the first unknown knob
+        function [] = set_knob_groups(obj) 
             knob_sensor_map=zeros(size(obj.algorithm_box.linear_link_ids));
-            knob_sensor_map(ismember(obj.algorithm_box.linear_link_ids,obj.algorithm_box.link_ids_beats(obj.algorithm_box.good_mainline_mask_beats)))=1;
             knob_sensor_map(ismember(obj.algorithm_box.linear_link_ids,obj.algorithm_box.link_ids_beats(logical(obj.algorithm_box.good_source_mask_beats+obj.algorithm_box.good_sink_mask_beats))))=0.5;
+            knob_sensor_map(ismember(obj.algorithm_box.linear_link_ids,obj.algorithm_box.link_ids_beats(obj.algorithm_box.good_mainline_mask_beats)))=1;
             knob_sensor_map(ismember(obj.algorithm_box.linear_link_ids,obj.link_ids))=-1;
             obj.knob_sensor_map=knob_sensor_map;
             last_monitored_is_mainline=1;
@@ -316,12 +319,12 @@ classdef Knobs < handle
             local_monitored_sinks(1,end+1)=monitored_sink_mainline_link_id;
             local_flow_difference=0;
             for i=1:size(local_monitored_sources,2)
-                column_mask_in_pems_data=ismember(obj.algorithm_box.pems.link_ids,local_monitored_sources(1,i));
-                local_flow_difference=local_flow_difference+sum(obj.algorithm_box.pems.data.flw_in_veh(:,column_mask_in_pems_data),obj.algorithm_box.current_day);
+                column_mask_in_pems_data=logical(ismember(obj.algorithm_box.pems.link_ids,local_monitored_sources(1,i)).*obj.algorithm_box.good_sensor_mask_pems);
+                local_flow_difference=local_flow_difference+sum(obj.algorithm_box.pems.data.flw_in_veh(:,column_mask_in_pems_data,obj.algorithm_box.current_day),1);
             end
             for i=1:size(local_monitored_sinks,2)
-                column_mask_in_pems_data=ismember(obj.algorithm_box.pems.link_ids,local_monitored_sinks(1,i));
-                local_flow_difference=local_flow_difference-sum(obj.algorithm_box.pems.data.flw_in_veh(:,column_mask_in_pems_data),obj.algorithm_box.current_day);
+                column_mask_in_pems_data=logical(ismember(obj.algorithm_box.pems.link_ids,local_monitored_sinks(1,i)).*obj.algorithm_box.good_sensor_mask_pems);
+                local_flow_difference=local_flow_difference-sum(obj.algorithm_box.pems.data.flw_in_veh(:,column_mask_in_pems_data,obj.algorithm_box.current_day),1);
             end   
        end  
                         
@@ -375,14 +378,15 @@ classdef Knobs < handle
         
         function [knobs_on_correct_subspace]= project_involved_knob_groups_on_correct_flow_subspace(obj, knobs_vector)
             knobs_on_correct_subspace=knobs_vector;
-            for i=1:size(obj.knob_groups_to_project)
+            for i=1:size(obj.knob_groups_to_project,2)
                 knob_group=cell2mat(obj.knob_groups{1,obj.knob_groups_to_project(i)});
                 subvector=knobs_vector(obj.knob_group_indices{1,i},1);
                 constraint_equation_coeffs=obj.constraint_equations_coeffs{i};
                 flowdiff=obj.knob_group_flow_differences(1,obj.knob_groups_to_project(i));
                 otc=obj.overevaluation_tolerance_coefficient;
                 utc=obj.underevaluation_tolerance_coefficient;
-                [subvector_on_correct_subspace,fval]=quadprog(eye(size(knob_group,1)),-reshape(subvector,1,[]),[constraint_equation_coeffs;-constraint_equation_coeffs],[otc*flowdiff;-utc*flowdiff],[],[],obj.naive_boundaries_min(obj.knob_group_indices{1,i},1),obj.naive_boundaries_max(obj.knob_group_indices{1,i},1)); % minimization program
+                si=sign(flowdiff);
+                [subvector_on_correct_subspace,fval]=quadprog(eye(size(knob_group,1)),-reshape(subvector,1,[]),[si*constraint_equation_coeffs;-si*constraint_equation_coeffs],[si*otc*flowdiff;-si*utc*flowdiff],[],[],obj.naive_boundaries_min(obj.knob_group_indices{1,i},1),obj.naive_boundaries_max(obj.knob_group_indices{1,i},1)); % minimization program
                 knobs_on_correct_subspace(obj.knob_group_indices{1,i},1)=subvector_on_correct_subspace;
             end    
         end

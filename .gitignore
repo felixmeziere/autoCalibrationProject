@@ -46,4 +46,8 @@ testAlgo.m
 *.mat
 *.fig
 8147236864.xml
+*.ppt
+*.pptx
+*pems_data/*
+*pems_test/*
 

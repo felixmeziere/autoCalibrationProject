@@ -26,7 +26,7 @@ classdef KnobsDistance < PerformanceCalculator
                 result=mean(knobs.current_value,2);
                 good_indices_mask=ones(size(result,1),1);
                 knob_groups_to_project_error=0;
-                for i=1:size(knobs.knob_groups_to_project)
+                for i=1:size(knobs.knob_groups_to_project,2)
                     indices=knobs.knob_group_indices{i};
                     good_indices_mask(indices,1)=0;
                     number_knobs=size(indices,1);
