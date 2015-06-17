@@ -226,6 +226,9 @@ classdef (Abstract) AlgorithmBox < handle
              obj.current_day=input(['Enter the position of the day to study among all the days entered (e.g. 3, last day +1 is average of all days) : ']);
              if size(obj.knobs,1)~=0
                  obj.knobs.set_auto_knob_boundaries;
+                 if obj.knobs.current_value~=ones(size(obj.knobs.link_ids,1),1)
+                     obj.set_masks_and_reference_values;
+                 end
              end
         end
         
@@ -370,7 +373,10 @@ classdef (Abstract) AlgorithmBox < handle
         function [] = run_program(obj, firstColumn, lastColumn)
             %run the program set in the program Excel file and print the
             %results in the results Excel file.
-            obj.current_xls_program_column=firstColumn;
+            if obj.current_xls_program_column~=firstColumn
+                obj.current_xls_program_column=firstColumn;
+                obj.is_loaded=0;
+            end
             while (obj.current_xls_program_column<=lastColumn)
                 disp(strcat(['PROGRAM SETTINGS COLUMN ', num2str(obj.current_xls_program_column)]));
                 if (obj.is_loaded~=1)
@@ -567,6 +573,7 @@ classdef (Abstract) AlgorithmBox < handle
                 load([directory,'result_genmean_history.mat']);
             end
             max_error=max(result_history);
+            min_error=min(result_history);
             if (nargin<5)
                 tosave=0;
             end    
@@ -575,7 +582,7 @@ classdef (Abstract) AlgorithmBox < handle
             else    
                 D = dir([pwd,'\movies\',dated_name,'\frames\*.mat']);
                 Num = length(D(not([D.isdir])));
-                stop_frame=Num;
+                stop_frame=min([Num,size(result_history,1),size(zeroten_knobs_history,1)]);
             end
             close all
             if (nargin<3)
@@ -584,7 +591,7 @@ classdef (Abstract) AlgorithmBox < handle
             else
                 h=figure(figureNumber);
             end    
-            movie(Num) = struct('cdata',[],'colormap',[]);
+            movie(stop_frame) = struct('cdata',[],'colormap',[]);
             p=[100,50,1300,700];
             set(h, 'Position', p);
             i=1;
@@ -618,8 +625,8 @@ classdef (Abstract) AlgorithmBox < handle
                             hold off
                             subplot(20,2,[4,6,8,10,12]);
                             obj.error_function.plot_result_history(figureNumber,result_history, i);
-                            axis([0,Num,0,max_error]);
-                            line([i i],[0,max_error],'Color',[1 0 0]);
+                            axis([0,stop_frame,min_error,max_error]);
+                            line([i i],[min_error,max_error],'Color',[1 0 0]);
                             hold on
                             plot(i,result_history(i),'r.','MarkerSize',20)
                             hold off
@@ -768,7 +775,17 @@ classdef (Abstract) AlgorithmBox < handle
             else error('Beats scenario xml file adress and beats parameters must be set before loading beats.');   
             end    
         end    %loads beats simulation and computes first TVM reference value.
-                
+        
+        function [type] = get_type(obj,link_id)
+            if (ismember(link_id,obj.link_ids_beats(obj.source_mask_beats)))
+                type='On-Ramp';
+            elseif ismember(link_id,obj.link_ids_beats(obj.sink_mask_beats))
+                type='Off-Ramp';
+            else 
+                type='Freeway';
+            end    
+        end   
+        
         function [] = set_masks_and_reference_values(obj)
             %sets the masks for further link selection.
             if (obj.beats_loaded && obj.pems.is_loaded)
@@ -831,6 +848,7 @@ classdef (Abstract) AlgorithmBox < handle
         function [] = reset_for_new_run(obj)
             obj.error_function.reset_for_new_run;
             obj.knobs.knobs_history=[];
+            obj.knobs.knobs_genmean_history=[];
             obj.knobs.zeroten_knobs_history=[];
             obj.knobs.zeroten_knobs_genmean_history=[];
             obj.dated_name=Utilities.give_dated_name([obj.algorithm_name,'_reports\']);
@@ -847,9 +865,11 @@ classdef (Abstract) AlgorithmBox < handle
                     last=i-mod(i,nknobs);
                     if (last<=obj.numberOfEvaluations-nknobs)
                         obj.knobs.zeroten_knobs_genmean_history(end+1,1:nknobs)=mean(obj.knobs.zeroten_knobs_history(last+1:last+nknobs,1:nknobs),1);
+                        obj.knobs.knobs_genmean_history(end+1,1:nknobs)=mean(obj.knobs.knobs_history(last+1:last+nknobs,1:nknobs),1);
                         obj.error_function.result_genmean_history(end+1,1)=mean(obj.error_function.result_history(last+1:last+nknobs,1),1);
                     else
                         obj.knobs.zeroten_knobs_genmean_history(end+1,1:nknobs)=mean(obj.knobs.zeroten_knobs_history(last+1-nknobs:last,1:nknobs),1);
+                        obj.knobs.knobs_genmean_history(end+1,1:nknobs)=mean(obj.knobs.knobs_history(last+1-nknobs:last,1:nknobs),1);
                         obj.error_function.result_genmean_history(end+1,1)=mean(obj.error_function.result_history(last+1-nknobs:last,1),1);
                     end    
                 end     
@@ -1109,16 +1129,6 @@ classdef (Abstract) AlgorithmBox < handle
            absciss=find(obj.error_function.performance_calculators{1}.send_mask_beats_to_linear_mainline_space(obj.link_ids_beats==link_id));
         end    
        
-        function [type] = get_type(obj,link_id)
-            if (ismember(link_id,obj.link_ids_beats(obj.source_mask_beats)))
-                type='On-Ramp';
-            elseif ismember(link_id,obj.link_ids_beats(obj.sink_mask_beats))
-                type='Off-Ramp';
-            else 
-                type='Freeway';
-            end    
-        end   
-       
     end
     
     methods (Hidden, Access = public)
@@ -1155,9 +1165,7 @@ classdef (Abstract) AlgorithmBox < handle
             catch
             end    
         end    
-        
-        
-        
+           
     end    
      
 end    

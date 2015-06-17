@@ -22,7 +22,8 @@ classdef Knobs < handle
         %values............................................................
         current_value=[];
         knobs_history % consecutive values of the knobs during last run
-        zeroten_knobs_history %same as before with the same 0-10 scale for all knobs
+        knobs_genmean_history
+        zeroten_knobs_history %same as before with a unique 0-10 scale for all knobs
         zeroten_knobs_genmean_history
         perfect_values
          
@@ -220,6 +221,62 @@ classdef Knobs < handle
             end                 
         end 
         
+        function [h] = plot_knobs_history(obj,figureNumber, knobs_history, evaluation_number)
+            n=nargin;
+            if (n<2)
+                h=figure;
+            else
+                h=figure(figureNumber);
+            end  
+            if (n==4)
+                knobs_history=knobs_history(1:evaluation_number,:);
+            else
+                if (n~=3) 
+                    knobs_history=obj.knobs_history;
+%                     p=[700,400,800,470];
+%                     set(h, 'Position', p);
+                    for i=1:size(obj.link_ids,1)
+                        leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
+                    end 
+                end
+            end
+            plot(knobs_history);
+            title('Knobs evolution, ordered linearly');
+            xlabel('Number of BEATS evaluations');
+            ylabel('Knobs 0-10 values');
+            if (n<3)
+                legend(leg);
+            end                 
+        end 
+        
+        function [] = plot_knobs_genmean_history(obj,figureNumber, knobs_genmean_history, evaluation_number)
+            n=nargin;
+            if (n<2)
+                h=figure;
+            else
+                h=figure(figureNumber);
+            end  
+            if (n==4)
+                knobs_genmean_history=knobs_genmean_history(1:evaluation_number,:);
+            else
+                if (n~=3) 
+                    knobs_genmean_history=obj.knobs_genmean_history;
+%                     p=[700,400,800,470];
+%                     set(h, 'Position', p);
+                    for i=1:size(obj.link_ids,1)
+                        leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
+                    end 
+                end
+            end
+            plot(knobs_genmean_history);
+            title('Knobs generation mean evolution, ordered linearly');
+            xlabel('Number of BEATS evaluations');
+            ylabel('Knobs values');
+            if (n<3)
+                legend(leg);
+            end                 
+        end 
+        
         function [] = plot_knob_history(obj,knob_link_id,figureNumber)
             if (nargin<3)
                 h=figure;
@@ -240,7 +297,7 @@ classdef Knobs < handle
     %  Privates                                                           %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
-    methods %(Access = ?AlgorithmBox) supposed to be private but public for debug reasons
+    methods (Access = ?AlgorithmBox) %supposed to be private but public for debug reasons
         
         %utilities.........................................................
         function []=set_demand_ids(obj) % set demand profile ids in obj.demand_ids corresponding to obj.link_ids.

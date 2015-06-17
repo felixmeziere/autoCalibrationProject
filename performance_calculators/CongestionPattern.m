@@ -46,35 +46,30 @@ classdef CongestionPattern < PerformanceCalculator
                             change_rectangles=input(['Do you want to change the rectangles (instead of leaving them as they were until now) (1=yes/0=no) ? : ']);
                         end
                     end    
-                    if change_rectangles==1
-                        obj.algorithm_box.remove_field_from_property('temp','congestion_patterns');
-                        obj.algorithm_box.temp.congestion_patterns=obj.rectangles;
-                    end
-                else
-                    obj.algorithm_box.temp.congestion_patterns=obj.rectangles;
                 end
                 if change_rectangles==1
                     nrectangles=input(['How many rectangles will this "CongestionPattern" have ? : ']);
-                    congestion_patterns=cell(nrectangles,1);
+                    obj.rectangles=cell(nrectangles,1);
                     for i=1:nrectangles
-                        congestion_patterns{i,1}.left_absciss=input(['Left absciss of rectangle number ', num2str(i),' (absciss of linear mainline id) : ']);
-                        congestion_patterns{i,1}.right_absciss=input(['Right absciss of rectangle number ' , num2str(i), '(absciss of linear mainline id) : ']);
-                        congestion_patterns{i,1}.up_ordinate=input(['Up (earliest) ordinate of rectangle number ' , num2str(i), '(beginning time) : ']);
-                        congestion_patterns{i,1}.down_ordinate=input(['Down (latest) absciss of rectangle number ' , num2str(i), '(end time) : '] );
+                        obj.rectangles{i,1}.left_absciss=input(['Left absciss of rectangle number ', num2str(i),' (absciss of linear mainline id) : ']);
+                        obj.rectangles{i,1}.right_absciss=input(['Right absciss of rectangle number ' , num2str(i), '(absciss of linear mainline id) : ']);
+                        obj.rectangles{i,1}.up_ordinate=input(['Up (earliest) ordinate of rectangle number ' , num2str(i), '(beginning time) : ']);
+                        obj.rectangles{i,1}.down_ordinate=input(['Down (latest) absciss of rectangle number ' , num2str(i), '(end time) : '] );
                     end
+                    obj.algorithm_box.remove_field_from_property('temp','congestion_patterns');
+                    obj.algorithm_box.temp.congestion_patterns=obj.rectangles;
                 else
-                    congestion_patterns=obj.algorithm_box.temp.congestion_patterns;
+                    obj.rectangles=obj.algorithm_box.temp.congestion_patterns;
                 end
                 
-                if isfield(congestion_patterns{1,1},'left_absciss') && isfield(congestion_patterns{1,1},'right_absciss') && isfield(congestion_patterns{1,1},'up_ordinate') && isfield(congestion_patterns{1,1},'down_ordinate')
-                    obj.rectangles=congestion_patterns;
+                if isfield(obj.rectangles{1,1},'left_absciss') && isfield(obj.rectangles{1,1},'right_absciss') && isfield(obj.rectangles{1,1},'up_ordinate') && isfield(obj.rectangles{1,1},'down_ordinate')
                     obj.vertical_size=size(obj.algorithm_box.beats_simulation.outflow_veh{1,1},1);
                     obj.horizontal_size=sum(obj.algorithm_box.mainline_mask_beats);
                     obj.linear_mainline_links=obj.algorithm_box.linear_link_ids(obj.algorithm_box.send_mask_beats_to_linear_space(obj.algorithm_box.mainline_mask_beats));
                     linear_fwy_indices=obj.algorithm_box.beats_simulation.scenario_ptr.extract_linear_fwy_indices;
                     obj.linear_mainline_indices=linear_fwy_indices(obj.algorithm_box.send_mask_beats_to_linear_space(obj.algorithm_box.mainline_mask_beats));
                     obj.set_critical_densities;
-                    else error('Argument congestion_patterns not in the right format. Please see code comments.');     
+                    else error('Congestion pattern rectangles not in the right format. Please see code comments.');     
                 end
                 obj.calculate_from_pems;
                 obj.first_load=0;

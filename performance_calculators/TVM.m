@@ -7,8 +7,7 @@ classdef TVM < PerformanceCalculator
         name='TVM';
         
     end
-    
-    
+
     methods (Access = public)
        
         function [obj] = TVM(algoBox)
@@ -34,14 +33,26 @@ classdef TVM < PerformanceCalculator
             all_lengths=obj.algorithm_box.beats_simulation.scenario_ptr.get_link_lengths('us');
             link_ids=unique(obj.algorithm_box.pems.link_ids,'stable');
             count=1;
+            selected_ids_mask=zeros(1,93);
             for k=1:size(link_ids,2)
                 link_mask=ismember(obj.algorithm_box.link_ids_beats,link_ids(1,k));
                 if any(link_mask.*obj.algorithm_box.good_mainline_mask_beats)
+                                                                                                            flag=1;
+                                                                                                            i=1;
+                                                                                                            while flag
+                                                                                                                if obj.algorithm_box.pems.link_ids(1,i)==link_ids(1,k)
+                                                                                                                    selected_ids_mask(1,i)=1;
+                                                                                                                    flag=0;
+                                                                                                                else
+                                                                                                                    i=i+1;
+                                                                                                                end    
+                                                                                                            end    
                     good_lengths(1,count)=all_lengths(link_mask);
                     count=count+1;
                 end
             end
-            result=sum(sum(obj.algorithm_box.pems.data.flw_in_veh(:,obj.algorithm_box.good_mainline_mask_pems,obj.algorithm_box.current_day).*repmat(good_lengths,size(obj.algorithm_box.pems.data.flw,1),1),2)); %sum over time and links
+                                                                                                           selected_ids_mask=logical(selected_ids_mask);
+            result=sum(sum(obj.algorithm_box.pems.data.flw_in_veh(:,obj.algorithm_box.good_mainline_mask_pems,obj.algorithm_box.current_day),1).*good_lengths,2); %sum over time and links
             obj.result_from_pems=result;
         end    
         
@@ -58,6 +69,7 @@ classdef TVM < PerformanceCalculator
 %             ylabel('TVM error in percentage');
 %             xlabel('Number of BEATS evaluations');            
         end    
+        
     end
 end
 
