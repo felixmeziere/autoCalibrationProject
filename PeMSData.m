@@ -193,13 +193,14 @@ classdef PeMSData < handle
                 obj.data.spd(:,:,end+1)=mean(obj.data.spd(:,:,:),3);
                 obj.data.flw_in_veh=obj.data.flw/12;
                 unique_linear_link_ids=obj.algorithm_box.linear_link_ids(ismember(obj.algorithm_box.linear_link_ids,obj.link_ids));
-                obj.linear_link_ids=[];
-                for i=1:size(unique_linear_link_ids,2)
-                    ids=obj.link_ids(1,ismember(obj.link_ids,unique_linear_link_ids(1,i)));
-                    for j=1:size(ids,2)
-                        obj.linear_link_ids(1,end+1)=ids(j);
-                    end    
-                end    
+                obj.linear_link_ids=unique_linear_link_ids;
+%                 obj.linear_link_ids=[];
+%                 for i=1:size(unique_linear_link_ids,2)
+%                     ids=obj.link_ids(1,ismember(obj.link_ids,unique_linear_link_ids(1,i)));
+%                     for j=1:size(ids,2)
+%                         obj.linear_link_ids(1,end+1)=ids(1);
+%                     end    
+%                 end    
                 obj.vds2id2link=[obj.vds2id,reshape(obj.link_ids,[],1)];
                 obj.is_loaded=1;
                 disp('PeMS DATA LOADED.');

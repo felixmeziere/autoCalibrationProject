@@ -98,6 +98,7 @@ classdef (Abstract) AlgorithmBox < handle
         masks_loaded=0; % flag to indicate if the masks and TVM reference values have been correctly loaded.
         is_loaded=0; %flag to indicate if the algorithm is ready to run.
         dated_name %name that will have the reports for this run
+        currently_loading_from_xls=0;
         
         %masks pointing at the links with working sensors used on beats 
         %output or on pems data............................................
@@ -119,7 +120,7 @@ classdef (Abstract) AlgorithmBox < handle
         %properties with infos on the scenario.............................
         multiple_sensor_index2vds2id2link % vds2id2link of the sensors which are on links with at least two sensors
         multiple_sensor_vds_to_use=0; % tuple containing the vds of the sensors to keep in the precedent situation. Order or grouping is not important. If multiple vds for one link in this property, it means that their flow and dty_veh value will be summed and their speeds will be averaged.
-        vds_sensors_to_delete=0; %tuple with sensors to delete. Useful to solve problems like HOV line biais.
+        vds_sensors_to_delete=0; %tuple with sensors to delete. Useful to solve partial data issues.
         sensor_link
         link_ids_beats % all the link ids of the scenario. For practical reasons.
         linear_link_ids      
@@ -157,29 +158,35 @@ classdef (Abstract) AlgorithmBox < handle
             %Empty cells in the current column will be ignored.
             %The program input (0 or 1) is to avoid reloading useless
             %stuff.
-            obj.pems=PeMSData(obj);
-            obj.knobs=Knobs(obj);
-            for i=1:size(obj.xls_program,1)
-                if ~strcmp(obj.xls_program(i,obj.current_xls_program_column),'')
-                    eval(strcat('obj.',char(obj.xls_program(i,1)),'=',char(obj.xls_program(i,obj.current_xls_program_column)),';'));
+            try
+                obj.currently_loading_from_xls=1;
+                obj.pems=PeMSData(obj);
+                obj.knobs=Knobs(obj);
+                for i=1:size(obj.xls_program,1)
+                    if ~strcmp(obj.xls_program(i,obj.current_xls_program_column),'')
+                        eval(strcat('obj.',char(obj.xls_program(i,1)),'=',char(obj.xls_program(i,obj.current_xls_program_column)),';'));
+                    end
                 end
-            end
-            obj.load_beats;
-            obj.pems.load;
-            obj.set_masks_and_reference_values;
-            obj.delete_choosen_sensors;
-            obj.solve_multiple_sensor_link_conflicts;
-            obj.knobs.set_demand_ids;
-            obj.knobs.current_value=ones(size(obj.knobs.link_ids,1));
-            obj.link_ids_beats=obj.beats_simulation.scenario_ptr.get_link_ids;      
-            if (obj.knobs.force_manual_knob_boundaries==0)
-                obj.knobs.set_auto_knob_boundaries(obj.knobs.isnaive_boundaries);
-            end   
-            obj.knobs.is_loaded=1;
-            obj.set_starting_point(obj.initialization_method);
-            obj.error_function=ErrorFunction(obj,obj.temp.erfStruct);
-            obj.is_loaded=1;
-            disp('ALL SETTINGS LOADED, ALGORITHM READY TO RUN');    
+                obj.load_beats;
+                obj.pems.load;
+                obj.set_masks_and_reference_values;
+                obj.delete_choosen_sensors;
+                obj.solve_multiple_sensor_link_conflicts;
+                obj.knobs.set_demand_ids;
+                obj.knobs.current_value=ones(size(obj.knobs.link_ids,1));
+                obj.link_ids_beats=obj.beats_simulation.scenario_ptr.get_link_ids;      
+                if (obj.knobs.force_manual_knob_boundaries==0)
+                    obj.knobs.set_auto_knob_boundaries(obj.knobs.isnaive_boundaries);
+                end   
+                obj.knobs.is_loaded=1;
+                obj.set_starting_point(obj.initialization_method);
+                obj.error_function=ErrorFunction(obj,obj.temp.erfStruct);
+                obj.is_loaded=1;
+                obj.currently_loading_from_xls=0;
+                disp('ALL SETTINGS LOADED, ALGORITHM READY TO RUN');    
+            catch
+                obj.currently_loading_from_xls=0;
+            end    
         end
 
         %load for single run from initial loading assistant and its 
@@ -247,7 +254,7 @@ classdef (Abstract) AlgorithmBox < handle
         end  
         
         function [] = ask_for_vds_sensors_to_delete(obj)
-            ndelete=input(['How many sensors would you like to delete (Useful to solve issues like HOV line biais) : ']);
+            ndelete=input(['How many sensors would you like to delete (Useful to solve incomplete data issues) : ']);
             obj.vds_sensors_to_delete=[];
             for i=1:ndelete
                 obj.vds_sensors_to_delete(i)=input(['VDS of sensor number ',num2str(i),' : ']);
@@ -334,8 +341,8 @@ classdef (Abstract) AlgorithmBox < handle
                 end
                 if ~obj.knobs.isnaive_boundaries
                     knob_values=obj.knobs.project_involved_knob_groups_on_correct_flow_subspace(knob_values);
-                end    
-%                 knob_values=obj.project_on_correct_TVM_subspace(knob_values);
+                end
+                knob_values=obj.project_on_correct_TVM_subspace(knob_values);
                 zeroten_knob_values=obj.knobs.rescale_knobs(knob_values,1);
                 obj.knobs.knobs_history(end+1,:)=reshape(knob_values,1,[]);
                 obj.knobs.zeroten_knobs_history(end+1,:)=reshape(zeroten_knob_values,1,[]);
@@ -347,17 +354,18 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.beats_simulation.beats.reset();
                 obj.knobs.set_knobs_persistent(knob_values);
                 obj.beats_simulation.run_beats_persistent;
-                obj.error_function.calculate_pc_from_beats;
+                obj.error_function.calculate_pc_from_beats; 
                 [result,~] = obj.error_function.calculate_error;
                 disp(['Error function value : ', num2str(result)]);
                 disp('CONTRIBUTIONS : ')
                 for i=1:size(obj.error_function.performance_calculators,2)
                     disp([obj.error_function.performance_calculators{i}.name,' : ']);
-                    disp(['         contribution : ', num2str(obj.error_function.transformed_results(i))]);
+                    disp(['         contributions : ', num2str(obj.error_function.contributions(i))]);
                     disp(['         actual error value : ',num2str(obj.error_function.results(i))]);
                     disp(['         error in percentage : ', num2str(obj.error_function.performance_calculators{i}.error_in_percentage)]);
                 end                
                 obj.error_function.result_history(end+1,1)=result;
+                obj.error_function.contributions_history(end+1,1:size(obj.error_function.performance_calculators,2))=obj.error_function.contributions;
                 obj.numberOfEvaluations=obj.numberOfEvaluations+1;
                 obj.plot_zeroten_knobs_history(1);
                 obj.plot_result_history(2);
@@ -414,8 +422,10 @@ classdef (Abstract) AlgorithmBox < handle
         function [] = plot_result_history(obj, figureNumber)
             if (nargin<2)
                 obj.error_function.plot_result_history;
+                obj.error_function.plot_contributions_history;
             else
                 obj.error_function.plot_result_history(figureNumber);
+                obj.error_function.plot_contributions_history(figureNumber+1);
             end
         end    
         
@@ -462,24 +472,24 @@ classdef (Abstract) AlgorithmBox < handle
                 if with_monitored_onramps
                    ramps_array(logical(good_source_mask.*onramp_mask))=value;
                    value=value+1;
-                   cmap=[cmap;1,0,0];
+                   cmap=[cmap;0,0,0.4];
                    leg{1,end+1}='Monitored on-ramps';
                 end    
                 if with_monitored_offramps
                    ramps_array(logical(good_sink_mask.*offramp_mask))=value;
                    value=value+1;
-                   cmap=[cmap;1,0,1];
+                   cmap=[cmap;0,0.4,0.4];
                    leg{1,end+1}='Monitored off-ramps';
                 end    
                 if with_nonmonitored_onramps
                     ramps_array(logical(~good_source_mask.*onramp_mask))=value;
                     value=value+1;
-                    cmap=[cmap;0,0,1];
+                    cmap=[cmap;1,0,0];
                     leg{1,end+1}='Non-monitored on-ramps';
                 end
                 if with_nonmonitored_offramps
                     ramps_array(logical(~good_sink_mask.*offramp_mask))=value;
-                    cmap=[cmap;0,1,1];
+                    cmap=[cmap;1,0.25,1];
                     leg{1,end+1}='Non-monitored off-ramps';
                 end
                 array=[mainline_array;ramps_array];
@@ -501,25 +511,25 @@ classdef (Abstract) AlgorithmBox < handle
                 if with_monitored_onramps
                    array(logical(good_source_mask.*onramp_mask))=value;
                    value=value+1;
-                   cmap=[cmap;1,0,0];
+                   cmap=[cmap;0,0,0.4];
                    leg{1,end+1}='Monitored on-ramps';
                 end    
                 if with_monitored_offramps
                    array(logical(good_sink_mask.*offramp_mask))=value;
                    value=value+1;
-                   cmap=[cmap;1,0,1];
+                   cmap=[cmap;0,0.4,0.4];
                    leg{1,end+1}='Monitored off-ramps';
                 end    
                 if with_nonmonitored_onramps
                     array(logical(~good_source_mask.*onramp_mask))=value;
                     value=value+1;
-                    cmap=[cmap;0,0,1];
+                    cmap=[cmap;1,0,0];
                     leg{1,end+1}='Non-monitored on-ramps';
                 end
                 if with_nonmonitored_offramps
                     array(logical(~good_sink_mask.*offramp_mask))=value;
                     value=value+1;
-                    cmap=[cmap;0,1,1];
+                    cmap=[cmap;1,0.25,1];
                     leg{1,end+1}='Non-monitored off-ramps';                    
                 end    
             end      
@@ -582,8 +592,9 @@ classdef (Abstract) AlgorithmBox < handle
             else    
                 D = dir([pwd,'\movies\',dated_name,'\frames\*.mat']);
                 Num = length(D(not([D.isdir])));
-                stop_frame=min([Num,size(result_history,1),size(zeroten_knobs_history,1)]);
+                stop_frame=Num;
             end
+            stop_frame=min([stop_frame,Num,size(result_history,1),size(zeroten_knobs_history,1)]);
             close all
             if (nargin<3)
                 h=figure;
@@ -592,7 +603,7 @@ classdef (Abstract) AlgorithmBox < handle
                 h=figure(figureNumber);
             end    
             movie(stop_frame) = struct('cdata',[],'colormap',[]);
-            p=[100,50,1300,700];
+            p=[100,50,1025,576];
             set(h, 'Position', p);
             i=1;
             flag=1;
@@ -618,7 +629,7 @@ classdef (Abstract) AlgorithmBox < handle
                         if (mod(i,noncongestion_refresh)==0 || i==1)
                             subplot(20,2,[3,5,7,9,11]);
                             obj.knobs.plot_zeroten_knobs_history(figureNumber,zeroten_knobs_history,i);
-                            axis([0,Num,0,10]);
+                            axis([0,stop_frame,0,10]);
                             line([i i],[0,10],'Color',[1 0 0]);
                             hold on
                             plot(i,zeroten_knobs_history(i,:),'r.','MarkerSize',20)
@@ -822,7 +833,7 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.good_sink_mask_pems=logical(obj.good_sensor_mask_pems.*obj.sink_mask_pems);
                 obj.set_multiple_sensor_index2vds2id2link;
                 TVmiles=TVM(obj);
-                if (size(obj.knobs,1)~=0 && all(obj.knobs.current_value~=ones(size(obj.knobs.link_ids,1),1)))
+                if (size(obj.knobs,1)~=0 && all(mean(obj.knobs.current_value,2)~=ones(size(obj.knobs.link_ids,1),1)))
                     obj.reset_beats;
                 end    
                 obj.TVM_reference_values.beats=TVmiles.calculate_from_beats;
@@ -867,10 +878,12 @@ classdef (Abstract) AlgorithmBox < handle
                         obj.knobs.zeroten_knobs_genmean_history(end+1,1:nknobs)=mean(obj.knobs.zeroten_knobs_history(last+1:last+nknobs,1:nknobs),1);
                         obj.knobs.knobs_genmean_history(end+1,1:nknobs)=mean(obj.knobs.knobs_history(last+1:last+nknobs,1:nknobs),1);
                         obj.error_function.result_genmean_history(end+1,1)=mean(obj.error_function.result_history(last+1:last+nknobs,1),1);
+                        obj.error_function.contributions_genmean_history(end+1,1:size(obj.error_function.performance_calculators,2))=mean(obj.error_function.contributions_genmean_history(last+1:last+nknobs,1),1);
                     else
                         obj.knobs.zeroten_knobs_genmean_history(end+1,1:nknobs)=mean(obj.knobs.zeroten_knobs_history(last+1-nknobs:last,1:nknobs),1);
                         obj.knobs.knobs_genmean_history(end+1,1:nknobs)=mean(obj.knobs.knobs_history(last+1-nknobs:last,1:nknobs),1);
                         obj.error_function.result_genmean_history(end+1,1)=mean(obj.error_function.result_history(last+1-nknobs:last,1),1);
+                        obj.error_function.contributions_genmean_history(end+1,1:size(obj.error_function.performance_calculators,2))=mean(obj.error_function.contributions_genmean_history(last+1:-nknobs:last,1),1);
                     end    
                 end     
             end
@@ -1040,7 +1053,7 @@ classdef (Abstract) AlgorithmBox < handle
             %N tuple that will contain the coefficients of the equation of 
             %the hyperplan. We will call them alpha(i) : alpha(i)= (sum over time of the template values of the demand profile of knob(i))*(remaining mainline length from the corresponding link) 
             %The equation is [(knob1)*alpha(1)+(knob2)*alpha(2)+...+(knobN)*alpha(N)-sum(alpha(i))]+[TVM value given by beats output when all knobs are set to one]=pems TVM value
-            %(the substraction of sum of alphaIs removes the extra contribution of the links tuned in beats TVM)
+            %(the substraction of sum of alphaIs removes the extra contributions of the links tuned in beats TVM)
             sze=size(obj.knobs.link_ids,1);
             for i=1:sze %fill the tuple
                 if (ismember(obj.knobs.link_ids(i),obj.link_ids_beats(obj.source_mask_beats)))

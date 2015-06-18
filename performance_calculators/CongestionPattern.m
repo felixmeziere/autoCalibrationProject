@@ -1,7 +1,15 @@
 classdef CongestionPattern < PerformanceCalculator
-    %Congestion Summary of this class goes here
-    %   Detailed explanation goes here
-
+    
+    % Required for loading from xls :
+    %    -> temp.rectangles | cell(n,1)       
+    %    For i from 1 to n :    
+    %       -> temp.congestion_pattern.rectangles{i,1}.left_absciss | [integer]
+    %       -> temp.congestion_pattern.rectangles{i,1}.right_absciss | [integer]
+    %       -> temp.congestion_pattern.rectangles{i,1}.up_ordinate | [integer]
+    %       -> temp.congestion_pattern.rectangles{i,1}.down_ordinate | [integer]
+    %       -> temp.congestion_pattern.false_positive_coefficient | [fraction of 1]
+    %       -> temp.congestion_pattern.false_negative_coefficient | [fraction of 1]
+    
     properties (Constant)
         
         name='Congestion pattern';
@@ -16,6 +24,8 @@ classdef CongestionPattern < PerformanceCalculator
         linear_mainline_links
         critical_densities
         linear_mainline_indices
+        false_positive_coefficient=-1;
+        false_negative_coefficient=-1;
         
     end    
     
@@ -39,37 +49,20 @@ classdef CongestionPattern < PerformanceCalculator
                 %OUTPUT_DT set to 5 minutes).
                 %RECTANGLES HAVE TO BE DISJOINED
                 obj.algorithm_box=algoBox;
-                if isfield(obj.algorithm_box.temp,'congestion_patterns')
-                    change_rectangles=-1;
-                    if (obj.first_load~=1)
-                        while (change_rectangles~=1 && change_rectangles ~= 0)
-                            change_rectangles=input(['Do you want to change the rectangles (instead of leaving them as they were until now) (1=yes/0=no) ? : ']);
-                        end
-                    end    
+                if obj.algorithm_box.currently_loading_from_xls==0
+                    obj.run_assistant;
                 end
-                if change_rectangles==1
-                    nrectangles=input(['How many rectangles will this "CongestionPattern" have ? : ']);
-                    obj.rectangles=cell(nrectangles,1);
-                    for i=1:nrectangles
-                        obj.rectangles{i,1}.left_absciss=input(['Left absciss of rectangle number ', num2str(i),' (absciss of linear mainline id) : ']);
-                        obj.rectangles{i,1}.right_absciss=input(['Right absciss of rectangle number ' , num2str(i), '(absciss of linear mainline id) : ']);
-                        obj.rectangles{i,1}.up_ordinate=input(['Up (earliest) ordinate of rectangle number ' , num2str(i), '(beginning time) : ']);
-                        obj.rectangles{i,1}.down_ordinate=input(['Down (latest) absciss of rectangle number ' , num2str(i), '(end time) : '] );
-                    end
-                    obj.algorithm_box.remove_field_from_property('temp','congestion_patterns');
-                    obj.algorithm_box.temp.congestion_patterns=obj.rectangles;
-                else
-                    obj.rectangles=obj.algorithm_box.temp.congestion_patterns;
-                end
-                
-                if isfield(obj.rectangles{1,1},'left_absciss') && isfield(obj.rectangles{1,1},'right_absciss') && isfield(obj.rectangles{1,1},'up_ordinate') && isfield(obj.rectangles{1,1},'down_ordinate')
+                if (isfield(obj.rectangles{1,1},'left_absciss') && isfield(obj.rectangles{1,1},'right_absciss')...
+                && isfield(obj.rectangles{1,1},'up_ordinate') && isfield(obj.rectangles{1,1},'down_ordinate')...
+                && obj.false_positive_coefficient+obj.false_negative_coefficient==1 && 0<obj.false_negative_coefficient<1 ...
+                && 0<obj.false_positive_coefficient<1)
                     obj.vertical_size=size(obj.algorithm_box.beats_simulation.outflow_veh{1,1},1);
                     obj.horizontal_size=sum(obj.algorithm_box.mainline_mask_beats);
                     obj.linear_mainline_links=obj.algorithm_box.linear_link_ids(obj.algorithm_box.send_mask_beats_to_linear_space(obj.algorithm_box.mainline_mask_beats));
                     linear_fwy_indices=obj.algorithm_box.beats_simulation.scenario_ptr.extract_linear_fwy_indices;
                     obj.linear_mainline_indices=linear_fwy_indices(obj.algorithm_box.send_mask_beats_to_linear_space(obj.algorithm_box.mainline_mask_beats));
                     obj.set_critical_densities;
-                    else error('Congestion pattern rectangles not in the right format. Please see code comments.');     
+                else error('Congestion pattern construction inputs not all present or not in the right format. Please see code comments.');     
                 end
                 obj.calculate_from_pems;
                 obj.first_load=0;
@@ -82,9 +75,6 @@ classdef CongestionPattern < PerformanceCalculator
             densities=obj.algorithm_box.beats_simulation.density_veh{1,1}(2:end,obj.linear_mainline_indices);
             result(densities>obj.critical_densities+6)=1; 
             obj.result_from_beats=result;
-            obj.error_in_percentage=100*sum(sum(abs(obj.result_from_beats-obj.result_from_pems)))/sum(sum(obj.result_from_pems));
-            obj.error_in_percentage_history=[obj.error_in_percentage_history;obj.error_in_percentage];
-
         end
         
         function [result] = calculate_from_pems(obj)
@@ -102,7 +92,25 @@ classdef CongestionPattern < PerformanceCalculator
                 obj.error_in_percentage=100*sum(sum((abs(obj.result_from_beats-obj.result_from_pems))))/sum(sum(obj.result_from_pems));
             end    
         end    
-
+        
+        function [result,result_in_percentage] = calculate_error(obj)
+            contour=obj.result_from_pems-obj.result_from_beats;
+            for i=1:size(contour,2)
+                for j=1:size(contour,1)
+                    if contour(j,i)==1
+                        contour(j,i)=obj.false_negative_coefficient;
+                    elseif contour(j,i)==-1
+                        contour(j,i)=obj.false_positive_coefficient;
+                    end    
+                end
+            end
+            result=obj.norm.calculate(contour,0);
+            error_in_percentage=100*result/obj.norm.calculate(obj.result_from_pems,0);
+            obj.result = result;
+            obj.error_in_percentage=error_in_percentage;
+            obj.error_in_percentage_history=[obj.error_in_percentage_history;error_in_percentage];         
+        end    
+        
         function [h] = plot(obj,figureNumber,frameNumber,frame)
             if (nargin<2)
                 h=figure;
@@ -153,9 +161,42 @@ classdef CongestionPattern < PerformanceCalculator
                 critical_densities=repmat(critical_densities,obj.vertical_size,1);
                 critical_densities=critical_densities.*link_lengths_meters.*number_lanes;
                 obj.critical_densities=critical_densities;   
-          end            
-
+        end   
         
+        function [] = run_assistant(obj)
+                norm=input(['Enter the name of a Norm subclass (like L1) : ']);
+                obj.false_negative_coefficient=input(['Enter the false negative coefficient for CongestionPattern (zero to one): ']);
+                obj.false_positive_coefficient=input(['Enter the false positive coefficient for CongestionPattern (one-precedent): ']);
+                if (obj.false_negative_coefficient+obj.false_positive_coefficient~=1)
+                   error('The sum of the false positive and false negative coefficients must be one.')
+                end
+                obj.norm=norm;
+                obj.false_positive_coefficient=obj.false_positive_coefficient;
+                obj.false_negative_coefficient=obj.false_negative_coefficient;
+                if isfield(obj.algorithm_box.temp,'congestion_patterns')
+                    change_rectangles=-1;
+                    if (obj.first_load~=1)
+                        while (change_rectangles~=1 && change_rectangles ~= 0)
+                            change_rectangles=input(['Do you want to change the rectangles (instead of leaving them as they were until now) (1=yes/0=no) ? : ']);
+                        end
+                    end    
+                end
+                if change_rectangles==1
+                    nrectangles=input(['How many rectangles will this "CongestionPattern" have ? : ']);
+                    obj.rectangles=cell(nrectangles,1);
+                    for i=1:nrectangles
+                        obj.rectangles{i,1}.left_absciss=input(['Left absciss of rectangle number ', num2str(i),' (absciss of linear mainline id) : ']);
+                        obj.rectangles{i,1}.right_absciss=input(['Right absciss of rectangle number ' , num2str(i), '(absciss of linear mainline id) : ']);
+                        obj.rectangles{i,1}.up_ordinate=input(['Up (earliest) ordinate of rectangle number ' , num2str(i), '(beginning time) : ']);
+                        obj.rectangles{i,1}.down_ordinate=input(['Down (latest) absciss of rectangle number ' , num2str(i), '(end time) : '] );
+                    end
+                    obj.algorithm_box.remove_field_from_property('temp','congestion_patterns');
+                    obj.algorithm_box.temp.congestion_patterns=obj.rectangles;
+                else
+                    obj.rectangles=obj.algorithm_box.temp.congestion_patterns;
+                end
+        end    
+   
     end    
 end
 

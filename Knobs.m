@@ -390,6 +390,10 @@ classdef Knobs < handle
                 obj.underevaluation_tolerance_coefficient=input(['Enter the underevaluation tolerance coefficient for the flow going through the knob links : ']);
                 obj.overevaluation_tolerance_coefficient=input(['Enter the overevaluation tolerance coefficient for the flow going through the knob links : ']);
             end    
+            if  obj.underevaluation_tolerance_coefficient==obj.overevaluation_tolerance_coefficient
+                obj.underevaluation_tolerance_coefficient=obj.underevaluation_tolerance_coefficient*0.99999;
+                obj.overevaluation_tolerance_coefficient=obj.overevaluation_tolerance_coefficient*1.000001;
+            end    
             knob_groups_to_project=[];
             for i=1:size(obj.knob_groups,2)
                 for j=1:size(obj.knob_groups{1,i},1)
@@ -404,14 +408,14 @@ classdef Knobs < handle
                     if (size(obj.knob_groups{1,i},1)==1)
                         knob_perfect_value=coeff*obj.knob_group_flow_differences(i)/sum_of_template;
                         obj.perfect_values(knob_index,1)=knob_perfect_value;
-                        obj.boundaries_min(knob_index,1)=knob_perfect_value*obj.underevaluation_tolerance_coefficient;
-                        obj.boundaries_max(knob_index,1)=knob_perfect_value*obj.overevaluation_tolerance_coefficient;
+                        obj.boundaries_min(knob_index,1)=max(knob_perfect_value*obj.underevaluation_tolerance_coefficient,obj.naive_boundaries_min(knob_index));
+                        obj.boundaries_max(knob_index,1)=min(knob_perfect_value*obj.overevaluation_tolerance_coefficient,obj.naive_boundaries_max(knob_index));
                     else
                         knob_groups_to_project(end+1)=i;
                     end    
                 end    
             end
-            obj.knob_groups_to_project=unique(knob_groups_to_project);
+            obj.knob_groups_to_project=unique(knob_groups_to_project,'stable');
             number_knob_groups=size(obj.knob_groups_to_project,2);
             obj.knob_group_indices=cell(1,number_knob_groups);
             obj.constraint_equations_coeffs=cell(1,number_knob_groups);
@@ -431,6 +435,7 @@ classdef Knobs < handle
                 end
                 obj.constraint_equations_coeffs{1,i}=constraint_equation_coeffs;
             end    
+
         end    
         
         function [knobs_on_correct_subspace]= project_involved_knob_groups_on_correct_flow_subspace(obj, knobs_vector)

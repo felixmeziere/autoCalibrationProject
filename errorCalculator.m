@@ -2,7 +2,6 @@ classdef ErrorCalculator<handle
     
     properties (SetAccess = private)
         norm@Norm
-        norm_name
         false_positive_coefficient
         false_negative_coefficient
         result
@@ -32,12 +31,11 @@ classdef ErrorCalculator<handle
                error('The sum of the false positive and false negative coefficients must be one.')
             end
             obj.norm=norm;
-            obj.norm_name=obj.norm.name;
             obj.false_positive_coefficient=false_positive_coefficient;
             obj.false_negative_coefficient=false_negative_coefficient;
         end    
 
-        function [result] = calculate(obj, beatsPerformance, pemsPerformance)
+        function [result,result_in_percentage] = calculate(obj, beatsPerformance, pemsPerformance)
             if (size(beatsPerformance,1)~=1 && size(beatsPerformance,2)~=1)
                 contour=pemsPerformance-beatsPerformance;
                 for i=1:size(contour,2)
@@ -51,7 +49,8 @@ classdef ErrorCalculator<handle
                 end
                  result=obj.norm.calculate(contour,0);
             else
-                result=(obj.norm.calculate(beatsPerformance,pemsPerformance));
+                result=obj.norm.calculate(beatsPerformance,pemsPerformance);
+                result_in_percentage=result/pemsPerformance;
             end
             obj.result = result;
         end

@@ -107,9 +107,9 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
     methods (Access = protected)
     
         function [figure_title] = get_figure_title(obj)
-            figure_title=['CMA-ES : ','InSigma=',num2str(obj.insigma),', Knobs tolerance range=',...
+            figure_title=['CMA-ES: ','Sig=',num2str(obj.insigma),', Tolerance range=',...
                 '[',num2str(obj.knobs.underevaluation_tolerance_coefficient),',',num2str(obj.knobs.overevaluation_tolerance_coefficient),']',...
-                ', Error Function=',obj.error_function.name];
+                ', FitFun=',obj.error_function.name];
         end    
         
     end    

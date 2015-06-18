@@ -57,17 +57,17 @@ classdef TVM < PerformanceCalculator
         end    
         
         function [h] = plot(obj,figureNumber)
-%             if (nargin<2)
-%                 h=figure;
-%             else
-%                 h=figure(figureNumber);
-%             end
-%             plot(obj.error_in_percentage_history);
-% %             p=[900,0,450,350];
-% %             set(h, 'Position', p);
-%             title('TVM error evolution (in percentage)');
-%             ylabel('TVM error in percentage');
-%             xlabel('Number of BEATS evaluations');            
+            if (nargin<2)
+                h=figure;
+            else
+                h=figure(figureNumber);
+            end
+            plot(obj.error_in_percentage_history);
+%             p=[900,0,450,350];
+%             set(h, 'Position', p);
+            title('TVM error evolution (in percentage)');
+            ylabel('TVM error in percentage');
+            xlabel('Number of BEATS evaluations');            
         end    
         
     end

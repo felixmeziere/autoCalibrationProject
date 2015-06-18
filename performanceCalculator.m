@@ -7,6 +7,7 @@ classdef (Abstract) PerformanceCalculator<handle
        result_from_pems=0;
        error_in_percentage=0;
        algorithm_box
+       norm@Norm
        
    end 
    
@@ -27,6 +28,7 @@ classdef (Abstract) PerformanceCalculator<handle
        %affected to obj.algorithm_box
         [result] = calculate_from_beats(obj)
         [result] = calculate_from_pems(obj)
+        [result,result_in_percentage] = calculate_error(obj)
         [] = plot(obj,figureNumber);
         
    end
