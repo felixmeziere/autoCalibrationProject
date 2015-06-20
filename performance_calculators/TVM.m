@@ -23,10 +23,6 @@ classdef TVM < PerformanceCalculator
             dt_hr=obj.algorithm_box.beats_simulation.out_dt/3600;
             result = sum(obj.algorithm_box.beats_simulation.compute_performance(obj.algorithm_box.good_mainline_mask_beats).tot_flux)*dt_hr; %sum over time
             obj.result_from_beats = result;
-            if (obj.result_from_pems~=0) && (obj.result_from_beats~=0)
-                obj.error_in_percentage=100*(obj.result_from_beats-obj.result_from_pems)/obj.result_from_pems;
-                obj.error_in_percentage_history=[obj.error_in_percentage_history;obj.error_in_percentage];
-            end
         end
         
         function [result] = calculate_from_pems(obj) %compute TVM on pems data on monitored mainline links
@@ -56,6 +52,15 @@ classdef TVM < PerformanceCalculator
             obj.result_from_pems=result;
         end    
         
+        function [error,error_in_percentage] = calculate_error(obj)
+             error=obj.norm.calculate(obj.result_from_beats,obj.result_from_pems);
+             error_in_percentage=sign(error)*100*obj.norm.calculate(error./obj.result_from_pems,0);
+             obj.error=error;
+             obj.error_in_percentage=error_in_percentage;
+             obj.error_history(end+1,1)=error;
+             obj.error_in_percentage_history=[obj.error_in_percentage_history;obj.error_in_percentage];
+        end
+        
         function [h] = plot(obj,figureNumber)
             if (nargin<2)
                 h=figure;
@@ -67,7 +72,9 @@ classdef TVM < PerformanceCalculator
 %             set(h, 'Position', p);
             title('TVM error evolution (in percentage)');
             ylabel('TVM error in percentage');
-            xlabel('Number of BEATS evaluations');            
+            xlabel('Number of BEATS evaluations');
+            legend(['Current error : ',num2str(obj.error_in_percentage),'%']);
+            legend BOXOFF
         end    
         
     end

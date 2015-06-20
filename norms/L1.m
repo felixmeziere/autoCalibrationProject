@@ -9,7 +9,7 @@ classdef L1 < Norm
     methods (Access = public)
 
         function [result] = calculate(obj, beatsPerformance, pemsPerformance)
-            result = norm(sum(sum(beatsPerformance-pemsPerformance,1)),1);
+            result = norm(sum(beatsPerformance-pemsPerformance,2),1);
             obj.result = result;
         end
         

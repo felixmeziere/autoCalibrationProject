@@ -55,24 +55,32 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
         end  % set a field of inopts.
         
         function [] = run_algorithm(obj)
-              obj.numberOfIterations=1;
-              obj.numberOfEvaluations=1;
-              obj.reset_for_new_run;
-              obj.inopts.MaxFunEvals = obj.maxEval;
-              obj.inopts.MaxIter = obj.maxIter;
-              obj.inopts.StopFitness = obj.stopFValue;
-              obj.inopts.UBounds = ones(size(obj.knobs.link_ids,1),1)*10;
-              obj.inopts.LBounds = zeros(size(obj.knobs.link_ids,1),1);
-              xstart=obj.knobs.rescale_knobs(obj.starting_point,1);
-              [lastPoint, lastValue, obj.numberOfEvaluations, obj.stopFlag, obj.out, bestEver]=cmaes(@(x)obj.evaluate_error_function(x,1), xstart, obj.insigma, obj.inopts);  
-              load variablescmaes.mat
-              bestEver.x=obj.knobs.rescale_knobs(bestEver.x,0);
-              obj.bestEverPoint=bestEver.x;
-              obj.bestEver=bestEver;
-              obj.bestEverErrorFunctionValue=bestEver.f;
-              obj.numberOfIterations=countiter;
-              obj.set_genmean_data;
-              obj.save_data;
+                  obj.numberOfIterations=1;
+                  obj.numberOfEvaluations=1;
+                  obj.reset_for_new_run;
+                  obj.inopts.MaxFunEvals = obj.maxEval;
+                  obj.inopts.MaxIter = obj.maxIter;
+                  obj.inopts.StopFitness = obj.stopFValue;
+                  obj.inopts.UBounds = ones(size(obj.knobs.link_ids,1),1)*10;
+                  obj.inopts.LBounds = zeros(size(obj.knobs.link_ids,1),1);
+                  xstart=obj.knobs.rescale_knobs(obj.starting_point,1);
+                  obj.population_size=size(obj.knobs.link_ids,1);
+                  try
+                      [lastPoint, lastValue, obj.numberOfEvaluations, obj.stopFlag, obj.out, bestever]=cmaes(@(x)obj.evaluate_error_function(x,1), xstart, obj.insigma, obj.inopts);  
+                  catch     
+                      obj.stopFlag='Manual stop or unexpected error';
+                  end    
+                  load variablescmaes.mat
+                  if ~obj.knobs.isnaive_boundaries
+                      bestever.x=obj.knobs.project_involved_knob_groups_on_correct_flow_subspace(obj.knobs.rescale_knobs(bestever.x,0));
+                  end
+                  bestever.x=obj.project_on_correct_TVM_subspace(bestever.x);
+                  obj.bestEverPoint=bestever.x;
+                  obj.bestEver=bestever;
+                  obj.bestEverErrorFunctionValue=bestever.f;
+                  obj.numberOfIterations=countiter;
+                  obj.set_genmean_data;
+                  obj.save_data;
         end   % defined in AlgorithmBox   
    
         function [] = set_result_for_xls(obj)
@@ -80,7 +88,7 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
             %choosen in the excel file.
             %load 'variablescmaes.mat';
             obj.result_for_xls{1}=obj.error_function.name;
-            obj.result_for_xls{2}=obj.error_function.error_calculator.norm_name;
+            obj.result_for_xls{2}=Utilities.cellArray2char(obj.settings.error_function.norms);
             obj.result_for_xls{3}=size(obj.starting_point,2);
             obj.result_for_xls{4}=obj.initialization_method;
             obj.result_for_xls{5}=Utilities.double2char(obj.normopts.CENTERS);

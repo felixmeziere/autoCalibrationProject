@@ -3,17 +3,19 @@ classdef (Abstract) PerformanceCalculator<handle
     %   Detailed explanation goes here
    properties (SetAccess = protected)
        
-       result_from_beats=0;
-       result_from_pems=0;
-       error_in_percentage=0;
+       result_from_beats=nan;
+       result_from_pems=nan;
+       error=nan;
+       error_in_percentage=nan;
        algorithm_box
-       norm@Norm
+       error_history=[];
+       error_in_percentage_history=[];
        
-   end 
+   end    
    
-   properties (Access = public)
-    
-      error_in_percentage_history=[];
+   properties(SetAccess = ?ErrorFunction)
+       
+       norm=L1;   
        
    end    
    properties (Abstract, Constant)
@@ -32,6 +34,21 @@ classdef (Abstract) PerformanceCalculator<handle
         [] = plot(obj,figureNumber);
         
    end
+   
+   methods(Access = ?ErrorFunction)
+       
+        function [] = reset_history(obj)
+            obj.error_history=[];
+            obj.error_in_percentage_history=[];
+            obj.error=nan;
+            obj.error_in_percentage=nan;
+        end
+        
+        function [] = ask_for_norm(obj)
+            obj.norm=input(['Which norm do you want to use for',obj.name,' ? (Enter name of "Norm" subclass) : ']);
+        end    
+       
+   end    
    
 end
 

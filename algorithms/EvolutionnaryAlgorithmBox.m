@@ -4,11 +4,22 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
     %   Contains the properties and methods used by any evolutionnary
     %   algorithm.
     
+    properties (Constant)
+       
+        algorithm_type='Evolutionnary'
+        
+    end    
     properties (Access = public)
         
         starting_point=[] % (nxp) array containing the initial population : each column is a knob values array.
         normopts=struct;
         initial_population_size;
+        
+    end    
+    
+    properties (SetAccess = protected)
+        
+        population_size
         
     end    
     
@@ -53,6 +64,11 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
            else error('Knobs ids and boundaries must be set first');
            end    
         end  %This will set the initial population.
+        
+        
+    end
+    
+    methods (Access = public)%(Access = ?AlgorithmBox)
         
         function [] = set_starting_point(obj, mode)
             %mode should be 'uniform' or 'normal'. In the 'normal' case,
@@ -105,8 +121,37 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
             end
             obj.knobs.set_knobs_persistent(obj.starting_point);
         end  %defined in the body
-        
-    end
+    
+        function [] = set_genmean_data(obj)
+            obj.error_function.error_genmean_history=[];                                                           
+            obj.error_function.errors_genmean_history=[];                                                          
+            obj.error_function.contributions_genmean_history=[];
+            obj.error_function.error_in_percentage_genmean_history=[];
+            obj.error_function.errors_in_percentage_genmean_history=[];
+            obj.error_function.contributions_in_percentage_genmean_history=[];
+            obj.knobs.knobs_genmean_history=[];
+            obj.knobs.zeroten_knobs_genmean_history=[];
+            for i=1:obj.numberOfEvaluations
+                if i<=size(obj.knobs.zeroten_knobs_history,1)
+                    last=i-mod(i,obj.population_size);
+                    if (last<=obj.numberOfEvaluations-obj.population_size)
+                        range=last+1:last+obj.population_size;
+                    else
+                        range=last+1-obj.population_size:last;
+                    end     
+                    obj.knobs.zeroten_knobs_genmean_history(end+1,:)=mean(obj.knobs.zeroten_knobs_history(range,:),1);
+                    obj.knobs.knobs_genmean_history(end+1,:)=mean(obj.knobs.knobs_history(range,:),1);
+                    obj.error_function.error_genmean_history(end+1,1)=mean(obj.error_function.error_history(range,1),1);
+                    obj.error_function.errors_genmean_history(end+1,1:size(obj.error_function.performance_calculators,2))=mean(obj.error_function.errors_history(range,:),1);
+                    obj.error_function.contributions_genmean_history(end+1,1:size(obj.error_function.performance_calculators,2))=mean(obj.error_function.contributions_history(range,:),1);
+                    obj.error_function.error_in_percentage_genmean_history(end+1,1)=mean(obj.error_function.error_in_percentage_history(range,:),1);
+                    obj.error_function.errors_in_percentage_genmean_history(end+1,1:size(obj.error_function.performance_calculators,2))=mean(obj.error_function.errors_in_percentage_history(range,:),1);
+                    obj.error_function.contributions_in_percentage_genmean_history(end+1,1:size(obj.error_function.performance_calculators,2))=mean(obj.error_function.contributions_in_percentage_history(range,:),1);
+                end     
+            end
+        end   
+    
+    end    
     
 end
 

@@ -21,10 +21,10 @@ classdef Knobs < handle
         
         %values............................................................
         current_value=[];
-        knobs_history % consecutive values of the knobs during last run
-        knobs_genmean_history
-        zeroten_knobs_history %same as before with a unique 0-10 scale for all knobs
-        zeroten_knobs_genmean_history
+        knobs_history=[]; % consecutive values of the knobs during last run
+        knobs_genmean_history=nan;
+        zeroten_knobs_history=[]; %same as before with a unique 0-10 scale for all knobs
+        zeroten_knobs_genmean_history=nan;
         perfect_values
          
     end
@@ -34,8 +34,9 @@ classdef Knobs < handle
         %selecting.........................................................
         knob_sensor_map
         knob_groups
-        knob_groups_to_project
         knob_group_indices
+        knob_groups_to_project
+        knob_group_to_project_indices
         
         %boundaries........................................................
         force_manual_knob_boundaries=0; % 1 if knob boundaries are set manually, 0 if they are set to [link's FD max capacity*number of lanes]/[max value of the link's demand template].
@@ -246,6 +247,7 @@ classdef Knobs < handle
             ylabel('Knobs 0-10 values');
             if (n<3)
                 legend(leg);
+                legend BOXOFF
             end                 
         end 
         
@@ -274,6 +276,7 @@ classdef Knobs < handle
             ylabel('Knobs values');
             if (n<3)
                 legend(leg);
+                legend BOXOFF
             end                 
         end 
         
@@ -297,7 +300,7 @@ classdef Knobs < handle
     %  Privates                                                           %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
-    methods (Access = ?AlgorithmBox) %supposed to be private but public for debug reasons
+    methods %(Access = ?AlgorithmBox) %supposed to be private but public for debug reasons
         
         %utilities.........................................................
         function []=set_demand_ids(obj) % set demand profile ids in obj.demand_ids corresponding to obj.link_ids.
@@ -338,6 +341,11 @@ classdef Knobs < handle
                 end                    
             end
             obj.knob_groups=knob_groups(1,1:index-1);
+            for i=1:size(knob_groups,2)
+                for j=1:size(knob_groups{i},1)
+                    obj.knob_group_indices{1,i}(j,1)=find(obj.link_ids==cell2mat(obj.knob_groups{i}(j,1)));
+                end
+            end    
         end
         
         function [monitored_closer_mainline_source,monitored_closer_mainline_sink]= get_monitored_segment_for_knob_group(obj, knob_group) 
@@ -386,6 +394,8 @@ classdef Knobs < handle
        end  
                         
         function [] = set_auto_knob_boundaries_refined(obj, is_assistant)
+            %Messy code because stuff had to be changed and reused long
+            %after it was written.
             if (nargin>0 && is_assistant)
                 obj.underevaluation_tolerance_coefficient=input(['Enter the underevaluation tolerance coefficient for the flow going through the knob links : ']);
                 obj.overevaluation_tolerance_coefficient=input(['Enter the overevaluation tolerance coefficient for the flow going through the knob links : ']);
@@ -395,6 +405,7 @@ classdef Knobs < handle
                 obj.overevaluation_tolerance_coefficient=obj.overevaluation_tolerance_coefficient*1.000001;
             end    
             knob_groups_to_project=[];
+            index=1;
             for i=1:size(obj.knob_groups,2)
                 for j=1:size(obj.knob_groups{1,i},1)
                     knob_link_id=cell2mat(obj.knob_groups{1,i}(j,1));
@@ -405,26 +416,28 @@ classdef Knobs < handle
                     else
                         coeff=1;
                     end
-                    if (size(obj.knob_groups{1,i},1)==1)
-                        knob_perfect_value=coeff*obj.knob_group_flow_differences(i)/sum_of_template;
-                        obj.perfect_values(knob_index,1)=knob_perfect_value;
-                        obj.boundaries_min(knob_index,1)=max(knob_perfect_value*obj.underevaluation_tolerance_coefficient,obj.naive_boundaries_min(knob_index));
-                        obj.boundaries_max(knob_index,1)=min(knob_perfect_value*obj.overevaluation_tolerance_coefficient,obj.naive_boundaries_max(knob_index));
-                    else
-                        knob_groups_to_project(end+1)=i;
-                    end    
+                end    
+                if (size(obj.knob_groups{1,i},1)==1)
+                    knob_perfect_value=coeff*obj.knob_group_flow_differences(i)/sum_of_template;
+                    obj.perfect_values(knob_index,1)=knob_perfect_value;
+                    obj.boundaries_min(knob_index,1)=max(knob_perfect_value*obj.underevaluation_tolerance_coefficient,obj.naive_boundaries_min(knob_index));
+                    obj.boundaries_max(knob_index,1)=min(knob_perfect_value*obj.overevaluation_tolerance_coefficient,obj.naive_boundaries_max(knob_index));
+                else
+                    obj.knob_groups_to_project(index)=i;
+                    for j=1:size(obj.knob_groups{1,i},1)
+                        obj.knob_group_to_project_indices{index}(j,1)=find(obj.link_ids==cell2mat(obj.knob_groups{1,i}(j,1)));
+                    end
+                    index=index+1;
                 end    
             end
-            obj.knob_groups_to_project=unique(knob_groups_to_project,'stable');
-            number_knob_groups=size(obj.knob_groups_to_project,2);
-            obj.knob_group_indices=cell(1,number_knob_groups);
+            number_knob_groups_to_project=size(obj.knob_groups_to_project,2);
+            number_knob_groups=size(obj.knob_groups,2);
             obj.constraint_equations_coeffs=cell(1,number_knob_groups);
             for i=1:number_knob_groups
-                knob_group=cell2mat(obj.knob_groups{1,obj.knob_groups_to_project(i)});
+                knob_group=cell2mat(obj.knob_groups{1,i});
                 constraint_equation_coeffs=[];
                 for j=1:size(knob_group)
                     index=find(obj.link_ids==knob_group(j));
-                    obj.knob_group_indices{1,i}(end+1,1)=index;
                     sum_of_template=obj.algorithm_box.get_sum_of_template_in_veh(obj.link_ids(index));
                     if ismember(obj.link_ids(index),obj.algorithm_box.link_ids_beats(obj.algorithm_box.source_mask_beats))
                         coeff=-1;
@@ -435,21 +448,20 @@ classdef Knobs < handle
                 end
                 obj.constraint_equations_coeffs{1,i}=constraint_equation_coeffs;
             end    
-
         end    
         
         function [knobs_on_correct_subspace]= project_involved_knob_groups_on_correct_flow_subspace(obj, knobs_vector)
             knobs_on_correct_subspace=knobs_vector;
             for i=1:size(obj.knob_groups_to_project,2)
                 knob_group=cell2mat(obj.knob_groups{1,obj.knob_groups_to_project(i)});
-                subvector=knobs_vector(obj.knob_group_indices{1,i},1);
-                constraint_equation_coeffs=obj.constraint_equations_coeffs{i};
+                subvector=knobs_vector(obj.knob_group_to_project_indices{1,i},1);
+                constraint_equation_coeffs=obj.constraint_equations_coeffs{obj.knob_groups_to_project(i)};
                 flowdiff=obj.knob_group_flow_differences(1,obj.knob_groups_to_project(i));
                 otc=obj.overevaluation_tolerance_coefficient;
                 utc=obj.underevaluation_tolerance_coefficient;
                 si=sign(flowdiff);
-                [subvector_on_correct_subspace,fval]=quadprog(eye(size(knob_group,1)),-reshape(subvector,1,[]),[si*constraint_equation_coeffs;-si*constraint_equation_coeffs],[si*otc*flowdiff;-si*utc*flowdiff],[],[],obj.naive_boundaries_min(obj.knob_group_indices{1,i},1),obj.naive_boundaries_max(obj.knob_group_indices{1,i},1)); % minimization program
-                knobs_on_correct_subspace(obj.knob_group_indices{1,i},1)=subvector_on_correct_subspace;
+                [subvector_on_correct_subspace,fval]=quadprog(eye(size(knob_group,1)),-reshape(subvector,1,[]),[si*constraint_equation_coeffs;-si*constraint_equation_coeffs],[si*otc*flowdiff;-si*utc*flowdiff],[],[],obj.naive_boundaries_min(obj.knob_group_to_project_indices{1,i},1),obj.naive_boundaries_max(obj.knob_group_to_project_indices{1,i},1)); % minimization program
+                knobs_on_correct_subspace(obj.knob_group_to_project_indices{1,i},1)=subvector_on_correct_subspace;
             end    
         end
 
@@ -482,7 +494,14 @@ classdef Knobs < handle
                 obj.algorithm_box.beats_simulation.beats.set.demand_knob_for_link_id(obj.link_ids(i),knobs_vector(i));
             end
             obj.current_value=knobs_vector;
-        end     
+        end      
+        
+        function [] = reset_history(obj)
+            obj.knobs_history=[];
+            obj.knobs_genmean_history=nan;
+            obj.zeroten_knobs_history=[];
+            obj.zeroten_knobs_genmean_history=nan;
+        end    
 
     end    
     
