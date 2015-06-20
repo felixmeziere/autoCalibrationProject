@@ -26,6 +26,7 @@ classdef Knobs < handle
         zeroten_knobs_history=[]; %same as before with a unique 0-10 scale for all knobs
         zeroten_knobs_genmean_history=nan;
         perfect_values
+        sum_of_templates
          
     end
     
@@ -130,7 +131,7 @@ classdef Knobs < handle
         function [] = set_auto_knob_boundaries(obj, isnaive, is_assistant) %sets automatically the knob minimums to zero and maximums to [link's FD max capacity*number of lanes]/[max value of the link's demand template]
             if (nargin<3)
                 is_assistant=0;
-            end    
+            end
             for i=1:size(obj.link_ids,1)    
                 maxTemplateValue=max(obj.algorithm_box.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.link_ids(i)).demand);       
                 lanes=obj.algorithm_box.beats_simulation.scenario_ptr.get_link_byID(obj.link_ids(i)).ATTRIBUTE.lanes;
@@ -308,6 +309,7 @@ classdef Knobs < handle
             for i=1:size(obj.link_ids,1)
                 dps=obj.algorithm_box.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.link_ids);
                 obj.demand_ids(i,1)=dps(i).id;
+                obj.sum_of_templates(i,1)=obj.algorithm_box.get_sum_of_template_in_veh(obj.link_ids(i,1));
             end
             obj.linear_link_ids=obj.algorithm_box.linear_link_ids(ismember(obj.algorithm_box.linear_link_ids,obj.link_ids));
         end
@@ -404,6 +406,9 @@ classdef Knobs < handle
                 obj.underevaluation_tolerance_coefficient=obj.underevaluation_tolerance_coefficient*0.99999;
                 obj.overevaluation_tolerance_coefficient=obj.overevaluation_tolerance_coefficient*1.000001;
             end    
+            otc=obj.overevaluation_tolerance_coefficient;
+            utc=obj.underevaluation_tolerance_coefficient;
+            ref=obj.algorithm_box.PeMS_average_mainline_flow_reference_value;
             knob_groups_to_project=[];
             index=1;
             for i=1:size(obj.knob_groups,2)
@@ -420,8 +425,11 @@ classdef Knobs < handle
                 if (size(obj.knob_groups{1,i},1)==1)
                     knob_perfect_value=coeff*obj.knob_group_flow_differences(i)/sum_of_template;
                     obj.perfect_values(knob_index,1)=knob_perfect_value;
-                    obj.boundaries_min(knob_index,1)=max(knob_perfect_value*obj.underevaluation_tolerance_coefficient,obj.naive_boundaries_min(knob_index));
-                    obj.boundaries_max(knob_index,1)=min(knob_perfect_value*obj.overevaluation_tolerance_coefficient,obj.naive_boundaries_max(knob_index));
+                    incert=obj.algorithm_box.pems.incertitude;
+                    premin=min(knob_perfect_value*utc,knob_perfect_value-ref*incert/sum_of_template);
+                    premax=max(knob_perfect_value*otc,knob_perfect_value+ref*incert/sum_of_template);
+                    obj.boundaries_min(knob_index,1)=max(obj.naive_boundaries_min(knob_index),premin);
+                    obj.boundaries_max(knob_index,1)=min(obj.naive_boundaries_max(knob_index),premax);
                 else
                     obj.knob_groups_to_project(index)=i;
                     for j=1:size(obj.knob_groups{1,i},1)
@@ -454,13 +462,17 @@ classdef Knobs < handle
             knobs_on_correct_subspace=knobs_vector;
             for i=1:size(obj.knob_groups_to_project,2)
                 knob_group=cell2mat(obj.knob_groups{1,obj.knob_groups_to_project(i)});
-                subvector=knobs_vector(obj.knob_group_to_project_indices{1,i},1);
+                indices=obj.knob_group_to_project_indices{1,i};
+                subvector=knobs_vector(indices,1);
                 constraint_equation_coeffs=obj.constraint_equations_coeffs{obj.knob_groups_to_project(i)};
                 flowdiff=obj.knob_group_flow_differences(1,obj.knob_groups_to_project(i));
                 otc=obj.overevaluation_tolerance_coefficient;
                 utc=obj.underevaluation_tolerance_coefficient;
                 si=sign(flowdiff);
-                [subvector_on_correct_subspace,fval]=quadprog(eye(size(knob_group,1)),-reshape(subvector,1,[]),[si*constraint_equation_coeffs;-si*constraint_equation_coeffs],[si*otc*flowdiff;-si*utc*flowdiff],[],[],obj.naive_boundaries_min(obj.knob_group_to_project_indices{1,i},1),obj.naive_boundaries_max(obj.knob_group_to_project_indices{1,i},1)); % minimization program
+                incert=obj.algorithm_box.pems.incertitude;
+                ref=obj.algorithm_box.PeMS_average_mainline_flow_reference_value;
+%                 [subvector_on_correct_subspace,fval]=quadprog(eye(size(knob_group,1)),-reshape(subvector,1,[]),[si*constraint_equation_coeffs;-si*constraint_equation_coeffs],[si*otc*flowdiff;-si*utc*flowdiff],[],[],obj.naive_boundaries_min(obj.knob_group_to_project_indices{1,i},1),obj.naive_boundaries_max(obj.knob_group_to_project_indices{1,i},1)); % minimization program
+                [subvector_on_correct_subspace,fval]=quadprog(eye(size(knob_group,1)),-reshape(subvector,1,[]),[si*constraint_equation_coeffs;-si*constraint_equation_coeffs],[max(si*flowdiff+incert*ref,si*otc*flowdiff);max(-si*flowdiff+incert*ref,-si*utc*flowdiff)],[],[],obj.naive_boundaries_min(obj.knob_group_to_project_indices{1,i},1),obj.naive_boundaries_max(obj.knob_group_to_project_indices{1,i},1)); % minimization program
                 knobs_on_correct_subspace(obj.knob_group_to_project_indices{1,i},1)=subvector_on_correct_subspace;
             end    
         end

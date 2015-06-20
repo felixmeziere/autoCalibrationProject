@@ -67,6 +67,7 @@ classdef (Abstract) AlgorithmBox < handle
         error_function@ErrorFunction % instance of ErrorFunction class, containing all the properties and methods to compute the difference between pems and beats output (this computes the fitness function to minimize).
         initialization_method@char % initialization method must be 'normal', 'uniform' or 'manual'. Normal will
         TVM_reference_values=struct; %TVM values from pems and beats with all knobs set to one. Used to project the beats knobs input in the correct TVM subspace.
+        PeMS_average_mainline_flow_reference_value
         knobs@Knobs % Knobs class instance with all the properties and methods relative to the knobs of the scenario.
         current_day=1; %current day used in the pems data loaded.
         
@@ -370,11 +371,11 @@ classdef (Abstract) AlgorithmBox < handle
                     disp(['         actual error value : ',num2str(obj.error_function.errors(i))]);
                 end                
                 obj.numberOfEvaluations=obj.numberOfEvaluations+1;
-%                 obj.plot_zeroten_knobs_history(1);
-%                 obj.error_function.plot_complete(2);
-%                 obj.plot_all_performance_calculators(5);
+                obj.plot_zeroten_knobs_history(1);
+                obj.error_function.plot_complete(2);
+                obj.plot_all_performance_calculators(5);
 %                 obj.plot_performance_calculator_if_exists('CongestionPattern');
-%                 drawnow;
+                drawnow;
                 obj.save_congestionPattern_matrix;
             else
                 error('The matrix with knobs values given does not match the number of knobs to tune or is not a column vector.');
@@ -856,6 +857,8 @@ classdef (Abstract) AlgorithmBox < handle
                 if (size(obj.error_function,1)~=0 && obj.error_function.is_loaded==1)
                     obj.error_function.calculate_pc_from_pems;
                 end    
+                pems_flows=sum(obj.pems.data.flw_in_veh(:,obj.good_mainline_mask_pems,size(obj.pems.days,2)+1),1);
+                obj.PeMS_average_mainline_flow_reference_value=mean(pems_flows(~isnan(pems_flows)),2);
                 obj.masks_loaded=1;
             else
                 error('Beats simulation and PeMS data must be loaded before setting the masks and reference values.');

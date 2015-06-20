@@ -7,10 +7,24 @@ classdef KnobsDistance < PerformanceCalculator
         
     end
     
+    properties (Hidden,SetAccess=private)
+        
+        knob_group_oMagnitude_vector=[];
+        
+    end    
+    
     methods
         
         function [obj] = KnobsDistance(algoBox)
             obj.algorithm_box=algoBox;
+            utc=obj.algorithm_box.knobs.underevaluation_tolerance_coefficient;
+            otc=obj.algorithm_box.knobs.overevaluation_tolerance_coefficient;
+            ref=obj.algorithm_box.PeMS_average_mainline_flow_reference_value;
+            oMagnitude_vector=(obj.algorithm_box.knobs.boundaries_max-obj.algorithm_box.knobs.boundaries_min).*obj.algorithm_box.knobs.sum_of_templates;
+            for i=1:size(obj.algorithm_box.knobs.knob_groups,2)
+                indices=cell2mat(obj.algorithm_box.knobs.knob_group_indices(i));
+                obj.knob_group_oMagnitude_vector(i,1)=min(sum(oMagnitude_vector(indices)),otc*ref+utc*ref);
+            end    
         end    
         
         function [result] = calculate_from_beats(obj)
@@ -24,7 +38,6 @@ classdef KnobsDistance < PerformanceCalculator
                 warning('Knob boundaries are naively set so KnobsDistance is irrelevant.');
             else    
                 result=mean(knobs.current_value,2);
-                result=result;
                 obj.result_from_beats=result;
             end    
         end    
@@ -53,7 +66,7 @@ classdef KnobsDistance < PerformanceCalculator
                 knob_group_error_vector(i,1)=knob_group_flow-knobs.knob_group_flow_differences(i);
             end    
             error=obj.norm.calculate(knob_group_error_vector,0);
-            error_in_percentage=obj.norm.calculate(100*knob_group_error_vector./transpose(knobs.knob_group_flow_differences),0)/number_knob_groups;
+            error_in_percentage=obj.norm.calculate(100*knob_group_error_vector./obj.knob_group_oMagnitude_vector,0)/number_knob_groups;
             obj.error=error;
             obj.error_in_percentage=error_in_percentage;
             obj.error_history(end+1,1)=error;

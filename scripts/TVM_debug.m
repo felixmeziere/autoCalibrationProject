@@ -57,15 +57,19 @@ pems_linear_monitored_sink_ids=first.pems.link_ids(pems_normalinlinear_monitored
 LOnes=[];
 
 for i =1:sum(first.good_mainline_mask_pems)
-	figure;
-	plot(first.pems.data.flw_in_veh(:,pems_normalinlinear_monitored_mainline_indices(i),first.current_day));
-    hold on
-    plot(first.beats_simulation.outflow_veh{1,1}(:,beats_normalinlinear_monitored_mainline_indices(i)));
-	title(['Beats vs. PeMS Monitored mainline link number ',num2str(i),' |  id = ',num2str(beats_linear_monitored_mainline_ids(i))]);
-    legend('PeMS profile','Beats output profile');
-    hold off
+% 	figure;
+	toplot(i)=sum(first.pems.data.flw_in_veh(:,pems_normalinlinear_monitored_mainline_indices(i),first.current_day));
+%     plot(sum(first.pems.data.flw_in_veh(:,pems_normalinlinear_monitored_mainline_indices(i),first.current_day)));
+
+%     hold on
+%     plot(first.beats_simulation.outflow_veh{1,1}(:,beats_normalinlinear_monitored_mainline_indices(i)));
+% 	title(['Beats vs. PeMS Monitored mainline link number ',num2str(i),' |  id = ',num2str(beats_linear_monitored_mainline_ids(i))]);
+%     legend('PeMS profile','Beats output profile');
+%     hold off
     LOnes(i)=norm(first.pems.data.flw_in_veh(:,pems_normalinlinear_monitored_mainline_indices(i),first.current_day)-first.beats_simulation.outflow_veh{1,1}(:,beats_normalinlinear_monitored_mainline_indices(i)),1);
 end	
+
+plot(toplot);
 
 figure
 plot(LOnes);

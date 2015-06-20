@@ -1,5 +1,12 @@
 classdef PeMSData < handle
     
+    
+    properties(Constant)
+        
+       incertitude=0.1;
+    
+    end    
+        
     properties (SetAccess = ?AlgorithmBox)
         
         is_loaded=0;
