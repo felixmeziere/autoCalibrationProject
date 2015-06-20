@@ -371,9 +371,9 @@ classdef (Abstract) AlgorithmBox < handle
                     disp(['         actual error value : ',num2str(obj.error_function.errors(i))]);
                 end                
                 obj.numberOfEvaluations=obj.numberOfEvaluations+1;
-                obj.plot_zeroten_knobs_history(1);
-                obj.error_function.plot_complete(2);
-                obj.plot_all_performance_calculators(5);
+%                 obj.plot_zeroten_knobs_history(1);
+%                 obj.error_function.plot_complete(2);
+%                 obj.plot_all_performance_calculators(5);
 %                 obj.plot_performance_calculator_if_exists('CongestionPattern');
                 drawnow;
                 obj.save_congestionPattern_matrix;

@@ -1,23 +1,19 @@
 classdef PeMSData < handle
     
-    
-    properties(Constant)
-        
-       incertitude=0.1;
-    
-    end    
-        
     properties (SetAccess = ?AlgorithmBox)
         
         is_loaded=0;
         algorithm_box@AlgorithmBox
         peMS5minData@PeMS5minData
+
         
         days
         district
         processed_folder
         
         data=struct;
+        incertitude=0.1;
+
 
     end
     
