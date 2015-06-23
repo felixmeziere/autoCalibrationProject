@@ -124,7 +124,7 @@ classdef CongestionPattern < PerformanceCalculator
             end
             if (nargin<3)
                frame=obj.result_from_beats-obj.result_from_pems;
-               frameNumber=obj.algorithm_box.numberOfEvaluations-1;
+               frameNumber=obj.algorithm_box.numberOfEvaluations;
             end
             frame(ismember(frame,0))=2;
             imagesc(-frame);
@@ -141,10 +141,7 @@ classdef CongestionPattern < PerformanceCalculator
         
         function [] = save_plot(obj)
             frame=obj.result_from_beats-obj.result_from_pems;
-            if exist([pwd,'\movies\',obj.algorithm_box.dated_name,'\frames'],'dir')~=7
-                mkdir([pwd,'\movies\',obj.algorithm_box.dated_name,'\frames']);
-            end
-            save([pwd,'\movies\',obj.algorithm_box.dated_name,'\frames\',Utilities.get_matfile_number(['movies\',obj.algorithm_box.dated_name,'\frames']),'.mat'],'frame');
+            save([pwd,'\movies\',obj.algorithm_box.dated_name,'\frames\',num2str(obj.algorithm_box.numberOfEvaluations),'.mat'],'frame');
         end    
         
     end

@@ -425,7 +425,7 @@ classdef Knobs < handle
                 if (size(obj.knob_groups{1,i},1)==1)
                     knob_perfect_value=coeff*obj.knob_group_flow_differences(i)/sum_of_template;
                     obj.perfect_values(knob_index,1)=knob_perfect_value;
-                    incert=obj.algorithm_box.pems.incertitude;
+                    incert=obj.algorithm_box.pems.uncertainty;
                     premin=min(knob_perfect_value*utc,knob_perfect_value-ref*incert/sum_of_template);
                     premax=max(knob_perfect_value*otc,knob_perfect_value+ref*incert/sum_of_template);
                     obj.boundaries_min(knob_index,1)=max(obj.naive_boundaries_min(knob_index),premin);
@@ -469,7 +469,7 @@ classdef Knobs < handle
                 otc=obj.overevaluation_tolerance_coefficient;
                 utc=obj.underevaluation_tolerance_coefficient;
                 si=sign(flowdiff);
-                incert=obj.algorithm_box.pems.incertitude;
+                incert=obj.algorithm_box.pems.uncertainty;
                 ref=obj.algorithm_box.PeMS_average_mainline_flow_reference_value;
 %                 [subvector_on_correct_subspace,fval]=quadprog(eye(size(knob_group,1)),-reshape(subvector,1,[]),[si*constraint_equation_coeffs;-si*constraint_equation_coeffs],[si*otc*flowdiff;-si*utc*flowdiff],[],[],obj.naive_boundaries_min(obj.knob_group_to_project_indices{1,i},1),obj.naive_boundaries_max(obj.knob_group_to_project_indices{1,i},1)); % minimization program
                 [subvector_on_correct_subspace,fval]=quadprog(eye(size(knob_group,1)),-reshape(subvector,1,[]),[si*constraint_equation_coeffs;-si*constraint_equation_coeffs],[max(si*flowdiff+incert*ref,si*otc*flowdiff);max(-si*flowdiff+incert*ref,-si*utc*flowdiff)],[],[],obj.naive_boundaries_min(obj.knob_group_to_project_indices{1,i},1),obj.naive_boundaries_max(obj.knob_group_to_project_indices{1,i},1)); % minimization program

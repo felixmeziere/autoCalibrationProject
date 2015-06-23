@@ -12,7 +12,7 @@ classdef PeMSData < handle
         processed_folder
         
         data=struct;
-        incertitude=0.1;
+        uncertainty=0.1;
 
 
     end

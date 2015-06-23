@@ -23,7 +23,7 @@ classdef KnobsDistance < PerformanceCalculator
             oMagnitude_vector=(obj.algorithm_box.knobs.boundaries_max-obj.algorithm_box.knobs.boundaries_min).*obj.algorithm_box.knobs.sum_of_templates;
             for i=1:size(obj.algorithm_box.knobs.knob_groups,2)
                 indices=cell2mat(obj.algorithm_box.knobs.knob_group_indices(i));
-                obj.knob_group_oMagnitude_vector(i,1)=min(sum(oMagnitude_vector(indices)),otc*ref+utc*ref);
+                obj.knob_group_oMagnitude_vector(i,1)=min(sum(oMagnitude_vector(indices)),2*obj.algorithm_box.pems.uncertainty*ref);
             end    
         end    
         

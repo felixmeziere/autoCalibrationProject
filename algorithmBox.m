@@ -369,14 +369,14 @@ classdef (Abstract) AlgorithmBox < handle
                     disp(['         contribution in total error in percentage : ', num2str(obj.error_function.contributions_in_percentage(i))]);
                     disp(['         actual error in percentage : ', num2str(obj.error_function.errors_in_percentage(i))])
                     disp(['         actual error value : ',num2str(obj.error_function.errors(i))]);
-                end                
-                obj.numberOfEvaluations=obj.numberOfEvaluations+1;
+                end              
+                obj.save_congestionPattern_matrix;
 %                 obj.plot_zeroten_knobs_history(1);
 %                 obj.error_function.plot_complete(2);
 %                 obj.plot_all_performance_calculators(5);
 %                 obj.plot_performance_calculator_if_exists('CongestionPattern');
                 drawnow;
-                obj.save_congestionPattern_matrix;
+                obj.numberOfEvaluations=obj.numberOfEvaluations+1;
             else
                 error('The matrix with knobs values given does not match the number of knobs to tune or is not a column vector.');
             end    
@@ -1173,6 +1173,7 @@ classdef (Abstract) AlgorithmBox < handle
             save([pwd,'\movies\',obj.dated_name,'\error_in_percentage_genmean_history.mat'],'error_in_percentage_genmean_history');
             save([pwd,'\movies\',obj.dated_name,'\contributions_in_percentage_history.mat'],'contributions_in_percentage_history');
             save([pwd,'\movies\',obj.dated_name,'\contributions_in_percentage_genmean_history.mat'],'contributions_in_percentage_genmean_history');
+            close all
         end    
         
         function [] = save_congestionPattern_matrix(obj)

@@ -271,7 +271,7 @@
         defopts.LogModulo = '1    % [0:Inf] if >1 record data less frequently after gen=100';
         defopts.LogTime   = '25   % [0:100] max. percentage of time for recording data';
         defopts.LogFilenamePrefix = 'outcmaes  % files for output data'; 
-        defopts.LogPlot = 'on    % plot while running using output data files';
+        defopts.LogPlot = 'off    % plot while running using output data files';
 
         %qqqkkk 
         %defopts.varopt1 = ''; % 'for temporary and hacking purposes'; 

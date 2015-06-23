@@ -64,7 +64,7 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
                   obj.inopts.UBounds = ones(size(obj.knobs.link_ids,1),1)*10;
                   obj.inopts.LBounds = zeros(size(obj.knobs.link_ids,1),1);
                   xstart=obj.knobs.rescale_knobs(obj.starting_point,1);
-                  obj.population_size=size(obj.knobs.link_ids,1);
+                  obj.population_size=(4 + floor(3*log(size(obj.knobs.link_ids,1))));
                   try
                       [lastPoint, lastValue, obj.numberOfEvaluations, obj.stopFlag, obj.out, bestever]=cmaes(@(x)obj.evaluate_error_function(x,1), xstart, obj.insigma, obj.inopts);  
                   catch     
