@@ -46,6 +46,8 @@ classdef Knobs < handle
         %values............................................................
         knob_group_flow_differences
         constraint_equations_coeffs
+        current_preGroupProjection_value=[];
+        current_preTVMProjection_value=[];
         
     end
     
@@ -460,6 +462,7 @@ classdef Knobs < handle
         
         function [knobs_on_correct_subspace]= project_involved_knob_groups_on_correct_flow_subspace(obj, knobs_vector)
             knobs_on_correct_subspace=knobs_vector;
+            obj.current_preGroupProjection_value=knobs_vector;
             for i=1:size(obj.knob_groups_to_project,2)
                 knob_group=cell2mat(obj.knob_groups{1,obj.knob_groups_to_project(i)});
                 indices=obj.knob_group_to_project_indices{1,i};

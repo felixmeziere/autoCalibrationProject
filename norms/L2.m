@@ -1,5 +1,5 @@
-classdef L2 < ErrorCalculator
-    %UNTITLED21 Summary of this class goes here
+classdef L2 < Norm
+    %UNTITLED20 Summary of this class goes here
     %   Detailed explanation goes here
     
     properties (Constant)
@@ -7,14 +7,13 @@ classdef L2 < ErrorCalculator
     end
     
     methods (Access = public)
-        
-        function [obj] = L1error(beatsPerformance, pemsPerformance)
-            obj.calculate(beatsPerformance, pemsPerformance)
-        end    
+
         function [result] = calculate(obj, beatsPerformance, pemsPerformance)
-            result = norm(beatsPerformance-pemsPerformance,2);
+            result = norm(sum(beatsPerformance-pemsPerformance,2),2);
             obj.result = result;
-        end    
+        end
+        
     end
+    
 end
 

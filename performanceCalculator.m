@@ -13,7 +13,7 @@ classdef (Abstract) PerformanceCalculator<handle
        
    end    
    
-   properties(SetAccess = ?ErrorFunction)
+   properties
        
        norm=L1;   
        

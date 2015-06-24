@@ -371,9 +371,9 @@ classdef (Abstract) AlgorithmBox < handle
                     disp(['         actual error value : ',num2str(obj.error_function.errors(i))]);
                 end              
                 obj.save_congestionPattern_matrix;
-%                 obj.plot_zeroten_knobs_history(1);
-%                 obj.error_function.plot_complete(2);
-%                 obj.plot_all_performance_calculators(5);
+                obj.plot_zeroten_knobs_history(1);
+                obj.error_function.plot_complete(2);
+                obj.plot_all_performance_calculators(5);
 %                 obj.plot_performance_calculator_if_exists('CongestionPattern');
                 drawnow;
                 obj.numberOfEvaluations=obj.numberOfEvaluations+1;
@@ -406,7 +406,7 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.is_loaded=0;
             catch exception
                 warning(['AN ERROR OCCURED DURING COLUMN ',num2str(obj.current_xls_program_column),' EXECUTION : ']);
-                warning(exception);
+                disp(exception);
             end
             end    
            obj.make_notmade_movies;
@@ -612,7 +612,7 @@ classdef (Abstract) AlgorithmBox < handle
                 h=figure(figureNumber);
             end    
             movie(stop_frame) = struct('cdata',[],'colormap',[]);
-            p=[100,50,1025,576];
+            p=[100,50,1366,768];
             set(h, 'Position', p);
             i=1;
             flag=1;
@@ -707,7 +707,7 @@ classdef (Abstract) AlgorithmBox < handle
                     drawnow;
                 catch exception
                     warning(['AN ERROR OCCURED BUILDING ',videoname,' :']);
-                    warning(exception);
+                    disp(exception);
                 end
             end    
         end    
@@ -1046,6 +1046,7 @@ classdef (Abstract) AlgorithmBox < handle
         
         function [knobs_on_correct_subspace] = project_on_correct_TVM_subspace(obj,vector) % Project vector on the hyperplan of vectors that will make beats output have the same TVM as pems.
             equation_coefficients_tuple=[]; 
+            obj.knobs.current_preTVMProjection_value=vector;
             %N tuple that will contain the coefficients of the equation of 
             %the hyperplan. We will call them alpha(i) : alpha(i)= (sum over time of the template values of the demand profile of knob(i))*(remaining mainline length from the corresponding link) 
             %The equation is [(knob1)*alpha(1)+(knob2)*alpha(2)+...+(knobN)*alpha(N)-sum(alpha(i))]+[TVM value given by beats output when all knobs are set to one]=pems TVM value

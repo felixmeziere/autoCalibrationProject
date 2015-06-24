@@ -132,7 +132,7 @@ classdef CongestionPattern < PerformanceCalculator
             xlabel('Linear mainline links');
             ylabel('Time (unit : 5 minutes if SI)');
             leg={'Correct Congestion Matching','False Positive','False Negative'};
-            cmap=[0,0.75,0;1,0,0;1,0.75,0];
+            cmap=[0.3,0.8,0.4;1,0,0;1,1,0];
             colormap(cmap);
             L = line(ones(3),ones(3), 'LineWidth',2); 
             set(L,{'color'},mat2cell(cmap(1:end,:),ones(1,3),3));

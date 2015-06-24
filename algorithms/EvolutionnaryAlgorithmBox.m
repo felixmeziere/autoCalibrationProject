@@ -131,8 +131,8 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
             obj.error_function.contributions_in_percentage_genmean_history=[];
             obj.knobs.knobs_genmean_history=[];
             obj.knobs.zeroten_knobs_genmean_history=[];
-            for i=1:obj.numberOfEvaluations
-                if i<=size(obj.knobs.zeroten_knobs_history,1)
+            for i=0:obj.numberOfEvaluations-1
+                if i<=size(obj.knobs.zeroten_knobs_history,1)-1
                     last=i-mod(i,obj.population_size);
                     if (last<=obj.numberOfEvaluations-obj.population_size)
                         range=last+1:last+obj.population_size;
