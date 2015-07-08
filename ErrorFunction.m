@@ -2,58 +2,59 @@ classdef ErrorFunction < handle
     
     
     %Required for loading from xls :
-    
+        
     %(NPCSC#k is name of kth PerformanceCalculator subclass and NNSC#k is name of kth Norm subclass)
     
     
     %    -> settings.error_function.performance_calculators | struct('NPCSC#1',[weight#1], 'NPCSC#2',[weight#2],...,'NPCSC#n',[weight#n])       
     %    -> settings.error_function.norms | {'NNSC#1','NNSC#2',...,'NNSC#n'}
+    %    -> error_function.pcs_uncertainty | [fraction of 1]
     
     properties (SetAccess = ?AlgorithmBox)
         
-        is_loaded=0;
-        algorithm_box
-        performance_calculators  % a cell array containing instances of the PerformanceCalculator subclass, which is a quantity measured in pems or outputed by beats (e.g. TVM).
-        weights
-        name
+        is_loaded=0; %indicates if objects is ready for use
+        algorithm_box@AlgorithmBox %Parent AlgorithmBox
+        performance_calculators  % a (1xp) cell array containing instances of the PerformanceCalculator subclasses used
+        weights % (1xp) array containing the weights of the performance calculators in the same order as above
+        name %name f the error function for the log file (sum(performance_calculator*weight))
+        pcs_uncertainty=0.05 %uncertainty allowed on the error of the performance calculators : 0.05 means that the algorithm won't discriminate points that are within +-5% of the PeMS reference value (their error in this range is zero).
         
-        error
-        errors
-        contributions
+        error %current total error value : sum(contributions). This is never used.
+        errors %(1xp) array containing the unmodified current error value of each pc (can be negative).
+        contributions %(1xp) array containing the contribution to the total error of each pc : abs(PC_error)*weight if PC_error_in_percentage>pcs_uncertainty or PC is KnobsDistance, else 0.
         
-        error_in_percentage
-        errors_in_percentage
-        contributions_in_percentage
+        error_in_percentage %current total error in percentage value : sum(contributions_in_percentage). This is used by the algorithm.
+        errors_in_percentage %(1xp) array containing the unmodified current error in percentage value of each pc (can be negative).
+        contributions_in_percentage %(1xp) array containing the contribution to the total error in percentage of each pc : abs(PC_error_in_percentage)*weight if PC_error_in_percentage>pcs_uncertainty or PC is KnobsDistance, else 0.
+
         
 
-        error_history % consecutive values of the errorFunction during last run
-        errors_history % consecutive values of the errorFunction during last run
-        contributions_history
+        error_history % column log with consecutive values of error during last run
+        errors_history % column log with consecutive values of error during last run
+        contributions_history % column log with consecutive values of contributions during last run
 
-        error_in_percentage_history
-        errors_in_percentage_history
-        contributions_in_percentage_history
-        
-        
-        
+        error_in_percentage_history % column log with consecutive values of error_in_percentage during last run
+        errors_in_percentage_history % column log with consecutive values of errors_in_percentage during last run
+        contributions_in_percentage_history % column log with consecutive values of contributions_in_percentage during last run
+
     end
     
     properties (SetAccess = ?EvolutionnaryAlgorithmBox)
         
-        error_genmean_history=nan;
-        errors_genmean_history=nan;
-        contributions_genmean_history=nan;
+        error_genmean_history=nan; % column log with consecutive values of error in "generation mean" format during last run
+        errors_genmean_history=nan; % column log with consecutive values of errors in "generation mean" format during last run
+        contributions_genmean_history=nan; % column log with consecutive values of contributions in "generation mean" format during last run
         
         error_in_percentage_genmean_history=nan;
-        errors_in_percentage_genmean_history=nan;
-        contributions_in_percentage_genmean_history=nan;
+        errors_in_percentage_genmean_history=nan; % column log with consecutive values of errors_in_percentage in "generation mean" format during last run
+        contributions_in_percentage_genmean_history=nan; % column log with consecutive values of contributions_in_percentage in "generation mean" format during last run
         
     end    
         
     methods (Access = public)
         
         %create object.....................................................
-        function [obj] = ErrorFunction(algoBox) %param : struct which fields are 'performance_calculators', a struct which fields are the names of the performance calculator classes, associated with their respective weight.               
+        function [obj] = ErrorFunction(algoBox) %Constructor that will call an assistant if parameters are missing and then load the object (computes the PeMS values for the pcs).             
             first_time=1;
             allsame=0;
             obj.algorithm_box=algoBox;
@@ -77,6 +78,7 @@ classdef ErrorFunction < handle
                             has_congestion_pattern=1;
                         end    
                     end
+                    obj.pcs_uncertainty=input('Enter the value of the uncertainty allowed on the PeMS performance calculators (Iglobal)(e.g.:0.05):');
                 else
                     param=obj.algorithm_box.settings.error_function;
                 end    
@@ -114,7 +116,7 @@ classdef ErrorFunction < handle
                 obj.calculate_error;  
                 obj.is_loaded=1;
             else
-                error('Beats Simulation and Pems data must be loaded first.')
+                error('Beats Simulation and Pems data must be loaded first.');
             end
         end
         
@@ -123,13 +125,13 @@ classdef ErrorFunction < handle
             for i=1:size(obj.performance_calculators,2)
                 obj.performance_calculators{i}.calculate_from_beats;
             end
-        end    
+        end  %From BeATS output, calculate the value of each PC in obj.performance_calculator. Used at each iteration.  
             
-        function [] = calculate_pc_from_pems(obj)
+        function [] = calculate_pc_from_pems(obj) %From PeMS data, calculate the value of each PC in obj.performance_calculator. Used only once at the beginning.
              for i=1:size(obj.performance_calculators,2)
                 obj.performance_calculators{i}.calculate_from_pems;
              end
-        end    
+        end  
         
         function [err,error_in_percentage] = calculate_error(obj)
             for i=1:size(obj.performance_calculators,2)
@@ -137,7 +139,10 @@ classdef ErrorFunction < handle
             end
             obj.contributions=abs(obj.errors.*obj.weights);
             obj.contributions_in_percentage=abs(obj.errors_in_percentage.*obj.weights);
-            obj.contributions_in_percentage(abs(obj.errors_in_percentage)<5)=0;
+            kd=obj.find_performance_calculator('KnobsDistance');
+            msk=ismember(1:size(obj.performance_calculators,2),kd);
+            obj.contributions_in_percentage(logical(~msk.*(abs(obj.errors_in_percentage)<100*obj.pcs_uncertainty)))=0;
+            obj.contributions(logical(~msk.*(abs(obj.errors_in_percentage)<100*obj.pcs_uncertainty)))=0;
             err=sum(obj.contributions);
             error_in_percentage=sum(obj.contributions_in_percentage);
             obj.error=err;
@@ -150,9 +155,9 @@ classdef ErrorFunction < handle
             obj.error_in_percentage_history(end+1,:)=error_in_percentage;
             obj.errors_in_percentage_history(end+1,:)=obj.errors_in_percentage;
             obj.contributions_in_percentage_history(end+1,:)=obj.contributions_in_percentage;
-        end  
+        end  %Once the precedent functions have been used, calculate the error of each pc and combine the results (contributions) to compute the total error and total error in percentage to feed the algorithm. Used at each iteration.
         
-        %plot functions...................................................
+        %plot functions (names speak for themselves. To refactor and debug.)
         function [] = plot_performance_calculator_if_exists(obj,performance_calculator, figureNumber)  
             index=obj.find_performance_calculator(performance_calculator);
             if (index~=0)
@@ -335,6 +340,7 @@ classdef ErrorFunction < handle
                 legend(leg);
             end 
         end
+        
         function [] = plot_all_performance_calculators(obj,starting_index)
             if (nargin<2)
                 for i=1:size(obj.performance_calculators,2)
@@ -351,21 +357,14 @@ classdef ErrorFunction < handle
     
     methods (Access = ?AlgorithmBox)
     
-       function [index] = find_performance_calculator(obj,performance_calculator_name)
-            try
-                index=0;
-                for i=1:size(obj.performance_calculators,2)
-                    if (strcmp(class(obj.performance_calculators{i}),performance_calculator_name))
-                        index=i;
-                    end    
-                end
-                if index==0
-                    string=['Sorry, no ',performance_calculator_name,' among the performance calculators of this error function.'];
-                    error(string);
-                end   
-            catch  
-            end    
-        end    
+       function [index] = find_performance_calculator(obj,performance_calculator_name) %index of performance_calculator_name in obj.performance_calculators and all properties that use this index. index=0 means the performance calculator doesn't exist in this error function.
+            index=0;
+            for i=1:size(obj.performance_calculators,2)
+                if (strcmp(class(obj.performance_calculators{i}),performance_calculator_name))
+                    index=i;
+                end    
+            end
+       end    
                 
        function [] = reset_history(obj)
             obj.calculate_pc_from_pems;
@@ -384,7 +383,7 @@ classdef ErrorFunction < handle
             for i=1:size(obj.performance_calculators,2)
                 obj.performance_calculators{1,i}.reset_history;
             end    
-        end    
+        end %reset the logs for new run
         
     end
     

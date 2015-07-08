@@ -19,35 +19,35 @@ classdef TVM < PerformanceCalculator
             end
         end
         
-        function [result] = calculate_from_beats(obj) %compute TVM on beats output on monitored mainline links. units in SI.
+        function [result] = calculate_from_beats(obj) %unit in SI
             dt_hr=obj.algorithm_box.beats_simulation.out_dt/3600;
             result = sum(obj.algorithm_box.beats_simulation.compute_performance(obj.algorithm_box.good_mainline_mask_beats).tot_flux)*dt_hr; %sum over time
             obj.result_from_beats = result;
         end
         
-        function [result] = calculate_from_pems(obj) %compute TVM on pems data on monitored mainline links
+        function [result] = calculate_from_pems(obj) 
             all_lengths=obj.algorithm_box.beats_simulation.scenario_ptr.get_link_lengths('us');
             link_ids=unique(obj.algorithm_box.pems.link_ids,'stable');
             count=1;
-            selected_ids_mask=zeros(1,93);
+%             selected_ids_mask=zeros(1,93);
             for k=1:size(link_ids,2)
                 link_mask=ismember(obj.algorithm_box.link_ids_beats,link_ids(1,k));
                 if any(link_mask.*obj.algorithm_box.good_mainline_mask_beats)
-                                                                                                            flag=1;
-                                                                                                            i=1;
-                                                                                                            while flag
-                                                                                                                if obj.algorithm_box.pems.link_ids(1,i)==link_ids(1,k)
-                                                                                                                    selected_ids_mask(1,i)=1;
-                                                                                                                    flag=0;
-                                                                                                                else
-                                                                                                                    i=i+1;
-                                                                                                                end    
-                                                                                                            end    
+%                 flag=1;
+%                 i=1;
+%                 while flag
+%                     if obj.algorithm_box.pems.link_ids(1,i)==link_ids(1,k)
+%                         selected_ids_mask(1,i)=1;
+%                         flag=0;
+%                     else
+%                         i=i+1;
+%                     end    
+%                 end    
                     good_lengths(1,count)=all_lengths(link_mask);
                     count=count+1;
                 end
             end
-                                                                                                           selected_ids_mask=logical(selected_ids_mask);
+%             selected_ids_mask=logical(selected_ids_mask);
             result=sum(sum(obj.algorithm_box.pems.data.flw_in_veh(:,obj.algorithm_box.good_mainline_mask_pems,obj.algorithm_box.current_day),1).*good_lengths,2); %sum over time and links
             obj.result_from_pems=result;
         end    

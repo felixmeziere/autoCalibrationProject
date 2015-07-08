@@ -1,9 +1,9 @@
 classdef (Abstract) AlgorithmBox < handle
     %AlgorithmBox : used by any algorithm.
     %   Contains the properties and methods that are used by any algorithm for
-    %   the automatic calibration problem (for now, tuning only source and
+    %   the automatic calibration problem (for now, tuning only unmonitored source and
     %   sink knobs). This allows you to run a program set in an excel
-    %   file and automatically registers the results as : another excel file,
+    %   file and automatically registers the results in : another excel file,
     %   an accelerated movie and all the variables and plots containing info 
     %   on the algorithm progress.
     
@@ -16,14 +16,14 @@ classdef (Abstract) AlgorithmBox < handle
     %for a common purpose.
     
     %These objects are : BeatsSimulation, PeMS5mindata, PemsData, 
-    %ErrorFunction, PerformanceCalculator, Knobs. 
+    %ErrorFunction, PerformanceCalculator, Knobs, Norm. 
     
     %The only implementation of AlgorithmBox coded at this day is CmaesBox,
     %inheriting from EvolutionnaryAlgorithmBox < AlgorithmBox.
     
     %There are two ways of setting up a scenario for calibration. One is
     %using the assistant, which will ask succesively each parameter in the
-    %matlab command window, to run the algorithm once. This can be seen as
+    %Matlab command window, to run the algorithm once. This can be seen as
     %a tutorial to understand everything that comes into play in this
     %calibration.
     %The other way is using an xls(x) file that will load automatically all
@@ -34,10 +34,38 @@ classdef (Abstract) AlgorithmBox < handle
     %that eval(obj.'parameter in excel first column'='value in excel
     %current column') works.
         
+    %It is easy to implement a new algorithm with this code or to study
+    %different days and their average. Using this code with a freeway that 
+    %is not 210E shoudln't cause any problem, if the scenario and PeMS data 
+    %have been generated the exact same way as they were given to me for 210E. 
+    %(Gabriel's script).
+    %However, studying durations different than one day with a 5 minutes 
+    %time step WILL require debuging.
+    
+    %Required for loading from xls :
+    
+    %    -> scenario_ptr | ['adress of the xml scenario file']
+    %    -> number_runs | [integer]
+    %    -> maxEval | [integer]
+    %    -> stopFValue | [real number]
+    %    -> beats_parameters.DURATION | [integer]
+    %       Should be 86400.
+    %    -> beats_parameters.OUTPUT_DT | [integer]
+    %       Should be 300.
+    %    -> beats_parameters.SIM_DT | [integer]
+    %       Should be 4.
+    %    -> starting_point | [knob#1value;knob#2value;...;knob#nvalue]
+    %       To use only if obj.initialization_method is 'manual'.
+    %       Discouraged.
+    %    -> multiple_sensor_vds_to_use | [vds#1,vds#2,...,vds#p]
+    %    -> vds_sensors_to_delete | [vds#1,vds#2,...,vds#k]
+
+
+    
     properties (Abstract, Constant)
         
-        algorithm_name %name of the algorithm in the subclass, used sometimes.
-        algorithm_type 
+        algorithm_name %name of the algorithm in the subclass, used sometimes. Example: cmaes
+        algorithm_type %type of the algorithm. Example: evolutionnary
         
     end    
     
@@ -50,30 +78,28 @@ classdef (Abstract) AlgorithmBox < handle
     properties (Access = public)
         
         %manually modificable properties...................................
-        number_runs=1; % the number of times the algorithm will run before going to the next column if an xls program is run. 
-        maxEval=90; % maximum number of times that beats will run.
-        maxIter=30; % maximum number of iterations of the algorithm (can be different from maxEval, in Evolutionnary Algorithms for example : each generation is several beats executions).
-        stopFValue=0; % the algorithm will stop if a smaller value is reached by error_calculator (this is the goal).
+        number_runs=1; % the number of times the algorithm will run with the current parameters (before going to the next column if an xls program is running). 
+        maxEval=1000; % maximum number of times that beats will run.
+        stopFValue=0; % the algorithm will stop if a smaller value is reached by error_calculator.
         current_xls_program_column=2; % in the xls program, number of the config column currently used (2 is B in excel for example).
         
     end
                 
-    properties %(SetAccess = protected)
+    properties (SetAccess = protected)
         
         %visible input properties..........................................
         beats_parameters=struct; % struct containing the parameters passed to BeatsSimulation (BeatsSimulation.create_beats_object(obj.beats_parameters)).
         beats_simulation@BeatsSimulation % the BeatsSimulation object that will run, output results and be overwritten at each algorithm iteration.
-        pems@PeMSData % the pems data to compare with the beats results. Input fields : 'days' (e.g. datenum(2014,10,1):datenum(2014,10,10)); 'district' (e.g. 7); 'processed_folder'(e.g. C:\Code\pems\processed). Output Fields : 'data'. 
+        pems@PeMSData % the pems data to compare with the beats results. Input fields : 'mainline_uncertainty' (of the mainline sensors. e.g.:0.1), 'days' (e.g. datenum(2014,10,1):datenum(2014,10,10)); 'district' (e.g. 7); 'processed_folder'(e.g. C:\Code\pems\processed). Output Fields : 'data'. 
         error_function@ErrorFunction % instance of ErrorFunction class, containing all the properties and methods to compute the difference between pems and beats output (this computes the fitness function to minimize).
-        initialization_method@char % initialization method must be 'normal', 'uniform' or 'manual'. Normal will
+        initialization_method@char % initialization method must be 'normal', 'uniform' or 'manual'.
         TVM_reference_values=struct; %TVM values from pems and beats with all knobs set to one. Used to project the beats knobs input in the correct TVM subspace.
-        PeMS_average_mainline_flow_reference_value
         knobs@Knobs % Knobs class instance with all the properties and methods relative to the knobs of the scenario.
         current_day=1; %current day used in the pems data loaded.
         
         %visible output properties.........................................
         out % struct with various histories and solutions.
-        bestEverErrorFunctionValue % smallest error_calculator value reached during the execution. Extracted from out.
+        bestEverErrorFunctionValue % smallest error_function value reached during the execution. Extracted from out.
         bestEverPoint % vector of knob values that gave the best (smallest) ever function value.
         numberOfIterations=1; % number of iterations of the algorithm (different than the number of evaluations for evolutionnary algorithms for example).
         numberOfEvaluations=1; % number of times beats ran a simulation. Extracted from out.
@@ -84,7 +110,7 @@ classdef (Abstract) AlgorithmBox < handle
     
     properties (Hidden, Access = public)
         
-        settings=struct;
+        settings=struct; %Struct with several settings for the error function.
         
     end    
     
@@ -92,28 +118,29 @@ classdef (Abstract) AlgorithmBox < handle
         
         %loading properties...............................................
         scenario_ptr=''; % adress of the beats scenario xml file.
-        freeway_name=''; %the name of the freeway extracted from the name of scenario file.
-        xls_results@char % address of the excel file containing the results, with a format that fits to the method obj.send_result_to_xls.
-        xls_program % cell array corresponding to the excel file containing configs in the columns, with the same format as given in the template.
+        freeway_name=''; %the name of the freeway extracted from the name of the scenario file.
+        xls_results@char % address of the excel file containing the results, with a format that is in accordance with the method obj.send_result_to_xls.
+        xls_program % cell array containing the excel file to load and set up the algorithm.
         beats_loaded=0; % flag to indicate if the beats simulation and parameters have been correctly loaded.
-        masks_loaded=0; % flag to indicate if the masks and TVM reference values have been correctly loaded.
+        masks_loaded=0; % flag to indicate if the masks and reference values have been correctly loaded.
         is_loaded=0; %flag to indicate if the algorithm is ready to run.
-        dated_name %name that will have the reports for this run
-        currently_loading_from_xls=0;
-
+        dated_name %name that will have this execution's reports.
+        currently_loading_from_xls=0; %flag to indicate if the object is being loaded
+        
         result_for_xls@cell % result of the algorithm to be outputed to the xls file.
 
         
         %masks pointing at the links with working sensors used on beats 
-        %output or on pems data............................................
-        mainline_mask_beats
-        good_mainline_mask_beats
-        source_mask_beats
-        good_source_mask_beats
-        sink_mask_beats
-        good_sink_mask_beats
-        good_sensor_mask_beats
-        mainline_mask_pems
+        %output or on pems data. The order of the links is therefore not 
+        %linear.........................................................
+        mainline_mask_beats %mainline link ids in beats scenario format and order.
+        good_mainline_mask_beats %monitored mainline links.
+        source_mask_beats %all source links (mainline source included).
+        good_source_mask_beats %monitored source links.
+        sink_mask_beats %all sink links (mainline sink included).
+        good_sink_mask_beats %monitored sink links.
+        good_sensor_mask_beats %all monitored links.
+        mainline_mask_pems %same in pems format and order.
         good_mainline_mask_pems
         source_mask_pems
         good_source_mask_pems
@@ -125,78 +152,42 @@ classdef (Abstract) AlgorithmBox < handle
         multiple_sensor_index2vds2id2link % vds2id2link of the sensors which are on links with at least two sensors
         multiple_sensor_vds_to_use=0; % tuple containing the vds of the sensors to keep in the precedent situation. Order or grouping is not important. If multiple vds for one link in this property, it means that their flow and dty_veh value will be summed and their speeds will be averaged.
         vds_sensors_to_delete=0; %tuple with sensors to delete. Useful to solve partial data issues.
-        sensor_link
-        link_ids_beats % all the link ids of the scenario. For practical reasons.
+        sensor_link %array with sensor ids in the left column and corresponding link ids in the second one.
+        link_ids_beats % all the link ids of the scenario in the scenario (non-linear) order.
         linear_link_ids      
 
     end    
    
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %  Construction, loading properties for single run                    %
+    %  Construction, loading properties manually with assistant           %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
    
     methods (Abstract, Access = public)
         
         [] = ask_for_algorithm_parameters(obj) % ask for the algorithm parameters in the command window.
         
-        [] = ask_for_starting_point(obj); % set the starting knob values.
+        [] = ask_for_starting_point(obj); % set the starting knob values. Can be different for each type of algorithm.
             
     end   
     
-    methods (Abstract)%,Access = ?AlgorithmBox)
+    methods (Access=protected)
         
-        [] = set_starting_point(obj, mode); % set a random starting point. 'mode' should be 'uniform' or 'normal'.
+        [] = set_starting_point(obj, mode); % set a random starting point with some distribution.
     
     end    
     
     methods (Access= public)    
        
         %create object....................................................
-        function [obj] = AlgorithmBox() %constructor
+        function [obj] = AlgorithmBox() %constructor that changes the working folder for further use by certain methods.
             [name,~,~]=fileparts(mfilename('fullpath'));
             cd(name);   
         end 
-        
-        %load for single run from xls file (using load_xls is better)......
-        function [] = load_properties_from_xls(obj) % load the properties from an excel file in the format described underneath.
-            %properties file : an xls file containing the AlgorithmBox
-            %properties to set in the first column and the corresponding
-            %expressions to be evaluated by Matlab in the 'current' column
-            %(column 2 for a single run).
-            %Empty cells in the current column will be ignored.
-            %The program input (0 or 1) is to avoid reloading useless
-            %stuff.
-                obj.currently_loading_from_xls=1;
-                obj.pems=PeMSData(obj);
-                obj.knobs=Knobs(obj);
-                for i=1:size(obj.xls_program,1)
-                    if ~strcmp(obj.xls_program(i,obj.current_xls_program_column),'')
-                        eval(strcat('obj.',char(obj.xls_program(i,1)),'=',char(obj.xls_program(i,obj.current_xls_program_column)),';'));
-                    end
-                end
-                obj.load_beats;
-                obj.pems.load;
-                obj.set_masks_and_reference_values;
-                obj.delete_choosen_sensors;
-                obj.solve_multiple_sensor_link_conflicts;
-                obj.knobs.set_demand_ids;
-                obj.knobs.current_value=ones(size(obj.knobs.link_ids,1));
-                obj.link_ids_beats=obj.beats_simulation.scenario_ptr.get_link_ids;      
-                if (obj.knobs.force_manual_knob_boundaries==0)
-                    obj.knobs.set_auto_knob_boundaries(obj.knobs.isnaive_boundaries);
-                end   
-                obj.knobs.is_loaded=1;
-                obj.set_starting_point(obj.initialization_method);
-                obj.error_function=ErrorFunction(obj);
-                obj.is_loaded=1;
-                obj.currently_loading_from_xls=0;
-                obj.currently_loading_from_xls=0;
-                disp('ALL SETTINGS LOADED, ALGORITHM READY TO RUN');    
-        end
 
         %load for single run from initial loading assistant and its 
-        %standalone dependencies...........................................
-        function [] = run_assistant(obj) % assistant to set all the parameters for a single run in the command window.
+        %standalone dependencies (command window)..........................
+        function [] = run_assistant(obj) % assistant to set all the parameters for a single run in the command window. 
+            %Uses all the standalone command window methods underneath.
             obj.currently_loading_from_xls=0;
             obj.ask_for_beats_simulation;
             obj.ask_for_pems_data;
@@ -207,7 +198,7 @@ classdef (Abstract) AlgorithmBox < handle
             obj.ask_for_algorithm_parameters;
             disp('ALL SETTINGS LOADED, ALGORITHM READY TO RUN');
         end
-       
+
         function [] = ask_for_beats_simulation(obj) % ask the user to enter a beats scenario and beats run parameters.
             scptr= input(['Address of the scenario xml file : '], 's');
             obj.scenario_ptr=scptr;
@@ -215,7 +206,7 @@ classdef (Abstract) AlgorithmBox < handle
             obj.load_beats;
         end   
         
-        function [] = ask_for_pems_data(obj) % ask the user for the pems info (still not implemented).
+        function [] = ask_for_pems_data(obj) % ask the user for the pems data parameters.
             obj.pems=PeMSData(obj);
             obj.pems.run_assistant;
             obj.ask_for_current_day;
@@ -231,7 +222,7 @@ classdef (Abstract) AlgorithmBox < handle
             obj.knobs.ask_for_knob_boundaries;
         end    
                
-        function [] = ask_for_errorFunction(obj) % set the performance calculator and error calculator in the command window.
+        function [] = ask_for_errorFunction(obj) % set up the error function in the command window.
            obj.error_function=ErrorFunction(obj);
         end
         
@@ -239,11 +230,11 @@ classdef (Abstract) AlgorithmBox < handle
              obj.current_day=input(['Enter the position of the day to study among all the days entered (e.g. 3, last day +1 is average of all days) : ']);
              if size(obj.knobs,1)~=0
                  obj.knobs.set_auto_knob_boundaries;
-                 if obj.knobs.current_value~=ones(size(obj.knobs.link_ids,1),1)
+                 if obj.knobs.current_value~=ones(obj.knobs.nKnobs,1)
                      obj.set_masks_and_reference_values;
                  end
              end
-        end
+        end % set position of current day studied in the pems data array. Last day+1 is average of all days.
         
         function [] = ask_for_solving_multiple_sensors_conflicts(obj)
             if (size(obj.multiple_sensor_index2vds2id2link,1)>0)
@@ -257,7 +248,7 @@ classdef (Abstract) AlgorithmBox < handle
                 end
                 obj.solve_multiple_sensor_link_conflicts;
             end    
-        end  
+        end  % Ask for sensors to delete or sum when there are two sensors on the same link (command window).
         
         function [] = ask_for_vds_sensors_to_delete(obj)
             ndelete=input(['How many sensors would you like to delete (Useful to solve incomplete data issues) : ']);
@@ -266,12 +257,12 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.vds_sensors_to_delete(i)=input(['VDS of sensor number ',num2str(i),' : ']);
             end    
             obj.delete_choosen_sensors;
-        end    
+        end  % Ask for sensors to delete. This will possibly create new knobs or knob groups. Useful to solve the problem of partial/biased data (command window). 
         
         function [] = ask_for_changing_congestionPattern_rectangles_if_exist(obj)
             cp=obj.error_function.find_performance_calculator('CongestionPattern');
             obj.error_function.performance_calculators{cp}=CongestionPattern(obj);
-        end    
+        end % Change the congestion pattern rectangles manually by the operator (command window).   
 
     end    
             
@@ -281,21 +272,27 @@ classdef (Abstract) AlgorithmBox < handle
 
     methods (Abstract, Access = public)
          
-        [] = set_result_for_xls(obj); % sets results_for_xls after the algorithm has run.
+        [] = set_result_for_xls(obj); % sets result_for_xls after the algorithm has run. This array is sent to the results excel file for record.
          
     end    
     
     methods (Access = public)
-        
-        function [] = ask_for_xls(obj)
-            % ask the user for the adress of the input and output Excel files.
+
+        function [] = ask_for_xls(obj)  % ask the user for the adress of the input and output Excel files.
             program=input(['Enter the address of the Excel program file : '], 's');
             results=input(['Enter the address of the Excel results file : '], 's');
             obj.load_xls(program,results);
         end
-        
-        function [] = load_xls(obj, xls_program_adress, xls_results_adress)
-            % loads the input Excel file and sets the adress of the output.
+
+        function [] = load_xls(obj, xls_program_adress, xls_results_adress) % loads the input Excel file, sets up the algorithm to be ready-to-run and sets the adress of the output xls file.
+            % The properties in the excel file should be in the format described underneath.
+            %properties file : an xls file containing the AlgorithmBox
+            %properties to set in the first column and the corresponding
+            %expressions to be evaluated by Matlab in the 'current' column
+            %(column 2 for a single run).
+            %Empty cells in the current column will be ignored.
+            %Comments in each class file explain which properties should be present
+            %in the xls file.
             obj.is_loaded=0;
             if ~exist('xls_results_adress','var')
                 xls_results_adress='';
@@ -306,9 +303,9 @@ classdef (Abstract) AlgorithmBox < handle
             obj.load_properties_from_xls;
         end
     
-        function [] = send_result_to_xls(obj, filename)
+        function [] = send_result_to_xls(obj, filename) % When algorithm has finished, sends several data on the execution of the algorithm (obj.result_for_xls) to the output Excel file.
             %the legend in the xls file should be written manually.
-            %the counter for current cell should be in cell AZ1.
+            %the counter for current cell should be in cell A2.
             if (nargin<2)
                 filename=obj.xls_results;
             end    
@@ -320,9 +317,43 @@ classdef (Abstract) AlgorithmBox < handle
             xlswrite(filename, id+1,obj.algorithm_name,'A2');
             disp('RESULTS OF THE RUN SENT TO XLS FILE :');
             disp(filename);
-        end  % send result of an execution of the algorithm to the output Excel file.
+        end  
         
     end    
+
+    methods (Access = protected)
+
+        %private used by load_xls.........................................
+        function [] = load_properties_from_xls(obj) 
+                obj.currently_loading_from_xls=1;
+                obj.pems=PeMSData(obj);
+                obj.knobs=Knobs(obj);
+                for i=1:size(obj.xls_program,1)
+                    if ~strcmp(obj.xls_program(i,obj.current_xls_program_column),'')
+                        eval(strcat('obj.',char(obj.xls_program(i,1)),'=',char(obj.xls_program(i,obj.current_xls_program_column)),';'));
+                    end
+                end
+                obj.load_beats;
+                obj.pems.load;
+                obj.set_masks_and_reference_values;
+                obj.delete_choosen_sensors;
+                obj.solve_multiple_sensor_link_conflicts;
+                obj.knobs.set_demand_ids;
+                obj.knobs.current_value=ones(obj.knobs.nKnobs);
+                obj.link_ids_beats=obj.beats_simulation.scenario_ptr.get_link_ids;      
+                if (obj.knobs.force_manual_knob_boundaries==0)
+                    obj.knobs.set_auto_knob_boundaries(obj.knobs.isnaive_boundaries);
+                end   
+                obj.knobs.is_loaded=1;
+                obj.set_starting_point(obj.initialization_method);
+                obj.error_function=ErrorFunction(obj);
+                obj.is_loaded=1;
+                obj.currently_loading_from_xls=0;
+                obj.currently_loading_from_xls=0;
+                disp('ALL SETTINGS LOADED, ALGORITHM READY TO RUN');    
+        end
+
+    end
        
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     %  Running algorithm and program                                      %
@@ -330,18 +361,18 @@ classdef (Abstract) AlgorithmBox < handle
     
     methods (Abstract, Access = public)
         
-        [] = run_algorithm(obj) % single run of the algorithm.
+        [] = run_algorithm(obj) % Manually run the algorithm once (used also by the method which runs the algorithm several times in a row : obj.run_program()).
     
     end    
     
     methods (Access = public)
         
-        function [error_in_percentage] = evaluate_error_function(obj, knob_values, isZeroToTenScale) % the error function used by the algorithm. Compares the beats simulation result and pems data.
+        function [error_in_percentage] = evaluate_error_function(obj, knob_values, isZeroToTenScale) % the error function evaluated by the algorithm at each iteration. Repairs the knobs, compares the beats simulation output and pems data and plots the result.
             %knob_values : n x 1 array where n is the number of knobs
             %to tune, containing the new values of the knobs.
             format SHORTG;
             format LONGG;
-            if (size(knob_values,1)==size(obj.knobs.link_ids,1))   
+            if (size(knob_values,1)==obj.knobs.nKnobs || size(knob_values,1)==obj.knobs.nKnobs+size(obj.knobs.monitored_ramp_link_ids,1))   
                 if exist('isZeroToTenScale','var') && isZeroToTenScale==1
                     knob_values=obj.knobs.rescale_knobs(knob_values,0);
                 end
@@ -350,13 +381,11 @@ classdef (Abstract) AlgorithmBox < handle
                 end
                 knob_values=obj.project_on_correct_TVM_subspace(knob_values);
                 zeroten_knob_values=obj.knobs.rescale_knobs(knob_values,1);
-                obj.knobs.knobs_history(end+1,:)=reshape(knob_values,1,[]);
-                obj.knobs.zeroten_knobs_history(end+1,:)=reshape(zeroten_knob_values,1,[]);
                 disp(['Knobs vector and values being tested for evaluation # ',num2str(obj.numberOfEvaluations),' :']);
                 disp(' ');
                 disp(['               Demand Id :','                 Link Id :','                                    Value, min and max:','           Value on a scale from 0 to 10:']);
                 disp(' ');
-                disp([obj.knobs.demand_ids,obj.knobs.link_ids, knob_values,obj.knobs.boundaries_min,obj.knobs.boundaries_max,zeroten_knob_values]);
+                disp([obj.knobs.demand_ids,obj.knobs.link_ids, knob_values(1:obj.knobs.nKnobs,1),obj.knobs.boundaries_min,obj.knobs.boundaries_max,zeroten_knob_values(1:obj.knobs.nKnobs,1)]);
                 obj.beats_simulation.beats.reset();
                 obj.knobs.set_knobs_persistent(knob_values);
                 obj.beats_simulation.run_beats_persistent;
@@ -410,12 +439,12 @@ classdef (Abstract) AlgorithmBox < handle
             end
             end    
            obj.make_notmade_movies;
-        end % run the program defined by the input Excel file and write its results in the output Excel file.        
+        end % run the program defined by the input Excel file and write its results in the output Excel file, a .mat file and as frames of CongestionPattern to make a movie.        
         
     end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %  Plot methods                                                       %
+    %  Plot and movie methods  (to refactor)                              %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     methods (Access = public)
@@ -564,33 +593,36 @@ classdef (Abstract) AlgorithmBox < handle
         function [movie] = plot_movie(obj,dated_name,figureNumber,congestion_pattern_only,tosave,noncongestion_refresh,stop_frame)
             a=obj;
             if(nargin<6)
-                noncongestion_refresh=size(obj.knobs.link_ids,1);
+                noncongestion_refresh=obj.knobs.nKnobs;
             end    
             if (nargin<2 || strcmp(dated_name,obj.dated_name))
                 dated_name=obj.dated_name;
+                zeroten_knobs_history=obj.knobs.zeroten_knobs_genmean_history;
+                error_in_percentage_history=obj.error_function.error_in_percentage_genmean_history;
+                contributions_in_percentage_history=obj.error_function.contributions_in_percentage_genmean_history;
             else
                 load([pwd,'\',obj.algorithm_name,'_reports\',dated_name,'\',dated_name,'_allvariables.mat']);
-            end    
+                directory=[pwd,'\movies\',dated_name,'\'];
+                if exist([directory,'zeroten_knobs_genmean_history.mat'],'file')==2
+                    load([directory,'zeroten_knobs_genmean_history.mat']);
+                    zeroten_knobs_history=zeroten_knobs_genmean_history;
+                else    
+                    load([directory,'zeroten_knobs_history.mat']);
+                end
+                if exist([directory,'error_in_percentage_genmean_history.mat'],'file')==2
+                    load([directory,'error_in_percentage_genmean_history.mat']);
+                    error_in_percentage_history=error_in_percentage_genmean_history;
+                else    
+                    load([directory,'error_in_percentage_history.mat']);
+                end
+                if exist([directory,'contributions_in_percentage_genmean_history.mat'],'file')==2
+                    load([directory,'contributions_in_percentage_genmean_history.mat']);
+                    contributions_in_percentage_history=contributions_in_percentage_genmean_history;
+                else    
+                    load([directory,'contributions_in_percentage_history.mat']);
+                end
+            end
             figure_title=obj.get_figure_title;
-            directory=[pwd,'\movies\',dated_name,'\'];
-            if exist([directory,'zeroten_knobs_genmean_history.mat'],'file')==2
-                load([directory,'zeroten_knobs_genmean_history.mat']);
-                zeroten_knobs_history=zeroten_knobs_genmean_history;
-            else    
-                load([directory,'zeroten_knobs_history.mat']);
-            end
-            if exist([directory,'error_in_percentage_genmean_history.mat'],'file')==2
-                load([directory,'error_in_percentage_genmean_history.mat']);
-                error_in_percentage_history=error_in_percentage_genmean_history;
-            else    
-                load([directory,'error_in_percentage_history.mat']);
-            end
-            if exist([directory,'contributions_in_percentage_genmean_history.mat'],'file')==2
-                load([directory,'contributions_in_percentage_genmean_history.mat']);
-                contributions_in_percentage_history=contributions_in_percentage_genmean_history;
-            else    
-                load([directory,'contributions_in_percentage_history.mat']);
-            end
             max_error=max(error_in_percentage_history);
             min_error=min(error_in_percentage_history);
             if (nargin<5)
@@ -770,7 +802,9 @@ classdef (Abstract) AlgorithmBox < handle
     end    
     
     methods (Abstract, Static)
-         [] = plot_algorithm_data()
+        
+         [] = plot_algorithm_data() %this plot method is proper to each algorithm.
+         
     end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -778,10 +812,12 @@ classdef (Abstract) AlgorithmBox < handle
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%   
     
     methods (Abstract, Access= protected)
-        [figure_title] = get_figure_title(obj)
+        
+        [figure_title] = get_figure_title(obj) % This is the figure title for the movie. It is proper to each algorithm.
+        
     end    
     
-    methods (Access = public) %supposed to be private but public for debug reasons
+    methods (Hidden, Access = public) %Access is public because other objects should be able to access it (didn't find how to allow several classes to access a method.)
         
         %initial loading and setting stuff.................................
         function [] = load_beats(obj)
@@ -801,9 +837,9 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.beats_loaded=1;
             else error('Beats scenario xml file adress and beats parameters must be set before loading beats.');   
             end    
-        end    %loads beats simulation and computes first TVM reference value.
+        end    %load beats simulation and scenario data to AlgorithmBox.
         
-        function [type] = get_type(obj,link_id)
+        function [type] = get_type(obj,link_id) %Get the type of a link with its id (should be in ScenarioPtr).
             if (ismember(link_id,obj.link_ids_beats(obj.source_mask_beats)))
                 type='On-Ramp';
             elseif ismember(link_id,obj.link_ids_beats(obj.sink_mask_beats))
@@ -814,7 +850,6 @@ classdef (Abstract) AlgorithmBox < handle
         end   
         
         function [] = set_masks_and_reference_values(obj)
-            %sets the masks for further link selection.
             if (obj.beats_loaded && obj.pems.is_loaded)
                 obj.sensor_link = obj.beats_simulation.scenario_ptr.get_sensor_link_map;
                 good_sensor_mask_pems_r = logical(all(~isnan(obj.pems.data.flw(:,:,obj.current_day))).*any(obj.pems.data.flw(:,:,obj.current_day)));
@@ -849,7 +884,7 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.good_sink_mask_pems=logical(obj.good_sensor_mask_pems.*obj.sink_mask_pems);
                 obj.set_multiple_sensor_index2vds2id2link;
                 TVmiles=TVM(obj);
-                if (size(obj.knobs,1)~=0 && obj.knobs.is_loaded && all(mean(obj.knobs.current_value,2)~=ones(size(obj.knobs.link_ids,1),1)))
+                if (size(obj.knobs,1)~=0 && obj.knobs.is_loaded && all(mean(obj.knobs.current_value,2)~=ones(obj.knobs.nKnobs,1)))
                     obj.reset_beats;
                 end    
                 obj.TVM_reference_values.beats=TVmiles.calculate_from_beats;
@@ -858,28 +893,29 @@ classdef (Abstract) AlgorithmBox < handle
                     obj.error_function.calculate_pc_from_pems;
                 end    
                 pems_flows=sum(obj.pems.data.flw_in_veh(:,obj.good_mainline_mask_pems,size(obj.pems.days,2)+1),1);
-                obj.PeMS_average_mainline_flow_reference_value=mean(pems_flows(~isnan(pems_flows)),2);
+                obj.pems.average_mainline_flow=mean(pems_flows(~isnan(pems_flows)),2);
                 obj.masks_loaded=1;
             else
                 error('Beats simulation and PeMS data must be loaded before setting the masks and reference values.');
             end    
-        end    %sets the masks for further link selection and smoothens pems flow values.
-        
-        function [] = reset_beats(obj)
+        end    %sets the masks for further link selection and smoothens pems flow values. Computes initial reference values as well (TVM, PeMS average mainline flow).
+                                                                
+        function [] = reset_beats(obj) %sets the knobs to one (reference value) and runs beats.
             obj.beats_simulation.beats.reset();
             if size(obj.knobs,1)~=0
-                obj.knobs.set_knobs_persistent(ones(size(obj.knobs.link_ids,1),1));
+                if obj.knobs.is_uncertainty_for_monitored_ramps
+                    obj.knobs.set_knobs_persistent(ones(obj.knobs.nKnobs+size(obj.knobs.monitored_ramp_link_ids,1),1));
+                else
+                    obj.knobs.set_knobs_persistent(ones(obj.knobs.nKnobs));
+                end
             end    
             disp('RUNNING BEATS A FIRST TIME FOR REFERENCE DATA.');
             obj.beats_simulation.run_beats_persistent;
         end
         
-        function [] = reset_for_new_run(obj)
+        function [] = reset_for_new_run(obj) %erases record of last run for the  next one, sets the name of the next run and creates corresponding directories.
             obj.error_function.reset_history;
-            obj.knobs.knobs_history=[];
-            obj.knobs.knobs_genmean_history=[];
-            obj.knobs.zeroten_knobs_history=[];
-            obj.knobs.zeroten_knobs_genmean_history=[];
+            obj.knobs.reset_history;
             obj.dated_name=Utilities.give_dated_name([obj.algorithm_name,'_reports\']);
             mkdir([pwd,'\',obj.algorithm_name,'_reports\',obj.dated_name]);
             mkdir([pwd,'\movies\',obj.dated_name,'\frames']);
@@ -900,7 +936,7 @@ classdef (Abstract) AlgorithmBox < handle
             else
                 error('Please, load BEATS and PeMS before solving multiple sensors conflicts');
             end    
-        end 
+        end %detects multiple sensors on one link situations and put them in obj.multiple_sensor_index2vds2id2link.
         
         function [] = solve_multiple_sensor_link_conflicts(obj)
             if (obj.multiple_sensor_vds_to_use~=0)
@@ -952,10 +988,10 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.pems.data.flw_in_veh=obj.pems.data.flw/12;
                 obj.set_masks_and_reference_values;
             end    
-        end    
+        end %among the sensors in obj.multiple_sensor_index2vds2id2link, keep those who are in obj.multiple_sensor_vds_to_use. If multiple vds for one link, flw and dty_veh value will be summed and their speeds will be averaged.
         
-        %solving particular situations (like HOV pbs) by deleting a sensor.
-        function [] = delete_choosen_sensors(obj)
+        %solving particular situations (like HOV pbs) by deleting sensors.
+        function [] = delete_choosen_sensors(obj) %delete sensors in obj.vds_sensors_to_delete.
             if (obj.vds_sensors_to_delete~=0)
                 disp('DELETING CHOOSEN SENSORS.');
                 for i=1:size(obj.vds_sensors_to_delete,2)
@@ -968,7 +1004,6 @@ classdef (Abstract) AlgorithmBox < handle
                 end
             end    
         end    
-        
         
         %get link lengths in beats or pems data matching format............
         function [lengths] = get_link_lengths_miles_pems(obj,link_mask_pems, same_link_mask_beats)
@@ -983,7 +1018,7 @@ classdef (Abstract) AlgorithmBox < handle
                     k=k+1;
                 end    
             end
-        end %get an array with the lengths of the links pointed by link_mask_pems, when applied to a 'pems format' link ids array. Same_link_mask_beats must be the the same link mask for beats foramt.
+        end %get an array with the lengths of the links pointed by link_mask_pems, when applied to a 'pems format' link ids array. Same_link_mask_beats must be the the same link mask for beats format (e.g. : good_mainline_mask_beats for good_mainline_mask_pems).
         
         function [lengths] = get_link_lengths_miles_beats(obj,link_mask_beats)
             link_length_miles = obj.beats_simulation.scenario_ptr.get_link_lengths('us');
@@ -1025,7 +1060,7 @@ classdef (Abstract) AlgorithmBox < handle
                 mainline_link_id=obj.linear_link_ids(index+i);
                 is_mainline=ismember(mainline_link_id, obj.link_ids_beats(obj.mainline_mask_beats));
             end
-        end
+        end % gets the id of the mainline link just after the node connecting the input_link_id ramp to the freeway.
         
         function [remaining_mainline_length]=get_remaining_monitored_mainline_length(obj, first_mainline_link_id)
             k=1;
@@ -1036,44 +1071,54 @@ classdef (Abstract) AlgorithmBox < handle
             remaining_link_ids_mask=ismember(obj.link_ids_beats,remaining_link_ids);
             remaining_monitored_mainline_links_mask=logical(remaining_link_ids_mask.*obj.good_mainline_mask_beats);
             remaining_mainline_length=sum(obj.get_link_lengths_miles_beats(remaining_monitored_mainline_links_mask));
-        end  %gets the remaining mainline length after the mainline link first_mainline_link_id.
+        end  %gets the remaining mainline length after the mainline link first_mainline_link_id. Used to compute TVM a-priori.
 
         %project the algorithm input to correct total TVM subspace.........
         function [sum_of_template] = get_sum_of_template_in_veh(obj,link_id) 
             dp=obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(link_id);
             sum_of_template=sum(dp.demand)*dp.dt;
-        end   %returns the sum over time of the template of the link id, in vehicles.
+        end  %returns the sum over time of the template of the link id, in vehicles.
         
-        function [knobs_on_correct_subspace] = project_on_correct_TVM_subspace(obj,vector) % Project vector on the hyperplan of vectors that will make beats output have the same TVM as pems.
+        function [knobs_on_correct_subspace] = project_on_correct_TVM_subspace(obj,vector) % Project vector on the hyperplan of vectors that will make beats output have the same TVM as pems within a range given by obj.error_function.pcs_uncertainty.
             equation_coefficients_tuple=[]; 
             obj.knobs.current_preTVMProjection_value=vector;
-            %N tuple that will contain the coefficients of the equation of 
+            %equation_coefficients_tuple : N tuple that will contain the coefficients of the equation of 
             %the hyperplan. We will call them alpha(i) : alpha(i)= (sum over time of the template values of the demand profile of knob(i))*(remaining mainline length from the corresponding link) 
             %The equation is [(knob1)*alpha(1)+(knob2)*alpha(2)+...+(knobN)*alpha(N)-sum(alpha(i))]+[TVM value given by beats output when all knobs are set to one]=pems TVM value
             %(the substraction of sum of alphaIs removes the extra contributions of the links tuned in beats TVM)
-            sze=size(obj.knobs.link_ids,1);
+            sze=obj.knobs.nKnobs;
+            link_ids=obj.knobs.link_ids;
+            boundaries_min=obj.knobs.boundaries_min;
+            boundaries_max=obj.knobs.boundaries_max;
+            if obj.knobs.is_uncertainty_for_monitored_ramps
+                sze=sze+size(obj.knobs.monitored_ramp_link_ids,1);
+                link_ids=[link_ids;obj.knobs.monitored_ramp_link_ids];
+                boundaries_min=[boundaries_min;obj.knobs.monitored_ramp_knob_boundaries_min];
+                boundaries_max=[boundaries_max;obj.knobs.monitored_ramp_knob_boundaries_max];
+            end
             for i=1:sze %fill the tuple
-                if (ismember(obj.knobs.link_ids(i),obj.link_ids_beats(obj.source_mask_beats)))
+                if (ismember(link_ids(i),obj.link_ids_beats(obj.source_mask_beats)))
                     sig=1;
                 else
                     sig=-1;
                 end
-                equation_coefficients_tuple(1,i)=sig*obj.get_sum_of_template_in_veh(obj.knobs.link_ids(i,1))*obj.get_remaining_monitored_mainline_length(obj.get_next_mainline_link_id(obj.knobs.link_ids(i)));  
+                equation_coefficients_tuple(1,i)=sig*obj.get_sum_of_template_in_veh(link_ids(i,1))*obj.get_remaining_monitored_mainline_length(obj.get_next_mainline_link_id(link_ids(i)));  
             end
             equation_rest_of_left_side=obj.TVM_reference_values.beats-sum(equation_coefficients_tuple); %second term between brackets of the left side
             flowdiff=obj.TVM_reference_values.pems-equation_rest_of_left_side;
             si=sign(flowdiff);
+            unc=obj.error_function.pcs_uncertainty;
             %Exact TVM projection : [knobs_on_correct_subspace,fval]=quadprog(eye(sze),-reshape(vector,1,[]),[],[],equation_coefficients_tuple, obj.TVM_reference_values.pems-equation_rest_of_left_side,obj.knobs.boundaries_min,obj.knobs.boundaries_max); % minimization program
             %Projection within a tolerance range :
-            [knobs_on_correct_subspace,fval]=quadprog(eye(sze),-reshape(vector,1,[]),[si*equation_coefficients_tuple;-si*equation_coefficients_tuple],[si*1.05*flowdiff;-si*0.95*flowdiff],[],[],obj.knobs.boundaries_min,obj.knobs.boundaries_max);
+            [knobs_on_correct_subspace,fval]=quadprog(eye(sze),-reshape(vector,1,[]),[si*equation_coefficients_tuple;-si*equation_coefficients_tuple],[si*(1+unc)*flowdiff;-si*(1-unc)*flowdiff],[],[],boundaries_min,boundaries_max);
         end    
   
         %Transform masks to fit linear link ids............................
-        function [linear_mask] = send_mask_beats_to_linear_space(obj, mask_beats)
+        function [linear_mask] = send_mask_beats_to_linear_space(obj, mask_beats) %Transforms a link mask that is in the order of the BeATS scenario to a mask that is in linear order.
             linear_mask=ismember(obj.linear_link_ids,obj.link_ids_beats(mask_beats));
         end    
         
-        function [linear_mask_in_mainline_space] = send_linear_mask_beats_to_mainline_space(obj, linear_mask) %if ramp, the designated mainline link will be the precedent one.
+        function [linear_mask_in_mainline_space] = send_linear_mask_beats_to_mainline_space(obj, linear_mask) %Transforms a mask that is in linear order and pointing at all the links to a mask that is pointing only at mainline links. For ramps selected by the former mask, the designated mainline link will be the precedent one.
             ordered_mainline_link_ids=obj.linear_link_ids(ismember(obj.linear_link_ids,obj.link_ids_beats(obj.mainline_mask_beats)));
             nonlinear_mask=ismember(obj.link_ids_beats,obj.linear_link_ids(linear_mask));
             linear_mask_in_mainline_space = ismember(ordered_mainline_link_ids,obj.linear_link_ids(linear_mask));
@@ -1106,20 +1151,20 @@ classdef (Abstract) AlgorithmBox < handle
         
         function [linear_mask_in_mainline_space] = send_mask_beats_to_linear_mainline_space(obj,mask_beats)
             linear_mask_in_mainline_space=obj.send_linear_mask_beats_to_mainline_space(obj.send_mask_beats_to_linear_space( mask_beats));
-        end   
+        end  %Combine the two precedent methods.
         
         function [linear_mask] = send_mask_pems_to_linear_space(obj, mask_pems)
             linear_mask=ismember(obj.pems.linear_link_ids,obj.pems.link_ids(mask_pems));
-        end    
+        end %Same with pems data format masks.   
             
         function [linear_mask_in_mainline_space] = send_linear_mask_pems_to_mainline_space(obj, linear_mask_pems)
             linear_mainline_ids=obj.linear_link_ids(obj.send_mask_beats_to_linear_space(obj.mainline_mask_beats));
             linear_mask_in_mainline_space=ismember(linear_mainline_ids,obj.pems.linear_link_ids(linear_mask_pems));
-        end    
+        end   %Same with pems data format masks.
         
         function [linear_mask_in_mainline_space] = send_mask_pems_to_linear_mainline_space(obj, mask_pems)
             linear_mask_in_mainline_space=obj.send_linear_mask_pems_to_mainline_space(obj.send_mask_pems_to_linear_space(mask_pems));
-        end    
+        end  %Same with pems data format masks.  
         
         %temporary.........................................................        
         function [res] = compute_TVM_with_knobs_vector(obj,vector)
@@ -1134,14 +1179,14 @@ classdef (Abstract) AlgorithmBox < handle
                 alphaIs_tuple(1,i)=sign*obj.get_sum_of_template_in_veh(obj.knobs.link_ids(i,1))*obj.get_remaining_monitored_mainline_length(obj.get_next_mainline_link_id(obj.knobs.link_ids(i))); 
             end
             res=obj.TVM_reference_values.beats+alphaIs_tuple*(vector-1);
-       end   % Computes TVM with the knobs vector.
+       end   % Computes a-priori TVM with the knobs vector.
        
         function [absciss] = get_linear_absciss_for_link_id(obj,link_id)
            if ~ismember(link_id,obj.link_ids_beats(obj.mainline_mask_beats))
                link_id=obj.get_next_mainline_link_id(link_id);
            end    
            absciss=find(obj.error_function.performance_calculators{1}.send_mask_beats_to_linear_mainline_space(obj.link_ids_beats==link_id));
-        end    
+        end  %Get the idnex of link_id in the linear link ids array (with mainline and ramps).
        
     end
     
@@ -1149,7 +1194,7 @@ classdef (Abstract) AlgorithmBox < handle
         
         function [] = remove_field_from_property(obj, property, field)
            eval(strcat('obj.',property,'=rmfield(obj.',property,',',Utilities.char2char('field'),');'));
-        end    
+        end  %useless  
         
         %saving data......................................................
         function [] = save_data(obj)
@@ -1175,7 +1220,7 @@ classdef (Abstract) AlgorithmBox < handle
             save([pwd,'\movies\',obj.dated_name,'\contributions_in_percentage_history.mat'],'contributions_in_percentage_history');
             save([pwd,'\movies\',obj.dated_name,'\contributions_in_percentage_genmean_history.mat'],'contributions_in_percentage_genmean_history');
             close all
-        end    
+        end    %save the .mat file and figures with all the infos once the algorithm has finished.
         
         function [] = save_congestionPattern_matrix(obj)
             try
@@ -1183,7 +1228,7 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.error_function.performance_calculators{CPindex}.save_plot;
             catch
             end    
-        end    
+        end   %save the congestion pattern frame at every iteration.
            
     end    
      

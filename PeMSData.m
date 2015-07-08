@@ -1,23 +1,32 @@
 classdef PeMSData < handle
     
-    properties (SetAccess = ?AlgorithmBox)
+    %Required for loading from xls :
+    
+    %   -> pems.days | e.g. : [datenum('2014/10/14'),datenum('2014/10/21'),datenum('2014/11/18'),datenum('2014/11/25'),datenum('2014/12/16')]
+    %   -> pems.district | [integer]
+    %   -> pems.processed_folder | ['adress of the folder']
+    %   -> pems.mainline_uncertainty | [fraction of one]
+    %   -> pems.monitored_source_sink_uncertainty | [fraction of one]
+
+    
+     properties %(SetAccess = ?AlgorithmBox )
         
         is_loaded=0;
         algorithm_box@AlgorithmBox
         peMS5minData@PeMS5minData
 
-        
         days
         district
         processed_folder
         
         data=struct;
-        uncertainty=0.1;
-
+        average_mainline_flow
+        mainline_uncertainty=0.1;
+        monitored_source_sink_uncertainty=0;
 
     end
     
-    properties %(Hidden, SetAccess=?AlgorithmBox)
+    properties (Hidden, SetAccess=?AlgorithmBox)
         
         link_ids % list of the link ids corresponding to the pems data columns, in linear order.
         linear_link_ids

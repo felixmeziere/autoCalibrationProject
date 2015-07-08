@@ -1,7 +1,5 @@
 classdef TVH < PerformanceCalculator
-    %TVH Summary of this class goes here
-    %   Detailed explanation goes here
-    
+
     properties (Constant)
         
         name='TVH';

@@ -3,6 +3,107 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
     %   Contains the specific properties and methods used by the cmaes
     %   algorithm.
     
+    %Required for loading from xls :
+    
+    
+    %    -> insigma | [real between 2 and 5]
+    
+    
+    %Exhaustive list of all the parameters required for loading this
+    %algorithm from xls (compilation of all objects' requirements):
+    
+    %    -> scenario_ptr | ['adress of the xml scenario file']
+    %    -> number_runs | [integer]
+    %    -> maxEval | [integer]
+    %    -> stopFValue | [real number]
+    %    -> beats_parameters.DURATION | [integer]
+    %       Should be 86400.
+    %    -> beats_parameters.OUTPUT_DT | [integer]
+    %       Should be 300.
+    %    -> beats_parameters.SIM_DT | [integer]
+    %       Should be 4.
+    %    -> starting_point | [knob#1value;knob#2value;...;knob#nvalue]
+    %       To use only if obj.initialization_method is 'manual'.
+    %       Discouraged.
+    %    -> multiple_sensor_vds_to_use | [vds#1,vds#2,...,vds#p]
+    %    -> vds_sensors_to_delete | [vds#1,vds#2,...,vds#k]
+    
+    
+    
+    
+    %   -> pems.days | e.g. : [datenum('2014/10/14'),datenum('2014/10/21'),datenum('2014/11/18'),datenum('2014/11/25'),datenum('2014/12/16')]
+    %   -> pems.district | [integer]
+    %   -> pems.processed_folder | ['adress of the folder']
+    %   -> pems.mainline_uncertainty | [fraction of one]
+    %   -> pems.monitored_source_sink_uncertainty | [fraction of one]
+    
+    
+    
+    
+    
+    %    -> initial_population_size | [integer] 
+    %       Does not change much. Setting it to 4 + floor(3*log([number of
+    %       knobs])) which is the size used in CMAES is a good idea.
+    %    -> initialization_method | ['uniform'], ['normal'] or ['manual'].
+    %       For CMAES, 'uniform' should be used in order to center the starting_point : the initialization doesn't matter very much if sigma is set between reasonable bound (2:5)
+    %    -> maxIter | [integer]
+    
+    %    -> starting_point | [knob#1value;knob#2value;...;knob#nvalue] 
+    %       REQUIRED ONLY IF obj.initialization_method is 'manual'
+    %    -> normopts.SIGMAS | [sigma#1;sigma#2;...;sigma#n]
+    %       REQUIRED ONLY IF obj.initialization_method is 'normal'
+    %    -> normopts.CENTERS | [center#1;center#2;...;center#n]
+    %       REQUIRED ONLY IF obj.initialization_method is 'normal'
+    
+    
+    
+    
+    %    -> insigma | [real between 2 and 5]
+
+    
+    
+    
+    %    -> knobs.is_uncertainty_for_monitored_ramps | [0] or [1] DEFAULT:0
+    %    -> knobs.link_ids | [link_id#1;link_id#2;...;link_id#n]
+    %    -> knobs.force_manual_knob_boundaries | [0] or [1] DEFAULT:0
+    %    -> knobs.isnaive_boundaries | [0] or [1] DEFAULT:0
+    %    -> knobs.underevaluation_tolerance_coefficient | [coeff] 
+    %       coeff should be between 0 and 1 (will multiply perfect value).
+    %    -> knobs.overevaluation_tolerance_coefficient | [coeff] 
+    %       coeff should be greater than 1 (will multiply perfect value).
+    %    -> pems.mainline_uncertainty | [fraction of one]
+    %       e.g.: 0.05 for 5%. DEFAULT : 0.1
+    %    -> pems.monitored_source_sink_uncertainty | [fraction of one]
+    %       e.g.:0.02 for 2%. DEFAULT:0 NOT REQUIRED IF is_uncertainty_for_monitored_ramps==0
+    
+    %    -> knobs.boundaries_min | [kb#1;...;kb#n] NOT REQUIRED IF force_manual_knob_boundaries==0. 
+    %    -> knobs.boundaries_max | [kb#1;...;kb#n] NOT REQUIRED IF force_manual_knob_boundaries==0.
+    
+    
+    
+    
+    %(NPCSC#k is name of kth PerformanceCalculator subclass and NNSC#k is name of kth Norm subclass)
+    
+    %    -> settings.error_function.performance_calculators | struct('NPCSC#1',[weight#1], 'NPCSC#2',[weight#2],...,'NPCSC#n',[weight#n])       
+    %    -> settings.error_function.norms | {'NNSC#1','NNSC#2',...,'NNSC#n'}
+    %    -> error_function.pcs_uncertainty | [fraction of 1]
+    
+    
+    
+    %    -> settings.congestion_pattern.false_positive_coefficient | [fraction of 1]
+    %    -> settings.congestion_pattern.false_negative_coefficient | [fraction of 1]
+    %    -> settings.rectangles | cell(n,1)       
+    %    For i from 1 to number of rectangles:    
+    %       -> settings.congestion_pattern.rectangles{i,1}.left_absciss | [integer]
+    %       -> settings.congestion_pattern.rectangles{i,1}.right_absciss | [integer]
+    %       -> settings.congestion_pattern.rectangles{i,1}.up_ordinate | [integer]
+    %       -> settings.congestion_pattern.rectangles{i,1}.down_ordinate | [integer]
+
+    
+    
+    
+
+    
     properties (Constant)
         
         algorithm_name='cmaes';
@@ -61,13 +162,18 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
                   obj.inopts.MaxFunEvals = obj.maxEval;
                   obj.inopts.MaxIter = obj.maxIter;
                   obj.inopts.StopFitness = obj.stopFValue;
-                  obj.inopts.UBounds = ones(size(obj.knobs.link_ids,1),1)*10;
-                  obj.inopts.LBounds = zeros(size(obj.knobs.link_ids,1),1);
+                  obj.inopts.UBounds = ones(obj.knobs.nKnobs,1)*10;
+                  obj.inopts.LBounds = zeros(obj.knobs.nKnobs,1);
+                  if obj.knobs.is_uncertainty_for_monitored_ramps
+                    obj.inopts.UBounds = [obj.inopts.UBounds;ones(size(obj.knobs.monitored_ramp_link_ids,1),1)*10];
+                    obj.inopts.LBounds = [obj.inopts.LBounds;zeros(size(obj.knobs.monitored_ramp_link_ids,1),1)];                  
+                  end    
                   xstart=obj.knobs.rescale_knobs(obj.starting_point,1);
-                  obj.population_size=(4 + floor(3*log(size(obj.knobs.link_ids,1))));
+                  obj.population_size=(4 + floor(3*log(size(xstart,1))));
                   try
                       [lastPoint, lastValue, obj.numberOfEvaluations, obj.stopFlag, obj.out, bestever]=cmaes(@(x)obj.evaluate_error_function(x,1), xstart, obj.insigma, obj.inopts);  
-                  catch     
+                  catch exception
+                      disp(exception);
                       obj.stopFlag='Manual stop or unexpected error';
                   end    
                   load variablescmaes.mat

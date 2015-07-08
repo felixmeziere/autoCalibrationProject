@@ -18,20 +18,20 @@ classdef CongestionPattern < PerformanceCalculator
     
     properties (SetAccess = protected)
     
-        rectangles
-        vertical_size
-        horizontal_size
-        linear_mainline_links
-        critical_densities
-        linear_mainline_indices
-        false_positive_coefficient=-1;
-        false_negative_coefficient=-1;
+        rectangles %(px1) cell array of structs identical to settings.congestion_pattern.rectangles : rectangles{i,1}=struct('left_absciss',int,'right_absciss',int,'up_ordinate',int,'down_ordinate',int); coordinates are in the contour plot (absciss : linear mainline links, ordinate : time in 5 minutes steps i.e. 0:288 for one day).
+        vertical_size %size of ordinate (289 for one day with 5mn step)
+        horizontal_size %size of absciss (135 for the 210E scenario I used)
+        linear_mainline_links %mainline link ids in linear order
+        critical_densities %densities above which each link is theoretically congested, in the order of the preceding property
+        linear_mainline_indices %index of the links of linear_mainline_links in the beats scenario order (i.e. find(obj.algorithm_box.link_ids_beats==obj.linear_mainline_links(i))
+        false_positive_coefficient=-1; %the sum of these two positive coefficients must be one. Importance given to false positive vs. false negative (i.e. congestion where there shouldn't be vs. freeflow where there shouldn't be). Usually 0.5 and 0.5.
+        false_negative_coefficient=-1; %See above.
         
     end    
     
     properties (Hidden, SetAccess=protected)
         
-        first_load=1;
+        first_load=1; %flag to indicate if the object has been loaded before.
 
     end    
     
@@ -73,7 +73,7 @@ classdef CongestionPattern < PerformanceCalculator
             end
         end    
         
-        function [result] = calculate_from_beats(obj)
+        function [result] = calculate_from_beats(obj) %the choosen critical density is critical density+epsilon (*[1+epsilon] doesn't work as good) to avoid noise : we are looking for very congested links. Here epsilon is 6 which has empirically proven to work well on 210E.
             result=zeros(obj.vertical_size, obj.horizontal_size);
             densities=obj.algorithm_box.beats_simulation.density_veh{1,1}(2:end,obj.linear_mainline_indices);
             result(densities>obj.critical_densities+6)=1; 
@@ -114,7 +114,7 @@ classdef CongestionPattern < PerformanceCalculator
             obj.error_in_percentage=error_in_percentage;
             obj.error_history(end+1,1)=error;
             obj.error_in_percentage_history=[obj.error_in_percentage_history;error_in_percentage];         
-        end    
+        end   
         
         function [h] = plot(obj,figureNumber,frameNumber,frame)
             if (nargin<2)
@@ -139,7 +139,7 @@ classdef CongestionPattern < PerformanceCalculator
             legend(leg);
         end 
         
-        function [] = save_plot(obj)
+        function [] = save_plot(obj) %save the error matrix in a .mat file to bea able to plot a movie afterwards.
             frame=obj.result_from_beats-obj.result_from_pems;
             save([pwd,'\movies\',obj.algorithm_box.dated_name,'\frames\',num2str(obj.algorithm_box.numberOfEvaluations),'.mat'],'frame');
         end    
@@ -166,9 +166,9 @@ classdef CongestionPattern < PerformanceCalculator
                 critical_densities=repmat(critical_densities,obj.vertical_size,1);
                 critical_densities=critical_densities.*link_lengths_meters.*number_lanes;
                 obj.critical_densities=critical_densities;   
-        end   
+        end  % Compute the critical density for each link aand save it in the property 
         
-        function [] = run_assistant(obj)
+        function [] = run_assistant(obj) %assitant called by errror function if needed.
                 change_rectangles=-1;
                 obj.false_negative_coefficient=input(['Enter the false negative coefficient for CongestionPattern (zero to one): ']);
                 obj.false_positive_coefficient=input(['Enter the false positive coefficient for CongestionPattern (one-precedent): ']);

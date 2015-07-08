@@ -9,8 +9,8 @@ classdef KnobsDistance < PerformanceCalculator
     
     properties (Hidden,SetAccess=private)
         
-        knob_group_oMagnitude_vector=[];
-        oMagnitude_vector=[];
+        %knob_group_oMagnitude_vector=[]; 
+        oMagnitude_vector=[]; %vector containing the order of magnitude of each knob group. Used to compute error_in_percentage. Order of magnitude is obj.algorithm_box.knobs.knob_boundaries_max-obj.algorithm_box.knobs.knob_boundaries_min
         
     end    
     
@@ -20,7 +20,7 @@ classdef KnobsDistance < PerformanceCalculator
 %             obj.algorithm_box=algoBox;
 %             utc=obj.algorithm_box.knobs.underevaluation_tolerance_coefficient;
 %             otc=obj.algorithm_box.knobs.overevaluation_tolerance_coefficient;
-%             ref=obj.algorithm_box.PeMS_average_mainline_flow_reference_value;
+%             ref=obj.algorithm_box.pems.average_mainline_flow;
 %             oMagnitude_vector=(obj.algorithm_box.knobs.boundaries_max-obj.algorithm_box.knobs.boundaries_min).*obj.algorithm_box.knobs.sum_of_templates;
 %             for i=1:size(obj.algorithm_box.knobs.knob_groups,2)
 %                 indices=cell2mat(obj.algorithm_box.knobs.knob_group_indices(i));
@@ -76,12 +76,15 @@ classdef KnobsDistance < PerformanceCalculator
 %         
 
         
-        function [obj] = KnobsDistance(algoBox)
+        function [obj] = KnobsDistance(algoBox) %constructor setting obj.oMagnitude_vector
             obj.algorithm_box=algoBox;
             utc=obj.algorithm_box.knobs.underevaluation_tolerance_coefficient;
             otc=obj.algorithm_box.knobs.overevaluation_tolerance_coefficient;
-            ref=obj.algorithm_box.PeMS_average_mainline_flow_reference_value;
-            obj.oMagnitude_vector=(obj.algorithm_box.knobs.boundaries_max-obj.algorithm_box.knobs.boundaries_min);
+            ref=obj.algorithm_box.pems.average_mainline_flow;
+            obj.oMagnitude_vector=obj.algorithm_box.knobs.boundaries_max-obj.algorithm_box.knobs.boundaries_min;
+            if obj.algorithm_box.knobs.is_uncertainty_for_monitored_ramps
+                obj.oMagnitude_vector=[obj.oMagnitude_vector;obj.algorithm_box.knobs.monitored_ramp_knob_boundaries_max-obj.algorithm_box.knobs.monitored_ramp_knob_boundaries_min];
+            end    
         end   
 
         function [result] = calculate_from_beats(obj)

@@ -231,7 +231,7 @@
         defopts.CMA.ccov1 = '2 / ((N+1.3)^2+mueff)  % learning rate for rank-one update'; 
         defopts.CMA.ccovmu = '2 * (mueff-2+1/mueff) / ((N+2)^2+mueff) % learning rate for rank-mu update'; 
         defopts.CMA.on     = 'yes'; 
-        defopts.CMA.active = '0  % active CMA, 1: neg. updates with pos. def. check, 2: neg. updates'; 
+        defopts.CMA.active = '1  % active CMA, 1: neg. updates with pos. def. check, 2: neg. updates'; 
 
         flg_future_setting = 0;  % testing for possible future variant(s)
         if flg_future_setting    
