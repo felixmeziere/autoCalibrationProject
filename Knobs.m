@@ -23,7 +23,6 @@ classdef Knobs < handle
         
         %generalities
         is_loaded=0; %indicates if the object is ready.
-        algorithm_box@AlgorithmBox
         is_uncertainty_for_monitored_ramps=0; %switch to indicate if all the monitored ramps (and mainline source) should be made knobs. The boundaries will be +-...pems.monitored_source_sink_uncertainty (this adds a lot of knobs and makes the algorithm converge way slower).
         
         
@@ -32,7 +31,6 @@ classdef Knobs < handle
         link_ids=0; % The unmonitored ramp link ids in Beats scenario order. (nx1) vector.
         linear_link_ids % same in linear order
         demand_ids %corresponding demand ids in obj.link_ids order.
-        nKnobs=0; %number of knobs (=length(obj.link_ids))
         
         %boundaries........................................................ 
         boundaries_min %(nx1) vector of minimums for the algorithm (in obj.link_ids order)
@@ -49,7 +47,7 @@ classdef Knobs < handle
         zeroten_knobs_history=[]; %same as before with a unique 0-10 scale for all knobs
         zeroten_knobs_genmean_history=nan; %same as before with a unique 0-10 scale for all knobs
         perfect_values %for the knobs in a single-knob group, value prescribed by the nearby PeMS mainline sensors.
-        sum_of_templates %sum of the templates of the knob links in obj.link_ids order
+
         
         
         
@@ -66,13 +64,17 @@ classdef Knobs < handle
     end
     
     properties (Hidden, SetAccess = ?AlgorithmBox)
-    
+        
+        algorithm_box@AlgorithmBox
+
         %selecting.........................................................
         knob_sensor_map %mask in beats scenario format : -1
         knob_groups %(1xp) cell array. Each cell is a knob group and therefore contains a (dx1) vector of link ids pointing at the links of the knob group.
         knob_group_indices %same as before with corresponding indices in obj.link_ids instead of link ids.
         knob_groups_to_project %indices of multiple-knob groups in obj.knob_groups.
         knob_group_to_project_indices %obj.knob_group_indices(obj.knob_groups_to_project).
+        nKnobs=0; %number of knobs (=length(obj.link_ids))
+
         
         %boundaries........................................................
         force_manual_knob_boundaries=0; % 1 if knob boundaries are set manually, 0 if they are set to [link's FD max capacity*number of lanes]/[max value of the link's demand template].
@@ -83,6 +85,7 @@ classdef Knobs < handle
         constraint_equations_coeffs %constraint equation coefficients of each knob group (for projection).
         current_preGroupProjection_value=[]; %value of the knobs before multiple-knob group projection.
         current_preTVMProjection_value=[]; %value of the knobs after multiple-knob group projection and before TVM projection.
+        sum_of_templates %sum of the templates of the knob links in obj.link_ids order
         
     end
     

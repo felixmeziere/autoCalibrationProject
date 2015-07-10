@@ -31,11 +31,13 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
     
     
     
-    %   -> pems.days | e.g. : [datenum('2014/10/14'),datenum('2014/10/21'),datenum('2014/11/18'),datenum('2014/11/25'),datenum('2014/12/16')]
-    %   -> pems.district | [integer]
-    %   -> pems.processed_folder | ['adress of the folder']
-    %   -> pems.mainline_uncertainty | [fraction of one]
-    %   -> pems.monitored_source_sink_uncertainty | [fraction of one]
+    %    -> pems.days | e.g. : [datenum('2014/10/14'),datenum('2014/10/21'),datenum('2014/11/18'),datenum('2014/11/25'),datenum('2014/12/16')]
+    %    -> pems.district | [integer]
+    %    -> pems.processed_folder | ['adress of the folder']
+    %    -> pems.mainline_uncertainty | [fraction of one]
+    %       e.g.: 0.05 for 5%. DEFAULT : 0.1
+    %    -> pems.monitored_source_sink_uncertainty | [fraction of one]
+    %       e.g.:0.02 for 2%. DEFAULT:0 NOT REQUIRED IF is_uncertainty_for_monitored_ramps==0
     
     
     
@@ -71,13 +73,11 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
     %       coeff should be between 0 and 1 (will multiply perfect value).
     %    -> knobs.overevaluation_tolerance_coefficient | [coeff] 
     %       coeff should be greater than 1 (will multiply perfect value).
-    %    -> pems.mainline_uncertainty | [fraction of one]
-    %       e.g.: 0.05 for 5%. DEFAULT : 0.1
-    %    -> pems.monitored_source_sink_uncertainty | [fraction of one]
-    %       e.g.:0.02 for 2%. DEFAULT:0 NOT REQUIRED IF is_uncertainty_for_monitored_ramps==0
-    
-    %    -> knobs.boundaries_min | [kb#1;...;kb#n] NOT REQUIRED IF force_manual_knob_boundaries==0. 
-    %    -> knobs.boundaries_max | [kb#1;...;kb#n] NOT REQUIRED IF force_manual_knob_boundaries==0.
+
+    %    -> knobs.boundaries_min | [kb#1;...;kb#n]
+    %       NOT REQUIRED IF force_manual_knob_boundaries==0. 
+    %    -> knobs.boundaries_max | [kb#1;...;kb#n] 
+    %       NOT REQUIRED IF force_manual_knob_boundaries==0.
     
     
     
@@ -99,11 +99,7 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
     %       -> settings.congestion_pattern.rectangles{i,1}.up_ordinate | [integer]
     %       -> settings.congestion_pattern.rectangles{i,1}.down_ordinate | [integer]
 
-    
-    
-    
 
-    
     properties (Constant)
         
         algorithm_name='cmaes';

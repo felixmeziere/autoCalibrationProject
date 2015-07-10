@@ -168,8 +168,10 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
                     end     
                     obj.knobs.zeroten_knobs_genmean_history(end+1,:)=mean(obj.knobs.zeroten_knobs_history(range,:),1);
                     obj.knobs.knobs_genmean_history(end+1,:)=mean(obj.knobs.knobs_history(range,:),1);
-                    obj.knobs.monitored_ramp_knobs_genmean_history(end+1,:)=mean(obj.knobs.monitored_ramp_knobs_history(range,:),1);
-                    obj.knobs.monitored_ramp_zeroten_knobs_genmean_history(end+1,:)=mean(obj.knobs.monitored_ramp_zeroten_knobs_history(range,:),1);
+                    if obj.knobs.is_uncertainty_for_monitored_ramps
+                        obj.knobs.monitored_ramp_knobs_genmean_history(end+1,:)=mean(obj.knobs.monitored_ramp_knobs_history(range,:),1);
+                        obj.knobs.monitored_ramp_zeroten_knobs_genmean_history(end+1,:)=mean(obj.knobs.monitored_ramp_zeroten_knobs_history(range,:),1);
+                    end
                     obj.error_function.error_genmean_history(end+1,1)=mean(obj.error_function.error_history(range,1),1);
                     obj.error_function.errors_genmean_history(end+1,1:size(obj.error_function.performance_calculators,2))=mean(obj.error_function.errors_history(range,:),1);
                     obj.error_function.contributions_genmean_history(end+1,1:size(obj.error_function.performance_calculators,2))=mean(obj.error_function.contributions_history(range,:),1);

@@ -238,6 +238,7 @@ classdef (Abstract) AlgorithmBox < handle
         
         function [] = ask_for_solving_multiple_sensors_conflicts(obj)
             if (size(obj.multiple_sensor_index2vds2id2link,1)>0)
+                disp('Several sensor on the same link conflicts:');
                 disp('Below is the list of conflictual links with the info on their sensors. There is a method to plot these conflicts.');
                 disp(' PeMS column:       VDS: Sensor id :    Link id:   ');
                 disp(obj.multiple_sensor_index2vds2id2link);
@@ -256,7 +257,7 @@ classdef (Abstract) AlgorithmBox < handle
             for i=1:ndelete
                 obj.vds_sensors_to_delete(i)=input(['VDS of sensor number ',num2str(i),' : ']);
             end    
-            obj.delete_choosen_sensors;
+            obj.delete_chosen_sensors;
         end  % Ask for sensors to delete. This will possibly create new knobs or knob groups. Useful to solve the problem of partial/biased data (command window). 
         
         function [] = ask_for_changing_congestionPattern_rectangles_if_exist(obj)
@@ -336,7 +337,7 @@ classdef (Abstract) AlgorithmBox < handle
                 obj.load_beats;
                 obj.pems.load;
                 obj.set_masks_and_reference_values;
-                obj.delete_choosen_sensors;
+                obj.delete_chosen_sensors;
                 obj.solve_multiple_sensor_link_conflicts;
                 obj.knobs.set_demand_ids;
                 obj.knobs.current_value=ones(obj.knobs.nKnobs);
@@ -420,7 +421,7 @@ classdef (Abstract) AlgorithmBox < handle
             end
             while (obj.current_xls_program_column<=lastColumn)
                 disp(strcat(['PROGRAM SETTINGS COLUMN ', num2str(obj.current_xls_program_column)]));
-            try
+%             try
                 if (obj.is_loaded~=1)
                     obj.load_properties_from_xls;
                 end    
@@ -433,10 +434,10 @@ classdef (Abstract) AlgorithmBox < handle
                 end
                 obj.current_xls_program_column=obj.current_xls_program_column+1;
                 obj.is_loaded=0;
-            catch exception
-                warning(['AN ERROR OCCURED DURING COLUMN ',num2str(obj.current_xls_program_column),' EXECUTION : ']);
-                disp(exception);
-            end
+%             catch exception
+%                 warning(['AN ERROR OCCURED DURING COLUMN ',num2str(obj.current_xls_program_column),' EXECUTION : ']);
+%                 disp(exception);
+%             end
             end    
            obj.make_notmade_movies;
         end % run the program defined by the input Excel file and write its results in the output Excel file, a .mat file and as frames of CongestionPattern to make a movie.        
@@ -473,7 +474,7 @@ classdef (Abstract) AlgorithmBox < handle
             end
         end
         
-        function [] = plot_scenario(obj,is_mainline_only_format, with_monitored_onramps,with_monitored_offramps,with_nonmonitored_onramps,with_nonmonitored_offramps,with_monitored_mainlines)
+        function [] = plot_scenario(obj,is_mainline_only_format, with_monitored_onramps,with_monitored_offramps,with_nonmonitored_onramps,with_nonmonitored_offramps,with_monitored_mainlines) %Visually plot the freeway and ramps
             %The designated mainline link for ramps will be the precedent one.
 
             if(nargin<3)
@@ -991,9 +992,9 @@ classdef (Abstract) AlgorithmBox < handle
         end %among the sensors in obj.multiple_sensor_index2vds2id2link, keep those who are in obj.multiple_sensor_vds_to_use. If multiple vds for one link, flw and dty_veh value will be summed and their speeds will be averaged.
         
         %solving particular situations (like HOV pbs) by deleting sensors.
-        function [] = delete_choosen_sensors(obj) %delete sensors in obj.vds_sensors_to_delete.
+        function [] = delete_chosen_sensors(obj) %delete sensors in obj.vds_sensors_to_delete.
             if (obj.vds_sensors_to_delete~=0)
-                disp('DELETING CHOOSEN SENSORS.');
+                disp('DELETING CHOSEN SENSORS.');
                 for i=1:size(obj.vds_sensors_to_delete,2)
                     index=find(obj.pems.vds2id(:,1)==obj.vds_sensors_to_delete(i));
                     obj.pems.data.flw(:,index,:)=nan;
