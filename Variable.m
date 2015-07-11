@@ -35,15 +35,19 @@ classdef (Abstract) Variable < handle
     
     end
     
-    methods (Abstract, Access=?AlgorithmBox)
+    methods (Abstract, Hidden, Access = public)
         
         [] = set_persistent(obj, values_vector)
         
         [] = set_auto_boundaries(obj)
-        
-        [] = reset_history(obj)
-        
+                
     end
+    
+    methods(Abstract, Hidden, Access=public)
+                
+        [] = reset_history(obj)
+    
+    end    
     
     methods (Access=public)
     
@@ -97,7 +101,7 @@ classdef (Abstract) Variable < handle
     
     methods (Access=protected)
         
-        function [result_matrix] = rescale(obj, input_matrix, isRealScaleToZeroTenScale
+        function [result_matrix] = rescale(obj, input_matrix, isRealScaleToZeroTenScale)
             min=repmat(obj.boundaries_min,1,size(input_matrix,2));
             range=repmat(obj.boundaries_max-obj.boundaries_min,1,size(input_matrix,2));
             if isRealScaleToZeroTenScale==1
