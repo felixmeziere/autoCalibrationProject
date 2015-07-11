@@ -1077,7 +1077,7 @@ classdef (Abstract) AlgorithmBox < handle
         %project the algorithm input to correct total TVM subspace.........
         function [sum_of_template] = get_sum_of_template_in_veh(obj,link_id) 
             dp=obj.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(link_id);
-            sum_of_template=sum(dp.demand)*dp.dt;
+            sum_of_template=5000; %sum(dp.demand)*dp.dt;
         end  %returns the sum over time of the template of the link id, in vehicles.
         
         function [knobs_on_correct_subspace] = project_on_correct_TVM_subspace(obj,vector) % Project vector on the hyperplan of vectors that will make beats output have the same TVM as pems within a range given by obj.error_function.pcs_uncertainty.

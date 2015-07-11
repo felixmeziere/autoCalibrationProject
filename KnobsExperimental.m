@@ -1,4 +1,4 @@
-classdef Knobs < handle
+classdef KnobsExperimental < handle
     
    %Required for loading from xls :
     
@@ -66,7 +66,8 @@ classdef Knobs < handle
     properties (Hidden, SetAccess = ?AlgorithmBox)
         
         algorithm_box@AlgorithmBox
-
+        templates@Templates
+        
         %selecting.........................................................
         knob_sensor_map %mask in beats scenario format : -1
         knob_groups %(1xp) cell array. Each cell is a knob group and therefore contains a (dx1) vector of link ids pointing at the links of the knob group.
@@ -95,8 +96,9 @@ classdef Knobs < handle
     
     methods (Access = public)
         
-        function [obj] = Knobs(algoBox) %constructor that connects the object with AlgorithmBox.
+        function [obj] = Knobs(algoBox,templates) %constructor that connects the object with AlgorithmBox.
             obj.algorithm_box=algoBox;
+            obj.templates=templates;
         end    
         
         function [] = run_assistant(obj) % set the ids of the knobs to tune and their boundaries in the command window.
@@ -435,14 +437,14 @@ classdef Knobs < handle
     %  Privates                                                           %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
-    methods (Access = ?AlgorithmBox) %supposed to be private but public for debug reasons
+    methods (Access = ?Templates) %supposed to be private but public for debug reasons
         
         function [] = set_auto_knob_boundaries(obj, isnaive, is_assistant) %sets the knob boundaries, knob groups, perfect values etc.
             if (nargin<3)
                 is_assistant=0;
             end
             for i=1:obj.nKnobs    
-                maxTemplateValue=max(obj.algorithm_box.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.link_ids(i)).demand);       
+                maxTemplateValue=max(obj.templates.template_base);       
                 lanes=obj.algorithm_box.beats_simulation.scenario_ptr.get_link_byID(obj.link_ids(i)).ATTRIBUTE.lanes;
                 FDcapacity=obj.algorithm_box.beats_simulation.scenario_ptr.get_fds_with_linkIDs(obj.link_ids(i)).capacity*lanes;
                 obj.boundaries_min(i,1)=0;
@@ -479,7 +481,7 @@ classdef Knobs < handle
             for i=1:obj.nKnobs
                 dps=obj.algorithm_box.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.link_ids);
                 obj.demand_ids(i,1)=dps(i).id;
-                obj.sum_of_templates(i,1)=obj.algorithm_box.get_sum_of_template_in_veh(obj.link_ids(i,1));
+                obj.sum_of_templates(i,1)=5000;
             end
             obj.linear_link_ids=obj.algorithm_box.linear_link_ids(ismember(obj.algorithm_box.linear_link_ids,obj.link_ids));
         end
@@ -593,7 +595,7 @@ classdef Knobs < handle
                 for j=1:size(obj.knob_groups{1,i},1)
                     knob_link_id=cell2mat(obj.knob_groups{1,i}(j,1));
                     knob_index=find(obj.link_ids==knob_link_id);
-                    sum_of_template=obj.algorithm_box.get_sum_of_template_in_veh(knob_link_id);
+                    sum_of_template=5000;
                     if ismember(knob_link_id,obj.algorithm_box.link_ids_beats(obj.algorithm_box.source_mask_beats))
                         coeff=-1;
                     else
@@ -624,7 +626,7 @@ classdef Knobs < handle
                 constraint_equation_coeffs=[];
                 for j=1:size(knob_group)
                     index=find(obj.link_ids==knob_group(j));
-                    sum_of_template=obj.algorithm_box.get_sum_of_template_in_veh(obj.link_ids(index));
+                    sum_of_template=5000;
                     if ismember(obj.link_ids(index),obj.algorithm_box.link_ids_beats(obj.algorithm_box.source_mask_beats))
                         coeff=-1;
                     else
@@ -718,4 +720,5 @@ classdef Knobs < handle
     end
     
 end
+
 
