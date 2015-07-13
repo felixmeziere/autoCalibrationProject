@@ -1,7 +1,4 @@
-a=[1,2,3];
-b=[1,2];
-try
-    a*b;
-catch exception
-    disp(exception);
-end    
+matname='13-Jul-2015_2_allvariables';
+load(matname);
+obj.set_result_for_xls;
+obj.send_result_to_xls;

@@ -197,19 +197,21 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
             obj.result_for_xls{6}=Utilities.double2char(obj.normopts.SIGMAS);
             obj.result_for_xls{7}=Utilities.double2char(obj.starting_point);
             obj.result_for_xls{8}=obj.insigma;
-            obj.result_for_xls{9}=obj.knobs.underevaluation_tolerance_coefficient;
-            obj.result_for_xls{10}=obj.knobs.overevaluation_tolerance_coefficient;
-            obj.result_for_xls{11}=Utilities.double2char(obj.knobs.boundaries_min);
-            obj.result_for_xls{12}=Utilities.double2char(obj.knobs.boundaries_max);
-            obj.result_for_xls{13}=obj.maxIter;
-            obj.result_for_xls{14}=obj.maxEval;
-            obj.result_for_xls{15}=obj.stopFValue;
-            obj.result_for_xls{16}=Utilities.double2char(obj.bestEverPoint);
-            obj.result_for_xls{17}=obj.bestEverErrorFunctionValue;
-            obj.result_for_xls{18}=Utilities.cellArray2char(obj.stopFlag);
-            obj.result_for_xls{19}=obj.numberOfIterations;
-            obj.result_for_xls{20}=obj.numberOfEvaluations;
-            obj.result_for_xls{21}=obj.convergence;
+            obj.result_for_xls{9}=obj.pems.mainline_uncertainty;
+            obj.result_for_xls{10}=obj.error_function.pcs_uncertainty;
+            obj.result_for_xls{11}=obj.knobs.underevaluation_tolerance_coefficient;
+            obj.result_for_xls{12}=obj.knobs.overevaluation_tolerance_coefficient;
+            obj.result_for_xls{13}=Utilities.double2char(obj.knobs.boundaries_min);
+            obj.result_for_xls{14}=Utilities.double2char(obj.knobs.boundaries_max);
+            obj.result_for_xls{15}=obj.maxIter;
+            obj.result_for_xls{16}=obj.maxEval;
+            obj.result_for_xls{17}=obj.stopFValue;
+            obj.result_for_xls{18}=Utilities.double2char(obj.bestEverPoint);
+            obj.result_for_xls{19}=obj.bestEverErrorFunctionValue;
+            obj.result_for_xls{20}=Utilities.cellArray2char(obj.stopFlag);
+            obj.result_for_xls{21}=obj.numberOfIterations;
+            obj.result_for_xls{22}=obj.numberOfEvaluations;
+            obj.result_for_xls{23}=obj.convergence;
         end % defined in AlgorithmBox
        
     end

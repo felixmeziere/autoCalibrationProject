@@ -22,7 +22,7 @@ classdef PeMSData < handle
         data=struct;
         average_mainline_flow
         mainline_uncertainty=0.1;
-        monitored_source_sink_uncertainty=0;
+        monitored_source_sink_uncertainty=0.03;
 
     end
     

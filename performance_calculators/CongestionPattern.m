@@ -139,7 +139,25 @@ classdef CongestionPattern < PerformanceCalculator
             legend(leg);
         end 
         
-        function [] = save_plot(obj) %save the error matrix in a .mat file to bea able to plot a movie afterwards.
+        function [] = plot_history(obj,figureNumber,frameNumber)
+            n=nargin;
+            if n>1
+                figure(figureNumber);
+            else
+                figure;
+            end
+            if n>2
+                error_in_percentage_history=obj.error_in_percentage_history(1:frameNumber,1);
+            else
+                error_in_percentage_history=obj.error_in_percentage_history;
+            end
+            plot(error_in_percentage_history);
+            title('CongestionPattern matching error evolution');
+            ylabel('Error in percentage');
+            xlabel('Number of BeATS evaluations');                
+        end    
+        
+        function [] = save_plot(obj) %save the error matrix in a .mat file to be able to plot a movie afterwards.
             frame=obj.result_from_beats-obj.result_from_pems;
             save([pwd,'\movies\',obj.algorithm_box.dated_name,'\frames\',num2str(obj.algorithm_box.numberOfEvaluations),'.mat'],'frame');
         end    
