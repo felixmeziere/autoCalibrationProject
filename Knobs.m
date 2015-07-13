@@ -157,6 +157,9 @@ classdef Knobs < handle
                     while (obj.isnaive_boundaries~=0 && obj.isnaive_boundaries~=1)
                         obj.isnaive_boundaries=input(['Should the knobs be naively set (i.e. leading to potentially absurd daily flows) ? yes =1, no=0 : ']);
                     end
+                    if ~obj.isnaive_boundaries
+                        obj.algorithm_box.pems.mainline_uncertainty=input(['What is the local uncertainty on mainline sensors ? (Ilocal, will set a minimum width for the boundaries): ']);
+                    end    
                     obj.set_auto_knob_boundaries(obj.isnaive_boundaries,1);
                 elseif (strcmp(mode,'manual'))     
                     obj.boundaries_max=[];
