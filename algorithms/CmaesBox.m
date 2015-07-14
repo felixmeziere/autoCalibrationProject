@@ -172,7 +172,7 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
                       disp(exception);
                       obj.stopFlag='Manual stop or unexpected error';
                   end    
-                  load variablescmaes.mat
+                  load('variablescmaes.mat','bestever');
                   if ~obj.knobs.isnaive_boundaries
                       bestever.x=obj.knobs.project_involved_knob_groups_on_correct_flow_subspace(obj.knobs.rescale_knobs(bestever.x,0));
                   end

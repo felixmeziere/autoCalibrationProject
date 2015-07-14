@@ -1212,6 +1212,7 @@ classdef (Abstract) AlgorithmBox < handle
             if exist([pwd,'\movies\',obj.dated_name],'dir')~=7
                 mkdir([pwd,'\movies\',obj.dated_name]);
             end
+            load variablescmaes.mat
             mat_name =[pwd,'\',obj.algorithm_name,'_reports\',obj.dated_name,'\',obj.dated_name,'_allvariables.mat'];
             save(mat_name);
             save([pwd,'\movies\',obj.dated_name,'\zeroten_knobs_history.mat'],'zeroten_knobs_history');
