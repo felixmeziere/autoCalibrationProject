@@ -160,12 +160,15 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
                   obj.inopts.StopFitness = obj.stopFValue;
                   obj.inopts.UBounds = ones(obj.knobs.nKnobs,1)*10;
                   obj.inopts.LBounds = zeros(obj.knobs.nKnobs,1);
+                  obj.inopts.PopSize = obj.population_size;
                   if obj.knobs.is_uncertainty_for_monitored_ramps
                     obj.inopts.UBounds = [obj.inopts.UBounds;ones(size(obj.knobs.monitored_ramp_link_ids,1),1)*10];
                     obj.inopts.LBounds = [obj.inopts.LBounds;zeros(size(obj.knobs.monitored_ramp_link_ids,1),1)];                  
                   end    
                   xstart=obj.knobs.rescale_knobs(obj.starting_point,1);
-                  obj.population_size=(4 + floor(3*log(size(xstart,1))));
+                  if obj.population_size==0
+                      obj.population_size=4 + floor(3*log(size(xstart,1)));
+                  end    
                   try
                       [lastPoint, lastValue, obj.numberOfEvaluations, obj.stopFlag, obj.out, bestever]=cmaes(@(x)obj.evaluate_error_function(x,1), xstart, obj.insigma, obj.inopts);  
                   catch exception

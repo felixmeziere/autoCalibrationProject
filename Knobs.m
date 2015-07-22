@@ -239,6 +239,7 @@ classdef Knobs < handle
             ylabel('Knobs 0-10 values');
             if (n<3)
                 legend(leg);
+                legend BOXOFF;
             end                 
         end 
         

@@ -7,7 +7,7 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
     %Required for loading from xls :
     
     
-    %    -> initial_population_size | [integer] 
+    %    -> population_size | [integer] 
     %       Does not change much. Setting it to 4 + floor(3*log([number of
     %       knobs])) which is the size used in CMAES is a good idea.
     %    -> initialization_method | ['uniform'], ['normal'] or ['manual'].
@@ -34,14 +34,14 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
         
         starting_point=[] % (nxp) array containing the initial population : each column is a knob values array.
         normopts=struct; %struct whose fields are : 'CENTERS' containing the center of the gaussian generating the starting point for each knob and 'SIGMAS' containing their standard deviation. Scale is real scale (not zero-ten). Normal distribution initialization is useless with CMAES which is not initialization dependent if its initial standard deviation is reasonable (between 2 and 5).
-        initial_population_size %initial population size. CMAES will take the mean of this and then use its own population size (this is not very important).
+        %initial_population_size %initial population size. CMAES will take the mean of this and then use its own population size (this is not very important).
         maxIter % maximum number of generations of the algorithm : each generation is several beats executions (the size of the population). Default population size for CMAES : 4 + floor(3*log([number of knobs]))
 
     end    
     
-    properties (SetAccess = protected)
+    properties (SetAccess = ?AlgorithmBox)
         
-        population_size %used to build "generation mean" data. Values is 4 + floor(3*log([number of knobs])) for CMAES.
+        population_size=0; %used to build "generation mean" data. Values is 4 + floor(3*log([number of knobs])) for CMAES.
         
     end    
     
@@ -53,7 +53,7 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
         
         function [] = ask_for_starting_point(obj)
             if (obj.knobs.is_loaded)
-                 obj.initial_population_size = input(['Size of the population : ']);
+                 obj.population_size = input(['Size of the population : ']);
                  method='0';
                  while (~strcmp(method,'uniform') && ~strcmp(method,'normal') && ~strcmp(method,'manual')) 
                     method = input(['How should the initial population be created ? (manual/uniform/normal) : '],'s');
@@ -69,7 +69,7 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
                      end                        
                      obj.set_starting_point('normal');
                  elseif (strcmp(method,'manual'))
-                    for i = 1:obj.initial_population_size;
+                    for i = 1:obj.population_size;
                         disp(['Individual ', num2str(i)]);
                         for k = 1:obj.knobs.nKnobs
                             p=-1000;
@@ -102,7 +102,7 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
             
             if ~(isempty(obj.knobs.link_ids) || isempty(obj.knobs.boundaries_min) || isempty(obj.knobs.boundaries_max))
                 if (strcmp(mode, 'uniform'))
-                    obj.starting_point=rand(obj.knobs.nKnobs,obj.initial_population_size);
+                    obj.starting_point=rand(obj.knobs.nKnobs,obj.population_size);
                     disp('Initial Population with uniform distribution :');
                     for i = 1:obj.knobs.nKnobs
                         obj.starting_point(i,:)=obj.starting_point(i,:)*(obj.knobs.boundaries_max(i,1)-obj.knobs.boundaries_min(i,1));
@@ -115,7 +115,7 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
                     obj.normopts.SIGMAS='';
                 elseif (strcmp(mode, 'normal'))
                     if (size(obj.normopts.CENTERS,1)==obj.knobs.nKnobs && size(obj.normopts.SIGMAS,1)==obj.knobs.nKnobs)
-                        obj.starting_point=randn(obj.knobs.nKnobs, obj.initial_population_size);
+                        obj.starting_point=randn(obj.knobs.nKnobs, obj.population_size);
                         disp('Initial Population with normal distribution :');
                         for i = 1:obj.knobs.nKnobs
                             knob=obj.starting_point(i,:);
@@ -141,7 +141,7 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
                 error('Missing information on knob ids or boundaries, please set them before.');
             end
             if obj.knobs.is_uncertainty_for_monitored_ramps
-                obj.starting_point=[obj.starting_point;ones(size(obj.knobs.monitored_ramp_link_ids,1),obj.initial_population_size)];
+                obj.starting_point=[obj.starting_point;ones(size(obj.knobs.monitored_ramp_link_ids,1),obj.population_size)];
             end
             obj.knobs.set_knobs_persistent(obj.starting_point);
             
