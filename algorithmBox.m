@@ -368,21 +368,68 @@ classdef (Abstract) AlgorithmBox < handle
     
     methods (Access = public)
         
-        function [error_in_percentage] = evaluate_error_function(obj, knob_values, isZeroToTenScale) % the error function evaluated by the algorithm at each iteration. Repairs the knobs, compares the beats simulation output and pems data and plots the result.
-            %knob_values : n x 1 array where n is the number of knobs
+%         function [error_in_percentage] = evaluate_error_function(obj, knob_values, isZeroToTenScale) % the error function evaluated by the algorithm at each iteration. Repairs the knobs, compares the beats simulation output and pems data and plots the result.
+%             %knob_values : n x 1 array where n is the number of knobs
+%             %to tune, containing the new values of the knobs.
+%             format SHORTG;
+%             format LONGG;
+%             if (size(knob_values,1)==obj.knobs.nKnobs || size(knob_values,1)==obj.knobs.nKnobs+size(obj.knobs.monitored_ramp_link_ids,1))   
+%                 if exist('isZeroToTenScale','var') && isZeroToTenScale==1
+%                     knob_values=obj.knobs.rescale_knobs(knob_values,0);
+%                 end
+%                 if ~obj.knobs.isnaive_boundaries
+%                     knob_values=obj.knobs.project_involved_knob_groups_on_correct_flow_subspace(knob_values);
+%                 end
+%                 knob_values=obj.project_on_correct_TVM_subspace(knob_values);
+%                 zeroten_knob_values=obj.knobs.rescale_knobs(knob_values,1);
+%                 disp(['Knobs vector and values being tested for evaluation # ',num2str(obj.numberOfEvaluations),' :']);
+%                 disp(' ');
+%                 disp(['               Demand Id :','                 Link Id :','                                    Value, min and max:','           Value on a scale from 0 to 10:']);
+%                 disp(' ');
+%                 disp([obj.knobs.demand_ids,obj.knobs.link_ids, knob_values(1:obj.knobs.nKnobs,1),obj.knobs.boundaries_min,obj.knobs.boundaries_max,zeroten_knob_values(1:obj.knobs.nKnobs,1)]);
+%                 obj.beats_simulation.beats.reset();
+%                 obj.knobs.set_knobs_persistent(knob_values);
+%                 obj.beats_simulation.run_beats_persistent;
+%                 obj.error_function.calculate_pc_from_beats; 
+%                 [err,error_in_percentage] = obj.error_function.calculate_error;
+%                 disp(['Total error in percentage value : ', num2str(error_in_percentage)]);
+%                 disp('CONTRIBUTIONS : ')
+%                 for i=1:size(obj.error_function.performance_calculators,2)
+%                     disp([obj.error_function.performance_calculators{i}.name,' : ']);
+%                     disp(['         contribution in total error in percentage : ', num2str(obj.error_function.contributions_in_percentage(i))]);
+%                     disp(['         actual error in percentage : ', num2str(obj.error_function.errors_in_percentage(i))])
+%                     disp(['         actual error value : ',num2str(obj.error_function.errors(i))]);
+%                 end              
+%                 obj.save_congestionPattern_matrix;
+%                 obj.plot_zeroten_knobs_history(1);
+%                 obj.error_function.plot_complete(2);
+%                 obj.plot_all_performance_calculators(5);
+% %                 obj.plot_performance_calculator_if_exists('CongestionPattern');
+%                 drawnow;
+%                 obj.numberOfEvaluations=obj.numberOfEvaluations+1;
+%             else
+%                 error('The matrix with knobs values given does not match the number of knobs to tune or is not a column vector.');
+%             end    
+%         end
+
+    function [errors_in_percentage] = evaluate_error_function(obj, knobs_values, isZeroToTenScale) % the error function evaluated by the algorithm at each iteration. Repairs the knobs, compares the beats simulation output and pems data and plots the result.
+            %knob_values : n x obj.population_size array where n is the number of knobs
             %to tune, containing the new values of the knobs.
             format SHORTG;
             format LONGG;
+%             numEval=obj.numberOfEvaluations;
+        parfor p=1:1
+            knob_values=knobs_values(:,p);
             if (size(knob_values,1)==obj.knobs.nKnobs || size(knob_values,1)==obj.knobs.nKnobs+size(obj.knobs.monitored_ramp_link_ids,1))   
-                if exist('isZeroToTenScale','var') && isZeroToTenScale==1
+%                 if exist('isZeroToTenScale','var') && isZeroToTenScale==1
                     knob_values=obj.knobs.rescale_knobs(knob_values,0);
-                end
-                if ~obj.knobs.isnaive_boundaries
+%                 end
+%                 if ~obj.knobs.isnaive_boundaries
                     knob_values=obj.knobs.project_involved_knob_groups_on_correct_flow_subspace(knob_values);
-                end
+%                 end
                 knob_values=obj.project_on_correct_TVM_subspace(knob_values);
                 zeroten_knob_values=obj.knobs.rescale_knobs(knob_values,1);
-                disp(['Knobs vector and values being tested for evaluation # ',num2str(obj.numberOfEvaluations),' :']);
+                disp(['Knobs vector and values being tested for iteration # ']);%,num2str(obj.numberOfEvaluations),' :']);
                 disp(' ');
                 disp(['               Demand Id :','                 Link Id :','                                    Value, min and max:','           Value on a scale from 0 to 10:']);
                 disp(' ');
@@ -400,18 +447,20 @@ classdef (Abstract) AlgorithmBox < handle
                     disp(['         actual error in percentage : ', num2str(obj.error_function.errors_in_percentage(i))])
                     disp(['         actual error value : ',num2str(obj.error_function.errors(i))]);
                 end              
-                obj.save_congestionPattern_matrix;
-                obj.plot_zeroten_knobs_history(1);
-                obj.error_function.plot_complete(2);
-                obj.plot_all_performance_calculators(5);
-%                 obj.plot_performance_calculator_if_exists('CongestionPattern');
-                drawnow;
-                obj.numberOfEvaluations=obj.numberOfEvaluations+1;
+%                 obj.save_congestionPattern_matrix;
+%                 obj.plot_zeroten_knobs_history(1);
+%                 obj.error_function.plot_complete(2);
+%                 obj.plot_all_performance_calculators(5);
+% %                 obj.plot_performance_calculator_if_exists('CongestionPattern');
+%                 drawnow;
+                 errors_in_percentage(1,p)=error_in_percentage;
+%                  obj.numberOfEvaluations=numEval+p;
             else
                 error('The matrix with knobs values given does not match the number of knobs to tune or is not a column vector.');
-            end    
+            end
+        end    
         end
-        
+
         function [] = run_program(obj, firstColumn, lastColumn)
             %run the program set in the program Excel file and print the
             %results in the results Excel file.

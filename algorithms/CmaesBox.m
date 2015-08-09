@@ -169,12 +169,12 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
                   if obj.population_size==0
                       obj.population_size=4 + floor(3*log(size(xstart,1)));
                   end    
-                  try
+%                   try
                       [lastPoint, lastValue, obj.numberOfEvaluations, obj.stopFlag, obj.out, bestever]=cmaes(@(x)obj.evaluate_error_function(x,1), xstart, obj.insigma, obj.inopts);  
-                  catch exception
-                      disp(exception);
-                      obj.stopFlag='Manual stop or unexpected error';
-                  end    
+%                   catch exception
+%                       disp(exception);
+%                       obj.stopFlag='Manual stop or unexpected error';
+%                   end    
                   load('variablescmaes.mat','bestever');
                   load('variablescmaes.mat','countiter');
                   if ~obj.knobs.isnaive_boundaries

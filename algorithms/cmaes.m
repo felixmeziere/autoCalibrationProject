@@ -203,7 +203,7 @@
             'yes  % ''no''==''off''==0, ''on''==''yes''==1 ';
         defopts.LBounds = '-Inf % lower bounds, scalar or Nx1-vector'; 
         defopts.UBounds = 'Inf  % upper bounds, scalar or Nx1-vector'; 
-        defopts.EvalParallel = 'no   % objective function FUN accepts NxM matrix, with M>1?';
+        defopts.EvalParallel = 'yes   % objective function FUN accepts NxM matrix, with M>1?';
         defopts.EvalInitialX = 'yes  % evaluation of initial solution';
         defopts.Restarts     = '0    % number of restarts ';
         defopts.IncPopSize   = '2    % multiplier for population size before each restart';
