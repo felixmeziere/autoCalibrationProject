@@ -188,11 +188,11 @@ classdef Knobs < handle
     
         function [] = plot_zeroten_knobs_history(obj,figureNumber, zeroten_knobs_history, evaluation_number)
             n=nargin;
-            if (n<2)
-                h=figure;
-            else
-                h=figure(figureNumber);
-            end  
+%             if (n<2)
+%                 h=figure;
+%             else
+%                 h=figure(figureNumber);
+%             end  
             if (n==4)
                 zeroten_knobs_history=zeroten_knobs_history(1:evaluation_number,:);
             else
@@ -206,21 +206,22 @@ classdef Knobs < handle
                 end
             end
             plot(zeroten_knobs_history);
-            title('Knobs rescaled to 0-10 evolution, ordered linearly');
-            xlabel('Number of BEATS evaluations');
-            ylabel('Knobs 0-10 values');
-            if (n<3)
-                legend(leg);
-            end                 
+%             title('Knobs rescaled to 0-10 evolution');
+%             xlabel('Number of BEATS evaluations');
+%             ylabel('Knobs 0-10 values');
+            xlim([0,size(zeroten_knobs_history,1)+1]);
+%             if (n<3)
+%                 legend(leg);
+%             end                 
         end 
         
         function [] = plot_zeroten_knobs_genmean_history(obj,figureNumber, zeroten_genmean_knobs_history, evaluation_number)
             n=nargin;
-            if (n<2)
-                h=figure;
-            else
-                h=figure(figureNumber);
-            end  
+%             if (n<2)
+%                 h=figure;
+%             else
+%                 h=figure(figureNumber);
+%             end  
             if (n==4)
                 zeroten_genmean_knobs_history=zeroten_genmean_knobs_history(1:evaluation_number,:);
             else
@@ -234,13 +235,14 @@ classdef Knobs < handle
                 end
             end
             plot(zeroten_genmean_knobs_history);
-            title('Knobs generation mean rescaled to 0-10 evolution, ordered linearly');
-            xlabel('Number of BEATS evaluations');
-            ylabel('Knobs 0-10 values');
-            if (n<3)
-                legend(leg);
-                legend BOXOFF;
-            end                 
+%             title('Knobs generation mean rescaled to 0-10 evolution');
+%             xlabel('Number of BEATS evaluations');
+%             ylabel('Knobs 0-10 values');
+             xlim([0,size(zeroten_genmean_knobs_history,1)+1]);
+%             if (n<3)
+%                 legend(leg);
+%                 legend BOXOFF;
+%             end                 
         end 
         
         function [] = plot_knobs_history(obj,figureNumber, knobs_history, evaluation_number)
@@ -263,7 +265,7 @@ classdef Knobs < handle
                 end
             end
             plot(knobs_history);
-            title('Knobs evolution, ordered linearly');
+            title('Knobs evolution');
             xlabel('Number of BEATS evaluations');
             ylabel('Knobs 0-10 values');
             if (n<3)
@@ -292,7 +294,7 @@ classdef Knobs < handle
                 end
             end
             plot(knobs_genmean_history);
-            title('Knobs generation mean evolution, ordered linearly');
+            title('Knobs generation mean evolution');
             xlabel('Number of BEATS evaluations');
             ylabel('Knobs values');
             if (n<3)
@@ -338,7 +340,7 @@ classdef Knobs < handle
                 end
             end
             plot(monitored_ramp_zeroten_knobs_history);
-            title('Monitored ramp knobs rescaled to 0-10 evolution, ordered linearly');
+            title('Monitored ramp knobs rescaled to 0-10 evolution');
             xlabel('Number of BEATS evaluations');
             ylabel('Knobs 0-10 values');
             if (n<3)
@@ -366,7 +368,7 @@ classdef Knobs < handle
                 end
             end
             plot(monitored_ramp_knobs_history);
-            title('Monitored ramp knobs evolution, ordered linearly');
+            title('Monitored ramp knobs evolution');
             xlabel('Number of BEATS evaluations');
             ylabel('Knobs 0-10 values');
             if (n<3)
@@ -395,7 +397,7 @@ classdef Knobs < handle
                 end
             end
             plot(monitored_ramp_knobs_genmean_history);
-            title('Monitored ramp knobs generation mean evolution, ordered linearly');
+            title('Monitored ramp knobs generation mean evolution');
             xlabel('Number of BEATS evaluations');
             ylabel('Knobs values');
             if (n<3)
@@ -424,7 +426,7 @@ classdef Knobs < handle
                 end
             end
             plot(monitored_ramp_zeroten_knobs_genmean_history);
-            title('Monitored ramp knobs generation mean rescaled to 0-10 evolution, ordered linearly');
+            title('Monitored ramp knobs generation mean rescaled to 0-10 evolution');
             xlabel('Number of BEATS evaluations');
             ylabel('Knobs 0-10 values');
             if (n<3)

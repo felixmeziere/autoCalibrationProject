@@ -117,26 +117,28 @@ classdef CongestionPattern < PerformanceCalculator
         end   
         
         function [h] = plot(obj,figureNumber,frameNumber,frame)
-            if (nargin<2)
-                h=figure;
-            else
-                h=figure(figureNumber);
-            end
+%             if (nargin<2)
+%                 h=figure;
+%             else
+%                 h=figure(figureNumber);
+%             end
             if (nargin<3)
                frame=obj.result_from_beats-obj.result_from_pems;
                frameNumber=obj.algorithm_box.numberOfEvaluations;
             end
             frame(ismember(frame,0))=2;
             imagesc(-frame);
-            title(['Contour plot : Congestion pattern matching (Beats evaluation number ',num2str(frameNumber),') | Error : ',num2str(obj.error_in_percentage_history(frameNumber)),'%']);
-            xlabel('Linear mainline links');
-            ylabel('Time (unit : 5 minutes if SI)');
-            leg={'Correct Congestion Matching','False Positive','False Negative'};
+%             title(['Contour plot : Congestion pattern matching (Beats evaluation number ',num2str(frameNumber),') | Error : ',num2str(obj.error_in_percentage_history(frameNumber)),'%']);
+%             title(['Congestion pattern matching contour plot | E_C_P=',num2str(obj.error_in_percentage_history(frameNumber)),'%']);            
+%             xlabel('Mainline links (linear order)');
+%             ylabel('Time (unit : 5 minutes if SI)');
+%             ylabel('Number of 5 min time-steps');
+%             leg={'Correct congestion matching','False positive','False negative'};
             cmap=[0.3,0.8,0.4;1,0,0;1,1,0];
             colormap(cmap);
-            L = line(ones(3),ones(3), 'LineWidth',2); 
-            set(L,{'color'},mat2cell(cmap(1:end,:),ones(1,3),3));
-            legend(leg);
+%             L = line(ones(3),ones(3), 'LineWidth',2); 
+%             set(L,{'color'},mat2cell(cmap(1:end,:),ones(1,3),3));
+%             legend(leg);
         end 
         
         function [] = plot_history(obj,figureNumber,frameNumber)
