@@ -65,7 +65,7 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
     
     
     
-    %    -> knobs.is_uncertainty_for_monitored_ramps | [0] or [1] DEFAULT:0
+    %    -> is_uncertainty_for_monitored_ramps | [0] or [1] DEFAULT:0
     %    -> knobs.link_ids | [link_id#1;link_id#2;...;link_id#n]
     %    -> knobs.force_manual_knob_boundaries | [0] or [1] DEFAULT:0
     %    -> knobs.isnaive_boundaries | [0] or [1] DEFAULT:0
@@ -161,7 +161,7 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
                   obj.inopts.UBounds = ones(obj.knobs.nKnobs,1)*10;
                   obj.inopts.LBounds = zeros(obj.knobs.nKnobs,1);
                   obj.inopts.PopSize = obj.population_size;
-                  if obj.knobs.is_uncertainty_for_monitored_ramps
+                  if obj.is_uncertainty_for_monitored_ramps
                     obj.inopts.UBounds = [obj.inopts.UBounds;ones(size(obj.knobs.monitored_ramp_link_ids,1),1)*10];
                     obj.inopts.LBounds = [obj.inopts.LBounds;zeros(size(obj.knobs.monitored_ramp_link_ids,1),1)];                  
                   end    
@@ -194,17 +194,15 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
             %choosen in the excel file.
             %load 'variablescmaes.mat';
             obj.result_for_xls{1}=obj.error_function.name;
-            obj.result_for_xls{2}=Utilities.cellArray2char(obj.settings.error_function.norms);
             obj.result_for_xls{3}=size(obj.starting_point,2);
             obj.result_for_xls{4}=obj.initialization_method;
             obj.result_for_xls{5}=Utilities.double2char(obj.normopts.CENTERS);
             obj.result_for_xls{6}=Utilities.double2char(obj.normopts.SIGMAS);
             obj.result_for_xls{7}=Utilities.double2char(obj.starting_point);
             obj.result_for_xls{8}=obj.insigma;
-            obj.result_for_xls{9}=obj.pems.mainline_uncertainty;
             obj.result_for_xls{10}=obj.error_function.pcs_uncertainty;
-            obj.result_for_xls{11}=obj.knobs.underevaluation_tolerance_coefficient;
-            obj.result_for_xls{12}=obj.knobs.overevaluation_tolerance_coefficient;
+            obj.result_for_xls{10}=obj.additive_uncertainty;
+            obj.result_for_xls{11}=obj.multiplicative_uncertainty;
             obj.result_for_xls{13}=Utilities.double2char(obj.knobs.boundaries_min);
             obj.result_for_xls{14}=Utilities.double2char(obj.knobs.boundaries_max);
             obj.result_for_xls{15}=obj.maxIter;
@@ -215,7 +213,6 @@ classdef CmaesBox < EvolutionnaryAlgorithmBox
             obj.result_for_xls{20}=Utilities.cellArray2char(obj.stopFlag);
             obj.result_for_xls{21}=obj.numberOfIterations;
             obj.result_for_xls{22}=obj.numberOfEvaluations;
-            obj.result_for_xls{23}=obj.convergence;
         end % defined in AlgorithmBox
        
     end

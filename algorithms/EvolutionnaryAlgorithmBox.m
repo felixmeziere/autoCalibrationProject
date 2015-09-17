@@ -140,7 +140,7 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
             else
                 error('Missing information on knob ids or boundaries, please set them before.');
             end
-            if obj.knobs.is_uncertainty_for_monitored_ramps
+            if obj.is_uncertainty_for_monitored_ramps
                 obj.starting_point=[obj.starting_point;ones(size(obj.knobs.monitored_ramp_link_ids,1),obj.population_size)];
             end
             obj.knobs.set_knobs_persistent(obj.starting_point);
@@ -168,7 +168,7 @@ classdef (Abstract) EvolutionnaryAlgorithmBox < AlgorithmBox
                     end     
                     obj.knobs.zeroten_knobs_genmean_history(end+1,:)=mean(obj.knobs.zeroten_knobs_history(range,:),1);
                     obj.knobs.knobs_genmean_history(end+1,:)=mean(obj.knobs.knobs_history(range,:),1);
-                    if obj.knobs.is_uncertainty_for_monitored_ramps
+                    if obj.is_uncertainty_for_monitored_ramps
                         obj.knobs.monitored_ramp_knobs_genmean_history(end+1,:)=mean(obj.knobs.monitored_ramp_knobs_history(range,:),1);
                         obj.knobs.monitored_ramp_zeroten_knobs_genmean_history(end+1,:)=mean(obj.knobs.monitored_ramp_zeroten_knobs_history(range,:),1);
                     end

@@ -78,11 +78,8 @@ classdef KnobsDistance < PerformanceCalculator
         
         function [obj] = KnobsDistance(algoBox) %constructor setting obj.oMagnitude_vector
             obj.algorithm_box=algoBox;
-            utc=obj.algorithm_box.knobs.underevaluation_tolerance_coefficient;
-            otc=obj.algorithm_box.knobs.overevaluation_tolerance_coefficient;
-            ref=obj.algorithm_box.pems.average_mainline_flow;
             obj.oMagnitude_vector=obj.algorithm_box.knobs.boundaries_max-obj.algorithm_box.knobs.boundaries_min;
-            if obj.algorithm_box.knobs.is_uncertainty_for_monitored_ramps
+            if obj.algorithm_box.is_uncertainty_for_monitored_ramps
                 obj.oMagnitude_vector=[obj.oMagnitude_vector;obj.algorithm_box.knobs.monitored_ramp_knob_boundaries_max-obj.algorithm_box.knobs.monitored_ramp_knob_boundaries_min];
             end    
         end   

@@ -5,11 +5,10 @@ classdef PeMSData < handle
     %   -> pems.days | e.g. : [datenum('2014/10/14'),datenum('2014/10/21'),datenum('2014/11/18'),datenum('2014/11/25'),datenum('2014/12/16')]
     %   -> pems.district | [integer]
     %   -> pems.processed_folder | ['adress of the folder']
-    %   -> pems.mainline_uncertainty | [fraction of one]
     %   -> pems.monitored_source_sink_uncertainty | [fraction of one]
 
     
-     properties %(SetAccess = ?AlgorithmBox )
+     properties (SetAccess = ?AlgorithmBox )
         
         is_loaded=0;
         algorithm_box@AlgorithmBox
@@ -21,8 +20,6 @@ classdef PeMSData < handle
         
         data=struct;
         average_mainline_flow
-        mainline_uncertainty=0.1;
-        monitored_source_sink_uncertainty=0.03;
 
     end
     
@@ -122,19 +119,19 @@ classdef PeMSData < handle
                             if (with_speed==1)
                                 figure;
                                 imagesc(toplot{1})
-                                title(['PeMS data ',average_word,' SPEED contour plot for ',obj.algorithm_box.freeway_name,' ',duration]);
+                                title(['PeMS data ',average_word,' SPEED contour plot for  \text{',obj.algorithm_box.freeway_name,'} ',duration]);
                                 colorbar;
                             end    
                             if (with_density==1)
                                 figure;
                                 imagesc(toplot{2})
-                                title(['PeMS data ',average_word,' DENSITY contour plot for ',obj.algorithm_box.freeway_name,' ',duration]);
+                                title(['PeMS data ',average_word,' DENSITY contour plot for \text{',obj.algorithm_box.freeway_name,'} ',duration]);
                                 colorbar;
                             end    
                             if (with_flow==1)
                                 figure;
                                 imagesc(toplot{3})
-                                title(['PeMS data ',average_word,' FLOW contour plot for ',obj.algorithm_box.freeway_name,' ',duration]);
+                                title(['PeMS data ',average_word,' FLOW contour plot for  \text{',obj.algorithm_box.freeway_name,'} ',duration]);
                                 colorbar;
                             end     
                         end
@@ -160,19 +157,19 @@ classdef PeMSData < handle
                         if (with_speed==1)
                             figure;
                             imagesc(toplot{1})
-                            title(['PeMS data ',average_word,' SPEED contour plot for ',obj.algorithm_box.freeway_name,' ',duration]);
+                            title(['PeMS data ',average_word,' SPEED contour plot for  \text{',obj.algorithm_box.freeway_name,'} ',duration]);
                             colorbar;
                         end    
                         if (with_density==1)
                             figure;
                             imagesc(toplot{2})
-                            title(['PeMS data ',average_word,' DENSITY contour plot for ',obj.algorithm_box.freeway_name,' ',duration]);
+                            title(['PeMS data ',average_word,' DENSITY contour plot for  \text{',obj.algorithm_box.freeway_name,'} ',duration]);
                             colorbar;
                         end    
                         if (with_flow==1)
                             figure;
                             imagesc(toplot{3})
-                            title(['PeMS data ',average_word,' FLOW contour plot for ',obj.algorithm_box.freeway_name,' ',duration]);
+                            title(['PeMS data ',average_word,' FLOW contour plot for  \text{',obj.algorithm_box.freeway_name,'} ',duration]);
                             colorbar;
                         end
                     end    
@@ -184,7 +181,7 @@ classdef PeMSData < handle
         
     end
     
-    methods %(Access=?AlgorithmBox)
+    methods (Access=?AlgorithmBox)
         function [] = load(obj) %loads pems data once all the inputs have been given to the object
             if (obj.algorithm_box.beats_loaded==1)
                 obj.is_loaded=0;

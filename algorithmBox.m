@@ -54,6 +54,10 @@ classdef (Abstract) AlgorithmBox < handle
     %       Should be 300.
     %    -> beats_parameters.SIM_DT | [integer]
     %       Should be 4.
+    %    -> additive_uncertainty | [double]
+    %       e.g.: 0.05 for +-5%. DEFAULT : 0.1
+    %    -> multiplicative_uncertainty | [double]
+    %       e.g.: 0.75 for *(1+-75%). DEFAULT : 0.5
     %    -> starting_point | [knob#1value;knob#2value;...;knob#nvalue]
     %       To use only if obj.initialization_method is 'manual'.
     %       Discouraged.
@@ -96,7 +100,10 @@ classdef (Abstract) AlgorithmBox < handle
         TVM_reference_values=struct; %TVM values from pems and beats with all knobs set to one. Used to project the beats knobs input in the correct TVM subspace.
         knobs@Knobs % Knobs class instance with all the properties and methods relative to the knobs of the scenario.
         current_day=1; %current day used in the pems data loaded.
-        
+        additive_uncertainty=0.1; %additive local uncertainty corresponding mainly to the uncertainty on the mainline sensors (previously "pems.mainlune_uncertainty"). e.g. additive_uncertainty=0.1;
+        multiplicative_uncertainty=0.25; %multiplicative local uncertainty setting the freedom given to the knobs (previously knobs.under/overevaluation_tolerance_coefficients). e.g. multiplicative_uncertainty=0.5. For single-knob groups : (1-multiplicative_uncertainty).perfectValue < knob < (1+multiplicative_uncertainty).perfectValue
+        monitored_source_sink_uncertainty=0; %uncertainty used only if the "search knobs also on the monitored ramps" swithc is on (i.e. obj.is_uncertainty_for_monitored_ramps==1). This will set the boundaries for the monitored ramp knobs.
+                                    
         %visible output properties.........................................
         out % struct with various histories and solutions.
         bestEverErrorFunctionValue % smallest error_function value reached during the execution. Extracted from out.
@@ -104,7 +111,6 @@ classdef (Abstract) AlgorithmBox < handle
         numberOfIterations=1; % number of iterations of the algorithm (different than the number of evaluations for evolutionnary algorithms for example).
         numberOfEvaluations=1; % number of times beats ran a simulation. Extracted from out.
         stopFlag; % reason why the algorithm stopped. Extracted from out.
-        convergence % convergence speed. Not used for now.
         
     end
     
@@ -126,6 +132,8 @@ classdef (Abstract) AlgorithmBox < handle
         is_loaded=0; %flag to indicate if the algorithm is ready to run.
         dated_name %name that will have this execution's reports.
         currently_loading_from_xls=0; %flag to indicate if the object is being loaded
+        is_uncertainty_for_monitored_ramps=0; %switch to indicate if all the monitored ramps (and mainline source) should be made knobs. The boundaries will be +-...pems.monitored_source_sink_uncertainty (this adds a lot of knobs and makes the algorithm converge way slower).
+
         
         result_for_xls@cell % result of the algorithm to be outputed to the xls file.
 
@@ -369,8 +377,8 @@ classdef (Abstract) AlgorithmBox < handle
     methods (Access = public)
         
 %         function [error_in_percentage] = evaluate_error_function(obj, knob_values, isZeroToTenScale) % the error function evaluated by the algorithm at each iteration. Repairs the knobs, compares the beats simulation output and pems data and plots the result.
-%             %knob_values : n x 1 array where n is the number of knobs
-%             %to tune, containing the new values of the knobs.
+%             knob_values : n x 1 array where n is the number of knobs
+%             to tune, containing the new values of the knobs.
 %             format SHORTG;
 %             format LONGG;
 %             if (size(knob_values,1)==obj.knobs.nKnobs || size(knob_values,1)==obj.knobs.nKnobs+size(obj.knobs.monitored_ramp_link_ids,1))   
@@ -401,10 +409,10 @@ classdef (Abstract) AlgorithmBox < handle
 %                     disp(['         actual error value : ',num2str(obj.error_function.errors(i))]);
 %                 end              
 %                 obj.save_congestionPattern_matrix;
-%                 obj.plot_zeroten_knobs_history(1);
+%                 obj.knobs.plot_zeroten_knobs_history(1);
 %                 obj.error_function.plot_complete(2);
-%                 obj.plot_all_performance_calculators(5);
-% %                 obj.plot_performance_calculator_if_exists('CongestionPattern');
+%                 obj.error_function.plot_all_performance_calculators(5);
+%                 obj.plot_performance_calculator_if_exists('CongestionPattern');
 %                 drawnow;
 %                 obj.numberOfEvaluations=obj.numberOfEvaluations+1;
 %             else
@@ -498,31 +506,7 @@ classdef (Abstract) AlgorithmBox < handle
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     methods (Access = public)
-    
-        function [] = plot_zeroten_knobs_history(obj,figureNumber)
-            if (nargin<2)
-                obj.knobs.plot_zeroten_knobs_history;
-            else    
-                obj.knobs.plot_zeroten_knobs_history(figureNumber);
-            end
-        end    
-     
-        function [] = plot_result_history(obj, figureNumber)
-            if (nargin<2)
-                obj.error_function.plot_complete;
-            else
-                obj.error_function.plot_complete(figureNumber);
-            end
-        end    
-        
-        function [] = plot_performance_calculator_if_exists(obj,performance_calculator, figureNumber)  
-            if (nargin<3)
-                obj.error_function.plot_performance_calculator_if_exists(performance_calculator);
-            else
-                obj.error_function.plot_performance_calculator_if_exists(performance_calculator,figureNumber);
-            end
-        end
-        
+                         
         function [] = plot_scenario(obj,is_mainline_only_format, with_monitored_onramps,with_monitored_offramps,with_nonmonitored_onramps,with_nonmonitored_offramps,with_monitored_mainlines) %Visually plot the freeway and ramps
             %The designated mainline link for ramps will be the precedent one.
 
@@ -631,68 +615,28 @@ classdef (Abstract) AlgorithmBox < handle
             set(L,{'color'},mat2cell(cmap(2:end,:),ones(1,number_arg),3));
             legend(leg);
         end    
-        
-        function [] = plot_all_performance_calculators(obj, firstFigureNumber)
-             if (nargin<2)
-                 obj.error_function.plot_all_performance_calculators;
-             else
-                 obj.error_function.plot_all_performance_calculators(firstFigureNumber);
-             end    
-        end
-        
-        function [movie] = plot_movie(obj,dated_name,figureNumber,congestion_pattern_only,tosave,noncongestion_refresh,stop_frame)
-            a=obj;
-            if(nargin<6)
-                noncongestion_refresh=obj.knobs.nKnobs;
+                
+        function [movie] = plot_movie(obj, figureNumber, congestion_pattern_only, tosave, noncongestion_refresh_rate, stop_frame)
+            if(nargin<5)
+                noncongestion_refresh_rate=obj.knobs.nKnobs;
             end    
-            if (nargin<2 || strcmp(dated_name,obj.dated_name))
-                dated_name=obj.dated_name;
-                zeroten_knobs_history=obj.knobs.zeroten_knobs_genmean_history;
-                error_in_percentage_history=obj.error_function.error_in_percentage_genmean_history;
-                contributions_in_percentage_history=obj.error_function.contributions_in_percentage_genmean_history;
-            else
-                load([pwd,'\',obj.algorithm_name,'_reports\',dated_name,'\',dated_name,'_allvariables.mat']);
-                directory=[pwd,'\movies\',dated_name,'\'];
-                if exist([directory,'zeroten_knobs_genmean_history.mat'],'file')==2
-                    load([directory,'zeroten_knobs_genmean_history.mat']);
-                    zeroten_knobs_history=zeroten_knobs_genmean_history;
-                else    
-                    load([directory,'zeroten_knobs_history.mat']);
-                end
-                if exist([directory,'error_in_percentage_genmean_history.mat'],'file')==2
-                    load([directory,'error_in_percentage_genmean_history.mat']);
-                    error_in_percentage_history=error_in_percentage_genmean_history;
-                else    
-                    load([directory,'error_in_percentage_history.mat']);
-                end
-                if exist([directory,'contributions_in_percentage_genmean_history.mat'],'file')==2
-                    load([directory,'contributions_in_percentage_genmean_history.mat']);
-                    contributions_in_percentage_history=contributions_in_percentage_genmean_history;
-                else    
-                    load([directory,'contributions_in_percentage_history.mat']);
-                end
-            end
+            directory=[pwd,'\movies\',obj.dated_name,'\'];
             figure_title=obj.get_figure_title;
             max_error=max(error_in_percentage_history);
-            min_error=min(error_in_percentage_history);
-            if (nargin<5)
+            if (nargin<4)
                 tosave=0;
             end    
-            if (nargin>6)
-                Num=stop_frame;
-            else    
-                D = dir([pwd,'\movies\',dated_name,'\frames\*.mat']);
-                Num = length(D(not([D.isdir])));
-                stop_frame=Num;
+            if (nargin<6)
+                D = dir([pwd,'\movies\',obj.dated_name,'\frames\*.mat']);
+                stop_frame = length(D(not([D.isdir])));
             end
-            stop_frame=min([stop_frame,Num,size(error_in_percentage_history,1),size(zeroten_knobs_history,1)]);
-            close all
-            if (nargin<3)
+            stop_frame=min([stop_frame,size(obj.error_function.error_in_percentage_history,1),size(obj.knobs.zeroten_knobs_history,1)]);
+            if (nargin<2)
                 h=figure;
                 figureNumber=h.Number;
             else
                 h=figure(figureNumber);
-            end    
+            end
             movie(stop_frame) = struct('cdata',[],'colormap',[]);
             p=[100,50,1366,768];
             set(h, 'Position', p);
@@ -703,7 +647,7 @@ classdef (Abstract) AlgorithmBox < handle
             if (nargin>3 && congestion_pattern_only)
                 while flag && i<=stop_frame
                     if exist([directory,num2str(i),'.mat'],'file')==2
-                        load(['movies\',dated_name,'\frames\',num2str(i),'.mat']);
+                        load(['movies\',obj.dated_name,'\frames\',num2str(i),'.mat']);
                         cp=obj.error_function.performance_calculators{obj.error_function.find_performance_calculator('CongestionPattern')};
                         cp.plot(figureNumber,i,frame);
                         drawnow;
@@ -716,30 +660,30 @@ classdef (Abstract) AlgorithmBox < handle
                 end
             else
                 while flag && i<=stop_frame
-                    if exist([pwd,'\movies\',dated_name,'\frames\',num2str(i),'.mat'],'file')==2
-                        if (mod(i,noncongestion_refresh)==0 || i==1)
+                    if exist([pwd,'\movies\',bj.dated_name,'\frames\',num2str(i),'.mat'],'file')==2
+                        if (mod(i,noncongestion_refresh_rate)==0 || i==1)
                             subplot(20,2,[3,5,7,9,11]);
-                            obj.knobs.plot_zeroten_knobs_history(figureNumber,zeroten_knobs_history,i);
+                            obj.knobs.plot_zeroten_knobs_genmean_history(figureNumber,i);
                             axis([0,stop_frame,0,10]);
                             line([i i],[0,10],'Color',[1 0 0]);
                             hold on
-                            plot(i,zeroten_knobs_history(i,:),'r.','MarkerSize',20)
+                            plot(i,obj.zeroten_knobs_genmean_history(i,:),'r.','MarkerSize',20)
                             hold off
                             subplot(20,2,[4,6,8,10,12]);
-                            obj.error_function.plot_complete(figureNumber,contributions_in_percentage_history,error_in_percentage_history, i);
+                            obj.error_function.plot_complete(figureNumber, i, 1);
                             axis([0,stop_frame,0,max_error]);
                             line([i i],[0,max_error],'Color',[1 0 0]);
                             hold on
-                            plot(i,error_in_percentage_history(i),'r.','MarkerSize',20)
+                            plot(i,obj.error_function.error_in_percentage_genmean_history(i),'r.','MarkerSize',20)
                             hold on
-                            plot(i,contributions_in_percentage_history(i,:),'b.','MarkerSize',10)
+                            plot(i,obj.error_function.contributions_in_percentage_genmean_history(i,:),'b.','MarkerSize',10)
                             hold off
                         end    
-                        load(['movies\',dated_name,'\frames\',num2str(i),'.mat']);
-                        subplot(12,2,[11:24]);
+                        load(['movies\',obj.dated_name,'\frames\',num2str(i),'.mat']);
+                        subplot(12,2, [11:24]);
                         cp=obj.error_function.performance_calculators{obj.error_function.find_performance_calculator('CongestionPattern')};
                         cp.plot(figureNumber,i,frame);
-                        figure(figureNumber)
+                        figure(figureNumber);
                         drawnow;
                         if (tosave)
                             movie(i)=getframe(figureNumber);
@@ -749,16 +693,15 @@ classdef (Abstract) AlgorithmBox < handle
                     end
                 end
             end
-            obj=a;
         end
         
-        function [] = make_movie(obj,dated_name,stop_frame)
-            videoname=[pwd,'\movies\',dated_name,'.avi'];
+        function [] = make_movie(obj,stop_frame)
+            videoname=[pwd,'\movies\',obj.dated_name,'.avi'];
             if exist(videoname,'file')~=2
                 if nargin==3
-                    M=obj.plot_movie(dated_name,1,0,1,1,stop_frame);
+                    M=obj.plot_movie(1,0,1,1,stop_frame);
                 else
-                    M=obj.plot_movie(dated_name,1,0,1,1);
+                    M=obj.plot_movie(1,0,1,1);
                 end
                 vidObj = VideoWriter(videoname);
                 open(vidObj);
@@ -772,17 +715,18 @@ classdef (Abstract) AlgorithmBox < handle
         
         function [] = make_notmade_movies(obj,stop_frame)
             dirname=[pwd,'\movies\'];
+            reportname=[pwd,'\',obj.algorithm_name,'_reports\',obj.dated_name,'\',obj.dated_name,'_allvariables.mat'];
             list=dir(dirname);
             for i=1:size(list,1)
                 videoname=[dirname,list(i).name,'.avi'];
                 try
                     if (list(i).isdir && exist(videoname,'file')~=2 && ~strcmp(list(i).name,'..') ...
-                            && ~strcmp(list(i).name,'.') && exist([dirname,list(i).name,...
-                            '\zeroten_knobs_history.mat'],'file')==2)
+                            && ~strcmp(list(i).name,'.') && exist(reportname,'file')==2)
+                        report_obj=load(reportname, 'obj');
                         if nargin==2
-                            obj.make_movie(list(i).name,stop_frame);
+                            report_obj.make_movie(stop_frame);
                         else    
-                            obj.make_movie(list(i).name);
+                            report_obj.make_movie;
                         end
                     end
                     close all;
@@ -803,11 +747,7 @@ classdef (Abstract) AlgorithmBox < handle
             obj.plot_all_performance_calculators(3);
             obj.plot_algorithm_data;
         end    
-        
-        function [] = plot_pems_freeway_contour(obj,figureNumber,is_average,firstday,lastday)
-            obj.pems.plot_freeway_contour(obj,figureNumber,is_average,firstday,lastday);    
-        end    
-        
+                
         function [] = plot_multiple_sensor_link_conflicts(obj)
             unique_multiple_sensor_link_ids=unique(obj.multiple_sensor_index2vds2id2link(:,4),'stable');
             for i=1:size(unique_multiple_sensor_link_ids,1)
@@ -953,7 +893,7 @@ classdef (Abstract) AlgorithmBox < handle
         function [] = reset_beats(obj) %sets the knobs to one (reference value) and runs beats.
             obj.beats_simulation.beats.reset();
             if size(obj.knobs,1)~=0
-                if obj.knobs.is_uncertainty_for_monitored_ramps
+                if obj.is_uncertainty_for_monitored_ramps
                     obj.knobs.set_knobs_persistent(ones(obj.knobs.nKnobs+size(obj.knobs.monitored_ramp_link_ids,1),1));
                 else
                     obj.knobs.set_knobs_persistent(ones(obj.knobs.nKnobs));
@@ -1140,7 +1080,7 @@ classdef (Abstract) AlgorithmBox < handle
             link_ids=obj.knobs.link_ids;
             boundaries_min=obj.knobs.boundaries_min;
             boundaries_max=obj.knobs.boundaries_max;
-            if obj.knobs.is_uncertainty_for_monitored_ramps
+            if obj.is_uncertainty_for_monitored_ramps
                 sze=sze+size(obj.knobs.monitored_ramp_link_ids,1);
                 link_ids=[link_ids;obj.knobs.monitored_ramp_link_ids];
                 boundaries_min=[boundaries_min;obj.knobs.monitored_ramp_knob_boundaries_min];
@@ -1252,24 +1192,12 @@ classdef (Abstract) AlgorithmBox < handle
             figures=findobj(0,'type','figure');
             fig_name= [pwd,'\',obj.algorithm_name,'_reports\',obj.dated_name,'\',obj.dated_name,'_figures.fig'];
             savefig(figures,fig_name);  
-            zeroten_knobs_history=obj.knobs.zeroten_knobs_history;
-            error_in_percentage_history=obj.error_function.error_in_percentage_history(:,1);
-            contributions_in_percentage_history=obj.error_function.contributions_in_percentage_history;
-            zeroten_knobs_genmean_history=obj.knobs.zeroten_knobs_genmean_history;
-            error_in_percentage_genmean_history=obj.error_function.error_in_percentage_genmean_history(:,1);
-            contributions_in_percentage_genmean_history=obj.error_function.contributions_in_percentage_genmean_history;
             if exist([pwd,'\movies\',obj.dated_name],'dir')~=7
                 mkdir([pwd,'\movies\',obj.dated_name]);
             end
             load variablescmaes.mat
             mat_name =[pwd,'\',obj.algorithm_name,'_reports\',obj.dated_name,'\',obj.dated_name,'_allvariables.mat'];
             save(mat_name);
-            save([pwd,'\movies\',obj.dated_name,'\zeroten_knobs_history.mat'],'zeroten_knobs_history');
-            save([pwd,'\movies\',obj.dated_name,'\zeroten_knobs_genmean_history.mat'],'zeroten_knobs_genmean_history');
-            save([pwd,'\movies\',obj.dated_name,'\error_in_percentage_history.mat'],'error_in_percentage_history');
-            save([pwd,'\movies\',obj.dated_name,'\error_in_percentage_genmean_history.mat'],'error_in_percentage_genmean_history');
-            save([pwd,'\movies\',obj.dated_name,'\contributions_in_percentage_history.mat'],'contributions_in_percentage_history');
-            save([pwd,'\movies\',obj.dated_name,'\contributions_in_percentage_genmean_history.mat'],'contributions_in_percentage_genmean_history');
             close all
         end    %save the .mat file and figures with all the infos once the algorithm has finished.
         

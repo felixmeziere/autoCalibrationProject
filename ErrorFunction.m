@@ -169,175 +169,113 @@ classdef ErrorFunction < handle
             end
         end 
         
-        function [h] = plot_error_history(obj, figureNumber, error_history, evaluation_number)
+        function [] = plot_error_history(obj, figureNumber, evaluation_number)
             n=nargin;
-            if (n<2)
-                h=figure;
-            else    
-                h=figure(figureNumber);
-            end
-            if (n==4)
-                error_history=error_history(1:evaluation_number,1);
-            else
-                if (n~=3)
-                    error_history=obj.error_history;
-%                     p=[30,400,700,470];
-%                     set(h, 'Position', p);
-                end    
+            if n<1
+                figureNumber=0;
+            elseif n<2
+                evaluation_number=0;
             end    
-            plot(error_history(:,1));
-            title('Error function evolution');
-            xlabel('Number of BEATS evaluations');
-            ylabel('Error function value');
+            obj.plot_knobs(figureNumber,evaluation_number, obj.error_history, 'Total error in percentage evolution','Error in percentage');
         end
         
-        function [h] = plot_error_genmean_history(obj, figureNumber, error_genmean_history, evaluation_number)
+        function [] = plot_error_genmean_history(obj, figureNumber, evaluation_number)
             n=nargin;
-            if (n<2)
-                h=figure;
-            else    
-                h=figure(figureNumber);
-            end
-            if (n==4)
-                error_genmean_history=error_genmean_history(1:evaluation_number,1);
-            else
-                if (n~=3)
-                    error_genmean_history=obj.error_genmean_history;
-%                     p=[30,400,700,470];
-%                     set(h, 'Position', p);
-                end    
+            if n<1
+                figureNumber=0;
+            elseif n<2
+                evaluation_number=0;
             end    
-            plot(error_genmean_history(:,1));
-            title('Error function generation mean evolution');
-            xlabel('Number of BEATS evaluations');
-            ylabel('Error function value');
+            obj.plot_knobs(figureNumber,evaluation_number, obj.error_genmean_history, 'Total error in percentage generation mean evolution','Error in percentage');
         end
         
-        function [h] = plot_contributions_history(obj, figureNumber, contributions_history, evaluation_number)
+        function [] = plot_contributions_history(obj, figureNumber, evaluation_number)
             n=nargin;
-            if (n<2)
-                h=figure;
-            else    
-                h=figure(figureNumber);
-            end
-            if (n==4)
-                contributions_history=contributions_history(1:evaluation_number,1);
-            else
-                if (n~=3)
-                    contributions_history=obj.contributions_history;
-%                     p=[30,400,700,470];
-%                     set(h, 'Position', p);
-                    for i=1:size(obj.performance_calculators,2)
-                        leg{i}=obj.performance_calculators{i}.name;
-                    end 
-                end    
+            if n<1
+                figureNumber=0;
+            elseif n<2
+                evaluation_number=0;
             end    
-            plot(contributions_history(:,[1:size(obj.performance_calculators,2)]));
-            title('Error function contributions evolution');
-            xlabel('Number of BEATS evaluations');
-            ylabel('Error function contributions');
-            if (n<3)
-                legend(leg);
-            end      
+            obj.plot_knobs(figureNumber,evaluation_number, obj.contributions_history, 'Contributions to total error in percentage evolution','Contributions in percentage');    
+            for i=1:size(obj.performance_calculators,2)
+                leg{i+1}=obj.performance_calculators{i}.name;
+            end 
+            legend(leg);
         end        
         
-        function [h] = plot_contributions_genmean_history(obj, figureNumber, contributions_genmean_history, evaluation_number)
+        function [] = plot_contributions_genmean_history(obj, figureNumber, evaluation_number)
             n=nargin;
-            if (n<2)
-                h=figure;
-            else    
-                h=figure(figureNumber);
-            end
-            if (n==4)
-                contributions_genmean_history=contributions_genmean_history(1:evaluation_number,1);
-            else
-                if (n~=3)
-                    contributions_genmean_history=obj.contributions_genmean_history;
-%                     p=[30,400,700,470];
-%                     set(h, 'Position', p);
-                    for i=1:size(obj.performance_calculators,2)
-                        leg{i}=obj.performance_calculators{i}.name;
-                    end 
-                    
-                end    
+            if n<1
+                figureNumber=0;
+            elseif n<2
+                evaluation_number=0;
             end    
-            plot(contributions_genmean_history);
-            title('Error function contributions generation mean evolution');
-            xlabel('Number of BEATS evaluations');
-            ylabel('Error function contributions');
-            if (n<3)
-                legend(leg);
-            end  
+            obj.plot_knobs(figureNumber,evaluation_number, obj.error_history, 'Contributions to total error in percentage generation mean evolution','Contributions in percentage');  
+            for i=1:size(obj.performance_calculators,2)
+                leg{i+1}=obj.performance_calculators{i}.name;
+            end 
+            legend(leg);
         end
         
-        function [h] = plot_complete(obj, figureNumber, contributions_in_percentage_history, error_in_percentage_history, evaluation_number)
+        function [] = plot_complete(obj, figureNumber, evaluation_number,for_movie)
             n=nargin;
             if (n<2)
                 h=figure;
             else    
                 h=figure(figureNumber);
             end
-            if (n==5)
-                contributions_in_percentage_history=contributions_in_percentage_history(1:evaluation_number,:);
-                error_in_percentage_history=error_in_percentage_history(1:evaluation_number,:);
-            else
-                if (n<3)
-                    contributions_in_percentage_history=obj.contributions_in_percentage_history;
-                    error_in_percentage_history=obj.error_in_percentage_history;
-%                     p=[30,400,700,470];
-%                     set(h, 'Position', p);
-                    leg{1}='Total Error';
-                    for i=1:size(obj.performance_calculators,2)
-                        leg{i+1}=obj.performance_calculators{i}.name;
-                    end 
-                end    
+            if (n<3)
+                evaluation_number=size(obj.contributions_in_percentage_history,1);
             end    
-            plot(error_in_percentage_history);
+%             p=[30,400,700,470];
+%             set(h, 'Position', p);
+            plot(obj.error_in_percentage_history(1:evaluation_number,:));
             hold on
-            plot(contributions_in_percentage_history);
+            plot(obj.contributions_in_percentage_history(1:evaluation_number,:));
             hold off
             title('Total error in percentage with contributions');
             xlabel('Number of BEATS evaluations');
             ylabel('Error in percentage');
-            if (n<3)
+            if (n<4 || for_movie~=1)
+                leg{1}='Total Error';
+                for i=1:size(obj.performance_calculators,2)
+                    leg{i+1}=obj.performance_calculators{i}.name;
+                end 
                 legend(leg);
-            elseif n>4
-                legend(['Current total error : ',num2str(error_in_percentage_history(evaluation_number,1)),'%']);
+            else
+                legend(['Current total error : ',num2str(obj.error_in_percentage_history(evaluation_number,1)),'%']);
                 legend BOXOFF
             end 
         end
         
-        function [h] = plot_genmean_complete(obj, figureNumber, contributions_in_percentage_genmean_history, error_in_percentage_genmean_history, evaluation_number)
+        function [] = plot_genmean_complete(obj, figureNumber, evaluation_number, for_movie)
             n=nargin;
             if (n<2)
                 h=figure;
             else    
                 h=figure(figureNumber);
             end
-            if (n==5)
-                contributions_in_percentage_genmean_history=contributions_in_percentage_genmean_history(1:evaluation_number,:);
-                error_in_percentage_genmean_history=error_in_percentage_genmean_history(1:evaluation_number,:);
-            else
-                if (n<3)
-                    contributions_in_percentage_genmean_history=obj.contributions_in_percentage_genmean_history;
-                    error_in_percentage_genmean_history=obj.error_in_percentage_genmean_history;
-%                     p=[30,400,700,470];
-%                     set(h, 'Position', p);
-                    leg{1}='Total Error';
-                    for i=1:size(obj.performance_calculators,2)
-                        leg{i+1}=obj.performance_calculators{i}.name;
-                    end 
-                end    
+            if (n<3)
+                evaluation_number=size(obj.contributions_in_percentage_genmean_history,1);
             end    
-            plot(error_in_percentage_genmean_history);
-            hold off
-            plot(contributions_in_percentage_genmean_history);
+%             p=[30,400,700,470];
+%             set(h, 'Position', p);
+            plot(obj.error_in_percentage_genmean_history(1:evaluation_number,:));
             hold on
+            plot(obj.contributions_in_percentage_genmean_history(1:evaluation_number,:));
+            hold off
             title('Total error in percentage with contributions');
             xlabel('Number of BEATS evaluations');
             ylabel('Error in percentage');
-            if (n<3)
+            if (n<4 || for_movie~=1)
+                leg{1}='Total Error';
+                for i=1:size(obj.performance_calculators,2)
+                    leg{i+1}=obj.performance_calculators{i}.name;
+                end 
                 legend(leg);
+            else
+                legend(['Current total error : ', num2str(obj.error_in_percentage_genmean_history(evaluation_number,1)),'%']);
+                legend BOXOFF
             end 
         end
         
@@ -384,6 +322,33 @@ classdef ErrorFunction < handle
                 obj.performance_calculators{1,i}.reset_history;
             end    
         end %reset the logs for new run
+        
+        
+       function [] = plot_error(obj,figureNumber,evaluation_number,error_array_to_plot, title, ylabel)
+            n=nargin;
+            if (n<2 || figureNumber==0)
+                h=figure;
+            else
+                h=figure(figureNumber);
+            end  
+            if n<3 || evaluation_number==0
+                evaluation_number=size(error_array_to_plot,1);
+            end     
+%             p=[700,400,800,470];
+%             set(h, 'Position', p);
+            plot(error_array_to_plot(1:evaluation_number,:));
+            title(title);
+            xlabel('Number of BeATS evaluations');
+            ylabel(ylabel);
+            xlim([0,size(error_array_to_plot,1)+1]);
+            if (n>6 && with_legend==1) 
+                for i=1:obj.nKnobs
+                    leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
+                end 
+                legend(leg);
+                legend BOXOFF
+            end
+       end  
         
     end
     
