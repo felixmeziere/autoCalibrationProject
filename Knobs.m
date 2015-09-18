@@ -2,7 +2,6 @@ classdef Knobs < handle
     
    %Required for loading from xls :
     
-    %    -> knobs.is_uncertainty_for_monitored_ramps | [0] or [1] DEFAULT:0
     %    -> knobs.link_ids | [link_id#1;link_id#2;...;link_id#n]
     %    -> knobs.force_manual_knob_boundaries | [0] or [1] DEFAULT:0
     %    -> knobs.isnaive_boundaries | [0] or [1] DEFAULT:0

@@ -1,9 +1,9 @@
-classdef KnobsDistance < PerformanceCalculator
+classdef ProjPenalization < PerformanceCalculator
 
     
     properties (Constant)
         
-        name='Knobs distance'
+        name='Projection penalization'
         
     end
     
@@ -16,7 +16,7 @@ classdef KnobsDistance < PerformanceCalculator
     
     methods
         
-%         function [obj] = KnobsDistance(algoBox)
+%         function [obj] = ProjPenalization(algoBox)
 %             obj.algorithm_box=algoBox;
 %             utc=obj.algorithm_box.knobs.underevaluation_tolerance_coefficient;
 %             otc=obj.algorithm_box.knobs.overevaluation_tolerance_coefficient;
@@ -36,7 +36,7 @@ classdef KnobsDistance < PerformanceCalculator
 %                 obj.result_from_pems=0;
 %                 obj.error_in_percentage=0;
 %                 obj.error_in_percentage_history=[obj.error_in_percentage_history;0];
-%                 warning('Knob boundaries are naively set so KnobsDistance is irrelevant.');
+%                 warning('Knob boundaries are naively set so ProjPenalization is irrelevant.');
 %             else    
 %                 result=mean(knobs.current_value,2);
 %                 obj.result_from_beats=result;
@@ -50,7 +50,7 @@ classdef KnobsDistance < PerformanceCalculator
 %                 obj.result_from_pems=result;
 %                 obj.error_in_percentage=0;
 %                 obj.error_in_percentage_history=[obj.error_in_percentage_history;0];
-%                 warning('Knob boundaries are naively set so KnobsDistance is irrelevant.');
+%                 warning('Knob boundaries are naively set so ProjPenalization is irrelevant.');
 %             else  
 %                 result=obj.algorithm_box.knobs.perfect_values;  
 %                 obj.result_from_pems=result;
@@ -76,7 +76,7 @@ classdef KnobsDistance < PerformanceCalculator
 %         
 
         
-        function [obj] = KnobsDistance(algoBox) %constructor setting obj.oMagnitude_vector
+        function [obj] = ProjPenalization(algoBox) %constructor setting obj.oMagnitude_vector
             obj.algorithm_box=algoBox;
             obj.oMagnitude_vector=obj.algorithm_box.knobs.boundaries_max-obj.algorithm_box.knobs.boundaries_min;
             if obj.algorithm_box.is_uncertainty_for_monitored_ramps
@@ -92,7 +92,7 @@ classdef KnobsDistance < PerformanceCalculator
                 obj.result_from_pems=0;
                 obj.error_in_percentage=0;
                 obj.error_in_percentage_history=[obj.error_in_percentage_history;0];
-                warning('Knob boundaries are naively set so KnobsDistance is irrelevant.');
+                warning('Knob boundaries are naively set so ProjPenalization is quasi-irrelevant.');
             else    
                 result=mean(obj.algorithm_box.knobs.current_preGroupProjection_value,2);
                 obj.result_from_beats=result;
@@ -106,7 +106,7 @@ classdef KnobsDistance < PerformanceCalculator
                 obj.result_from_pems=result;
                 obj.error_in_percentage=0;
                 obj.error_in_percentage_history=[obj.error_in_percentage_history;0];
-                warning('Knob boundaries are naively set so KnobsDistance is irrelevant.');
+                warning('Knob boundaries are naively set so ProjPenalization is quasi-irrelevant.');
             else  
                 result=obj.algorithm_box.knobs.current_preTVMProjection_value;
                 obj.result_from_pems=result;
@@ -140,8 +140,8 @@ classdef KnobsDistance < PerformanceCalculator
             plot(obj.error_in_percentage_history);
 %             p=[900,0,450,350];
 %             set(h, 'Position', p);
-            title('Knobs distance from perfect value error evolution (average of percentages)');
-            ylabel('Knobs distance error in percentage');
+            title('Knobs projection penalization in percentage');
+            ylabel('Knobs normalized projection distance in percentage');
             xlabel('Number of BEATS evaluations');            
             legend(['Current error : ',num2str(obj.error_in_percentage),'%']);
             legend BOXOFF

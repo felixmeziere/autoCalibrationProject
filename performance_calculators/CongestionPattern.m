@@ -117,11 +117,11 @@ classdef CongestionPattern < PerformanceCalculator
         end   
         
         function [h] = plot(obj,figureNumber,frameNumber,frame)
-%             if (nargin<2)
-%                 h=figure;
-%             else
-%                 h=figure(figureNumber);
-%             end
+            if (nargin<2)
+                h=figure;
+            else
+                h=figure(figureNumber);
+            end
             if (nargin<3)
                frame=obj.result_from_beats-obj.result_from_pems;
                frameNumber=obj.algorithm_box.numberOfEvaluations;

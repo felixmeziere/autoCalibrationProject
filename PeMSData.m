@@ -5,30 +5,29 @@ classdef PeMSData < handle
     %   -> pems.days | e.g. : [datenum('2014/10/14'),datenum('2014/10/21'),datenum('2014/11/18'),datenum('2014/11/25'),datenum('2014/12/16')]
     %   -> pems.district | [integer]
     %   -> pems.processed_folder | ['adress of the folder']
-    %   -> pems.monitored_source_sink_uncertainty | [fraction of one]
 
     
      properties (SetAccess = ?AlgorithmBox )
         
-        is_loaded=0;
-        algorithm_box@AlgorithmBox
-        peMS5minData@PeMS5minData
+        is_loaded=0; % flag to indicate if the object is fully loaded
+        algorithm_box@AlgorithmBox % parent AlgorithmBox object
+        peMS5minData@PeMS5minData % object
 
-        days
-        district
-        processed_folder
+        days % horizontal array with the days to use in the pems data
+        district % district for PeMS5minData
+        processed_folder % folder containing the PeMS processed .mat files
         
-        data=struct;
-        average_mainline_flow
+        data=struct; % the data itself. The last array is the average of the acceptable other arrays.
+        average_mainline_flow % average total flow measured by the mainline sensors
 
     end
     
     properties (Hidden, SetAccess=?AlgorithmBox)
         
-        link_ids % list of the link ids corresponding to the pems data columns, in linear order.
-        linear_link_ids
-        vds2id
-        vds2id2link
+        link_ids % list of the link ids corresponding to the pems data columns
+        linear_link_ids % list of the link ids corresponding to the pems data columns, in linear order.
+        vds2id % array containing vds and corresponding sensor ids
+        vds2id2link % same as before plus corresponding link ids
         
     end    
     

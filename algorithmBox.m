@@ -58,11 +58,14 @@ classdef (Abstract) AlgorithmBox < handle
     %       e.g.: 0.05 for +-5%. DEFAULT : 0.1
     %    -> multiplicative_uncertainty | [double]
     %       e.g.: 0.75 for *(1+-75%). DEFAULT : 0.5
+    %    -> is_uncertainty_for_monitored_ramps | [0] or [1] DEFAULT:0
+    %    -> monitored_source_sink_uncertainty | [fraction of one]
     %    -> starting_point | [knob#1value;knob#2value;...;knob#nvalue]
     %       To use only if obj.initialization_method is 'manual'.
     %       Discouraged.
     %    -> multiple_sensor_vds_to_use | [vds#1,vds#2,...,vds#p]
     %    -> vds_sensors_to_delete | [vds#1,vds#2,...,vds#k]
+
 
 
     
@@ -162,7 +165,7 @@ classdef (Abstract) AlgorithmBox < handle
         vds_sensors_to_delete=0; %tuple with sensors to delete. Useful to solve partial data issues.
         sensor_link %array with sensor ids in the left column and corresponding link ids in the second one.
         link_ids_beats % all the link ids of the scenario in the scenario (non-linear) order.
-        linear_link_ids      
+        linear_link_ids % all link ids, in linear order.
 
     end    
    
@@ -502,7 +505,7 @@ classdef (Abstract) AlgorithmBox < handle
     end
     
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %  Plot and movie methods  (to refactor)                              %
+    %  Plot and movie methods                                             %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
     methods (Access = public)
@@ -742,8 +745,8 @@ classdef (Abstract) AlgorithmBox < handle
 %             number=2+size(obj.error_function.performance_calculators,2);
 %             vsize=floor(number/2);
 %             hsize=number-floor(number/2);
-            obj.plot_zeroten_knobs_history(1);
-            obj.plot_result_history(2);
+            obj.knobs.plot_zeroten_knobs_history(1);
+            obj.error_function.plot_complete(2);
             obj.plot_all_performance_calculators(3);
             obj.plot_algorithm_data;
         end    

@@ -21,11 +21,11 @@ classdef ErrorFunction < handle
         
         error %current total error value : sum(contributions). This is never used.
         errors %(1xp) array containing the unmodified current error value of each pc (can be negative).
-        contributions %(1xp) array containing the contribution to the total error of each pc : abs(PC_error)*weight if PC_error_in_percentage>pcs_uncertainty or PC is KnobsDistance, else 0.
+        contributions %(1xp) array containing the contribution to the total error of each pc : abs(PC_error)*weight if PC_error_in_percentage>pcs_uncertainty or PC is ProjPenalization, else 0.
         
         error_in_percentage %current total error in percentage value : sum(contributions_in_percentage). This is used by the algorithm.
         errors_in_percentage %(1xp) array containing the unmodified current error in percentage value of each pc (can be negative).
-        contributions_in_percentage %(1xp) array containing the contribution to the total error in percentage of each pc : abs(PC_error_in_percentage)*weight if PC_error_in_percentage>pcs_uncertainty or PC is KnobsDistance, else 0.
+        contributions_in_percentage %(1xp) array containing the contribution to the total error in percentage of each pc : abs(PC_error_in_percentage)*weight if PC_error_in_percentage>pcs_uncertainty or PC is ProjPenalization, else 0.
 
         
 
@@ -139,7 +139,7 @@ classdef ErrorFunction < handle
             end
             obj.contributions=abs(obj.errors.*obj.weights);
             obj.contributions_in_percentage=abs(obj.errors_in_percentage.*obj.weights);
-            kd=obj.find_performance_calculator('KnobsDistance');
+            kd=obj.find_performance_calculator('ProjPenalization');
             msk=ismember(1:size(obj.performance_calculators,2),kd);
             obj.contributions_in_percentage(logical(~msk.*(abs(obj.errors_in_percentage)<100*obj.pcs_uncertainty)))=0;
             obj.contributions(logical(~msk.*(abs(obj.errors_in_percentage)<100*obj.pcs_uncertainty)))=0;
