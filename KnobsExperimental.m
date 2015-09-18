@@ -1,10 +1,17 @@
-classdef Knobs < handle
+classdef KnobsExperimental < handle
     
    %Required for loading from xls :
     
+    %    -> knobs.is_uncertainty_for_monitored_ramps | [0] or [1] DEFAULT:0
     %    -> knobs.link_ids | [link_id#1;link_id#2;...;link_id#n]
     %    -> knobs.force_manual_knob_boundaries | [0] or [1] DEFAULT:0
     %    -> knobs.isnaive_boundaries | [0] or [1] DEFAULT:0
+    %    -> knobs.underevaluation_tolerance_coefficient | [coeff] 
+    %       coeff should be between 0 and 1 (will multiply perfect value).
+    %    -> knobs.overevaluation_tolerance_coefficient | [coeff] 
+    %       coeff should be greater than 1 (will multiply perfect value).
+    %    -> pems.mainline_uncertainty | [fraction of one]
+    %       e.g.: 0.05 for 5%. DEFAULT : 0.1
     %    -> pems.monitored_source_sink_uncertainty | [fraction of one]
     %       e.g.:0.02 for 2%. DEFAULT:0 NOT REQUIRED IF is_uncertainty_for_monitored_ramps==0
     
@@ -16,6 +23,7 @@ classdef Knobs < handle
         
         %generalities
         is_loaded=0; %indicates if the object is ready.
+        is_uncertainty_for_monitored_ramps=0; %switch to indicate if all the monitored ramps (and mainline source) should be made knobs. The boundaries will be +-...pems.monitored_source_sink_uncertainty (this adds a lot of knobs and makes the algorithm converge way slower).
         
         
         %PROPERTIES FOR UNMONITORED RAMPS
@@ -29,6 +37,8 @@ classdef Knobs < handle
         boundaries_max %(nx1) vector of maximums for the algorithm
         naive_boundaries_min %(nx1) vector of naive minimums for the algorithm (in obj.link_ids order). If not changed manually, they are zero.
         naive_boundaries_max %(nx1) vector of naive maximums for the algorithm (in obj.link_ids order). If not changed manually, they are [link's FD max capacity*number of lanes]/[max value of the link's demand template]
+        underevaluation_tolerance_coefficient=-Inf; % multiplicative factor that will set the allowed deviation of the sum of each template over time from the value of the corresponding knob prescribed by the PeMS nearby mainline sensors. 1 is this value. e.g. : 0.75
+        overevaluation_tolerance_coefficient=-Inf; % multiplicative factor that will set the allowed deviation of the sum of each template over time from the value of the corresponding knob prescribed by the PeMS nearby mainline sensors. 1 is this value. e.g. : 1.25
 
         %values............................................................
         current_value=[]; % current value of the knobs (to know what the beats output corresponds to).
@@ -56,7 +66,8 @@ classdef Knobs < handle
     properties (Hidden, SetAccess = ?AlgorithmBox)
         
         algorithm_box@AlgorithmBox
-
+        templates@Templates
+        
         %selecting.........................................................
         knob_sensor_map %mask in beats scenario format : -1
         knob_groups %(1xp) cell array. Each cell is a knob group and therefore contains a (dx1) vector of link ids pointing at the links of the knob group.
@@ -85,8 +96,9 @@ classdef Knobs < handle
     
     methods (Access = public)
         
-        function [obj] = Knobs(algoBox) %constructor that connects the object with AlgorithmBox.
+        function [obj] = Knobs(algoBox,templates) %constructor that connects the object with AlgorithmBox.
             obj.algorithm_box=algoBox;
+            obj.templates=templates;
         end    
         
         function [] = run_assistant(obj) % set the ids of the knobs to tune and their boundaries in the command window.
@@ -98,12 +110,12 @@ classdef Knobs < handle
                 bad_sources=demand2link(ismember(demand2link(:,2),bad_sources),:);
                 bad_sinks=obj.algorithm_box.link_ids_beats(1,logical(~obj.algorithm_box.good_sink_mask_beats.*obj.algorithm_box.sink_mask_beats));
                 bad_sinks=demand2link(ismember(demand2link(:,2), bad_sinks),:);
-                obj.algorithm_box.is_uncertainty_for_monitored_ramps=-1;
-                while obj.algorithm_box.is_uncertainty_for_monitored_ramps~=0 && obj.algorithm_box.is_uncertainty_for_monitored_ramps~=1
-                    obj.algorithm_box.is_uncertainty_for_monitored_ramps=input(['Would you like to consider uncertainty on monitored sources and sinks ? (yes=1, no=0): ']);
+                obj.is_uncertainty_for_monitored_ramps=-1;
+                while obj.is_uncertainty_for_monitored_ramps~=0 && obj.is_uncertainty_for_monitored_ramps~=1
+                    obj.is_uncertainty_for_monitored_ramps=input(['Would you like to consider uncertainty on monitored sources and sinks ? (yes=1, no=0): ']);
                 end    
-                if obj.algorithm_box.is_uncertainty_for_monitored_ramps
-                    obj.algorithm_box.monitored_source_sink_uncertainty=input(['Enter PeMS data uncertainty for monitored sources and sinks (e.g. 0.05): ']);
+                if obj.is_uncertainty_for_monitored_ramps
+                    obj.algorithm_box.pems.monitored_source_sink_uncertainty=input(['Enter PeMS data uncertainty for monitored sources and sinks (e.g. 0.05): ']);
                 end    
                 numberOfKnobs=size(bad_sources,1)+size(bad_sinks,1);
                 numberMissingKnobs=numberOfKnobs+1;
@@ -147,9 +159,6 @@ classdef Knobs < handle
                     while (obj.isnaive_boundaries~=0 && obj.isnaive_boundaries~=1)
                         obj.isnaive_boundaries=input(['Should the knobs be naively set (i.e. leading to potentially absurd daily flows) ? yes =1, no=0 : ']);
                     end
-                    if ~obj.isnaive_boundaries
-                        obj.algorithm_box.additive_uncertainty=input(['What is the local uncertainty on mainline sensors ? (Additive uncertainty, will set a minimum width for the boundaries): ']);
-                    end    
                     obj.set_auto_knob_boundaries(obj.isnaive_boundaries,1);
                 elseif (strcmp(mode,'manual'))     
                     obj.boundaries_max=[];
@@ -176,60 +185,118 @@ classdef Knobs < handle
     
     methods (Access = public) %names of the methods are explicit
     
-        function [] = plot_zeroten_knobs_history(obj,figureNumber, evaluation_number, with_legend)
+        function [] = plot_zeroten_knobs_history(obj,figureNumber, zeroten_knobs_history, evaluation_number)
             n=nargin;
-            if n<2
-                figureNumber=0;
-            end    
-            if n<3
-                evaluation_number=0;
-            end    
-            if n<4
-                with_legend=0;
-            end    
-            obj.plot_knobs(figureNumber,evaluation_number, obj.zeroten_knobs_history, '[0-10] knobs evolution','[0-10] knobs values', with_legend);
+            if (n<2)
+                h=figure;
+            else
+                h=figure(figureNumber);
+            end  
+            if (n==4)
+                zeroten_knobs_history=zeroten_knobs_history(1:evaluation_number,:);
+            else
+                if (n~=3) 
+                    zeroten_knobs_history=obj.zeroten_knobs_history;
+%                     p=[700,400,800,470];
+%                     set(h, 'Position', p);
+                    for i=1:obj.nKnobs
+                        leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
+                    end 
+                end
+            end
+            plot(zeroten_knobs_history);
+            title('Knobs rescaled to 0-10 evolution, ordered linearly');
+            xlabel('Number of BEATS evaluations');
+            ylabel('Knobs 0-10 values');
+            if (n<3)
+                legend(leg);
+            end                 
         end 
         
-        function [] = plot_zeroten_knobs_genmean_history(obj,figureNumber, evaluation_number, with_legend)
+        function [] = plot_zeroten_knobs_genmean_history(obj,figureNumber, zeroten_genmean_knobs_history, evaluation_number)
             n=nargin;
-            if n<2
-                figureNumber=0;
-            end    
-            if n<3
-                evaluation_number=0;
-            end    
-            if n<4
-                with_legend=0;
-            end       
-            obj.plot_knobs(figureNumber,evaluation_number, obj.zeroten_knobs_genmean_history, '[0-10] knobs generation mean evolution','[0-10] knobs values', with_legend);
+            if (n<2)
+                h=figure;
+            else
+                h=figure(figureNumber);
+            end  
+            if (n==4)
+                zeroten_genmean_knobs_history=zeroten_genmean_knobs_history(1:evaluation_number,:);
+            else
+                if (n~=3) 
+                    zeroten_genmean_knobs_history=obj.zeroten_knobs_genmean_history;
+%                     p=[700,400,800,470];
+%                     set(h, 'Position', p);
+                    for i=1:obj.nKnobs
+                        leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
+                    end 
+                end
+            end
+            plot(zeroten_genmean_knobs_history);
+            title('Knobs generation mean rescaled to 0-10 evolution, ordered linearly');
+            xlabel('Number of BEATS evaluations');
+            ylabel('Knobs 0-10 values');
+            if (n<3)
+                legend(leg);
+            end                 
         end 
         
-        function [] = plot_knobs_history(obj,figureNumber, evaluation_number, with_legend)
+        function [] = plot_knobs_history(obj,figureNumber, knobs_history, evaluation_number)
             n=nargin;
-            if n<2
-                figureNumber=0;
-            end    
-            if n<3
-                evaluation_number=0;
-            end    
-            if n<4
-                with_legend=0;
-            end       
-            obj.plot_knobs(figureNumber,evaluation_number, obj.knobs_history, 'knobs evolution','knobs values', with_legend);
+            if (n<2)
+                h=figure;
+            else
+                h=figure(figureNumber);
+            end  
+            if (n==4)
+                knobs_history=knobs_history(1:evaluation_number,:);
+            else
+                if (n~=3) 
+                    knobs_history=obj.knobs_history;
+%                     p=[700,400,800,470];
+%                     set(h, 'Position', p);
+                    for i=1:obj.nKnobs
+                        leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
+                    end 
+                end
+            end
+            plot(knobs_history);
+            title('Knobs evolution, ordered linearly');
+            xlabel('Number of BEATS evaluations');
+            ylabel('Knobs 0-10 values');
+            if (n<3)
+                legend(leg);
+                legend BOXOFF
+            end                 
         end 
         
-        function [] = plot_knobs_genmean_history(obj,figureNumber, evaluation_number, with_legend)
+        function [] = plot_knobs_genmean_history(obj,figureNumber, knobs_genmean_history, evaluation_number)
             n=nargin;
-            if n<2
-                figureNumber=0;
-            end    
-            if n<3
-                evaluation_number=0;
-            end    
-            if n<4
-                with_legend=0;
-            end       
-            obj.plot_knobs(figureNumber,evaluation_number, obj.zeroten_knobs_genmean_history, 'knobs generation mean evolution','knobs values', with_legend);
+            if (n<2)
+                h=figure;
+            else
+                h=figure(figureNumber);
+            end  
+            if (n==4)
+                knobs_genmean_history=knobs_genmean_history(1:evaluation_number,:);
+            else
+                if (n~=3) 
+                    knobs_genmean_history=obj.knobs_genmean_history;
+%                     p=[700,400,800,470];
+%                     set(h, 'Position', p);
+                    for i=1:obj.nKnobs
+                        leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
+                    end 
+                end
+            end
+            plot(knobs_genmean_history);
+            title('Knobs generation mean evolution, ordered linearly');
+            xlabel('Number of BEATS evaluations');
+            ylabel('Knobs values');
+            if (n<3)
+                legend(leg);
+                legend BOXOFF
+            end                 
         end 
         
         function [] = plot_knob_history(obj,knob_link_id,figureNumber)
@@ -249,60 +316,118 @@ classdef Knobs < handle
             ylabel('Knob values');  
         end  
         
-        function [] = plot_monitored_ramp_zeroten_knobs_history(obj,figureNumber, evaluation_number, with_legend)
+        function [] = plot_monitored_ramp_zeroten_knobs_history(obj,figureNumber, monitored_ramp_zeroten_knobs_history, evaluation_number)
             n=nargin;
-            if n<2
-                figureNumber=0;
-            end    
-            if n<3
-                evaluation_number=0;
-            end    
-            if n<4
-                with_legend=0;
-            end       
-            obj.plot_knobs(figureNumber,evaluation_number, obj.monitored_ramp_zeroten_knobs_history, '[0-10] knobs evolution','[0-10] knobs values', with_legend);      
-        end 
+            if (n<2)
+                h=figure;
+            else
+                h=figure(figureNumber);
+            end  
+            if (n==4)
+                monitored_ramp_zeroten_knobs_history=monitored_ramp_zeroten_knobs_history(1:evaluation_number,:);
+            else
+                if (n~=3) 
+                    monitored_ramp_zeroten_knobs_history=obj.monitored_ramp_zeroten_knobs_history;
+%                     p=[700,400,800,470];
+%                     set(h, 'Position', p);
+                    for i=1:obj.nKnobs
+                        leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
+                    end 
+                end
+            end
+            plot(monitored_ramp_zeroten_knobs_history);
+            title('Monitored ramp knobs rescaled to 0-10 evolution, ordered linearly');
+            xlabel('Number of BEATS evaluations');
+            ylabel('Knobs 0-10 values');
+            if (n<3)
+                legend(leg);
+            end                 
+                end 
 
-        function [] = plot_monitored_ramp_knobs_history(obj,figureNumber, evaluation_number, with_legend)
-           n=nargin;
-            if n<2
-                figureNumber=0;
-            end    
-            if n<3
-                evaluation_number=0;
-            end    
-            if n<4
-                with_legend=0;
-            end       
-            obj.plot_knobs(figureNumber,evaluation_number, obj.monitored_ramp_knobs_history, '[0-10] knobs evolution','[0-10] knobs values', with_legend);             
-        end 
-        
-        function [] = plot_monitored_ramp_knobs_genmean_history(obj,figureNumber, evaluation_number, with_legend)
+        function [] = plot_monitored_ramp_knobs_history(obj,figureNumber, monitored_ramp_knobs_history, evaluation_number)
             n=nargin;
-            if n<2
-                figureNumber=0;
-            end    
-            if n<3
-                evaluation_number=0;
-            end    
-            if n<4
-                with_legend=0;
-            end       
-            obj.plot_knobs(figureNumber,evaluation_number, obj.monitored_ramp_knobs_genmean_history, '[0-10] knobs evolution','[0-10] knobs values', with_legend);           
+            if (n<2)
+                h=figure;
+            else
+                h=figure(figureNumber);
+            end  
+            if (n==4)
+                monitored_ramp_knobs_history=monitored_ramp_knobs_history(1:evaluation_number,:);
+            else
+                if (n~=3) 
+                    monitored_ramp_knobs_history=obj.monitored_ramp_knobs_history;
+%                     p=[700,400,800,470];
+%                     set(h, 'Position', p);
+                    for i=1:obj.nKnobs
+                        leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
+                    end 
+                end
+            end
+            plot(monitored_ramp_knobs_history);
+            title('Monitored ramp knobs evolution, ordered linearly');
+            xlabel('Number of BEATS evaluations');
+            ylabel('Knobs 0-10 values');
+            if (n<3)
+                legend(leg);
+                legend BOXOFF
+            end                 
         end 
         
-        function [] = plot_monitored_ramp_zeroten_knobs_genmean_history(obj,figureNumber, evaluation_number, with_legend)
-           n=nargin;
-            if n<2
-                figureNumber=0;
-            end    
-            if n<3
-                evaluation_number=0;
-            end    
-            if n<4
-                with_legend=0;
-            end       
-            obj.plot_knobs(figureNumber,evaluation_number, obj.monitored_ramp_zeroten_knobs_genmean_history, '[0-10] knobs evolution','[0-10] knobs values', with_legend);            
+        function [] = plot_monitored_ramp_knobs_genmean_history(obj,figureNumber, monitored_ramp_knobs_genmean_history, evaluation_number)
+            n=nargin;
+            if (n<2)
+                h=figure;
+            else
+                h=figure(figureNumber);
+            end  
+            if (n==4)
+                monitored_ramp_knobs_genmean_history=monitored_ramp_knobs_genmean_history(1:evaluation_number,:);
+            else
+                if (n~=3) 
+                    monitored_ramp_knobs_genmean_history=obj.monitored_ramp_knobs_genmean_history;
+%                     p=[700,400,800,470];
+%                     set(h, 'Position', p);
+                    for i=1:obj.nKnobs
+                        leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
+                    end 
+                end
+            end
+            plot(monitored_ramp_knobs_genmean_history);
+            title('Monitored ramp knobs generation mean evolution, ordered linearly');
+            xlabel('Number of BEATS evaluations');
+            ylabel('Knobs values');
+            if (n<3)
+                legend(leg);
+                legend BOXOFF
+            end                 
+        end 
+        
+        function [] = plot_monitored_ramp_zeroten_knobs_genmean_history(obj,figureNumber, monitored_ramp_zeroten_knobs_genmean_history, evaluation_number)
+            n=nargin;
+            if (n<2)
+                h=figure;
+            else
+                h=figure(figureNumber);
+            end  
+            if (n==4)
+                monitored_ramp_zeroten_knobs_genmean_history=monitored_ramp_zeroten_knobs_genmean_history(1:evaluation_number,:);
+            else
+                if (n~=3) 
+                    monitored_ramp_zeroten_knobs_genmean_history=obj.monitored_ramp_zeroten_knobs_genmean_history;
+%                     p=[700,400,800,470];
+%                     set(h, 'Position', p);
+                    for i=1:obj.nKnobs
+                        leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
+                    end 
+                end
+            end
+            plot(monitored_ramp_zeroten_knobs_genmean_history);
+            title('Monitored ramp knobs generation mean rescaled to 0-10 evolution, ordered linearly');
+            xlabel('Number of BEATS evaluations');
+            ylabel('Knobs 0-10 values');
+            if (n<3)
+                legend(leg);
+            end                 
         end 
 
                 
@@ -312,14 +437,14 @@ classdef Knobs < handle
     %  Privates                                                           %
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     
-    methods (Access = ?AlgorithmBox) %supposed to be private but public for debug reasons
+    methods (Access = ?Templates) %supposed to be private but public for debug reasons
         
         function [] = set_auto_knob_boundaries(obj, isnaive, is_assistant) %sets the knob boundaries, knob groups, perfect values etc.
             if (nargin<3)
                 is_assistant=0;
             end
             for i=1:obj.nKnobs    
-                maxTemplateValue=max(obj.algorithm_box.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.link_ids(i)).demand);       
+                maxTemplateValue=max(obj.templates.template_base);       
                 lanes=obj.algorithm_box.beats_simulation.scenario_ptr.get_link_byID(obj.link_ids(i)).ATTRIBUTE.lanes;
                 FDcapacity=obj.algorithm_box.beats_simulation.scenario_ptr.get_fds_with_linkIDs(obj.link_ids(i)).capacity*lanes;
                 obj.boundaries_min(i,1)=0;
@@ -342,9 +467,9 @@ classdef Knobs < handle
                 disp(['Knob ', num2str(obj.demand_ids(i,1)), ' | ', num2str(obj.link_ids(i,1)), ' minimum : ',num2str(obj.boundaries_min(i,1))]);
                 disp(['Knob ', num2str(obj.demand_ids(i,1)), ' | ', num2str(obj.link_ids(i,1)), ' maximum : ',num2str(obj.boundaries_max(i,1))]);
             end
-            if obj.algorithm_box.is_uncertainty_for_monitored_ramps
-                obj.monitored_ramp_knob_boundaries_min(1:size(obj.monitored_ramp_link_ids,1),1)=1-obj.algorithm_box.monitored_source_sink_uncertainty;        
-                obj.monitored_ramp_knob_boundaries_max(1:size(obj.monitored_ramp_link_ids,1),1)=1+obj.algorithm_box.monitored_source_sink_uncertainty;
+            if obj.is_uncertainty_for_monitored_ramps
+                obj.monitored_ramp_knob_boundaries_min(1:size(obj.monitored_ramp_link_ids,1),1)=1-obj.algorithm_box.pems.monitored_source_sink_uncertainty;        
+                obj.monitored_ramp_knob_boundaries_max(1:size(obj.monitored_ramp_link_ids,1),1)=1+obj.algorithm_box.pems.monitored_source_sink_uncertainty;
                 disp('UNCERTAINTY FOR MONITORED RAMPS TAKEN INTO ACCOUNT.');
             end    
         end
@@ -356,7 +481,7 @@ classdef Knobs < handle
             for i=1:obj.nKnobs
                 dps=obj.algorithm_box.beats_simulation.scenario_ptr.get_demandprofiles_with_linkIDs(obj.link_ids);
                 obj.demand_ids(i,1)=dps(i).id;
-                obj.sum_of_templates(i,1)=obj.algorithm_box.get_sum_of_template_in_veh(obj.link_ids(i,1));
+                obj.sum_of_templates(i,1)=5000;
             end
             obj.linear_link_ids=obj.algorithm_box.linear_link_ids(ismember(obj.algorithm_box.linear_link_ids,obj.link_ids));
         end
@@ -454,13 +579,15 @@ classdef Knobs < handle
             %Messy code because stuff had to be changed and reused long
             %after it was written.
             if (nargin>0 && is_assistant)
-                obj.algorithm_box.multiplicative_uncertainty=input(['Enter the multiplicative uncertainty for the flow going through the knob links (e.g. : 0.5) : ']);
+                obj.underevaluation_tolerance_coefficient=input(['Enter the underevaluation tolerance coefficient for the flow going through the knob links : ']);
+                obj.overevaluation_tolerance_coefficient=input(['Enter the overevaluation tolerance coefficient for the flow going through the knob links : ']);
             end    
-            if  obj.algorithm_box.multiplicative_uncertainty==1
-                obj.algorithm_box.multiplicative_uncertainty=0.999999;
-                obj.algorithm_box.multiplicative_uncertainty=1.0000001;
+            if  obj.underevaluation_tolerance_coefficient==obj.overevaluation_tolerance_coefficient
+                obj.underevaluation_tolerance_coefficient=obj.underevaluation_tolerance_coefficient*0.99999;
+                obj.overevaluation_tolerance_coefficient=obj.overevaluation_tolerance_coefficient*1.000001;
             end    
-            mu=obj.algorithm_box.multiplicative_uncertainty;
+            otc=obj.overevaluation_tolerance_coefficient;
+            utc=obj.underevaluation_tolerance_coefficient;
             ref=obj.algorithm_box.pems.average_mainline_flow;
             knob_groups_to_project=[];
             index=1;
@@ -468,7 +595,7 @@ classdef Knobs < handle
                 for j=1:size(obj.knob_groups{1,i},1)
                     knob_link_id=cell2mat(obj.knob_groups{1,i}(j,1));
                     knob_index=find(obj.link_ids==knob_link_id);
-                    sum_of_template=obj.algorithm_box.get_sum_of_template_in_veh(knob_link_id);
+                    sum_of_template=5000;
                     if ismember(knob_link_id,obj.algorithm_box.link_ids_beats(obj.algorithm_box.source_mask_beats))
                         coeff=-1;
                     else
@@ -478,9 +605,9 @@ classdef Knobs < handle
                 if (size(obj.knob_groups{1,i},1)==1)
                     knob_perfect_value=coeff*obj.knob_group_flow_differences(i)/sum_of_template;
                     obj.perfect_values(knob_index,1)=knob_perfect_value;
-                    incert=obj.algorithm_box.additive_uncertainty;
-                    premin=min(knob_perfect_value*(1-mu),knob_perfect_value-ref*incert/sum_of_template);
-                    premax=max(knob_perfect_value*(1+mu),knob_perfect_value+ref*incert/sum_of_template);
+                    incert=obj.algorithm_box.pems.mainline_uncertainty;
+                    premin=min(knob_perfect_value*utc,knob_perfect_value-ref*incert/sum_of_template);
+                    premax=max(knob_perfect_value*otc,knob_perfect_value+ref*incert/sum_of_template);
                     obj.boundaries_min(knob_index,1)=max(obj.naive_boundaries_min(knob_index),premin);
                     obj.boundaries_max(knob_index,1)=min(obj.naive_boundaries_max(knob_index),premax);
                 else
@@ -499,7 +626,7 @@ classdef Knobs < handle
                 constraint_equation_coeffs=[];
                 for j=1:size(knob_group)
                     index=find(obj.link_ids==knob_group(j));
-                    sum_of_template=obj.algorithm_box.get_sum_of_template_in_veh(obj.link_ids(index));
+                    sum_of_template=5000;
                     if ismember(obj.link_ids(index),obj.algorithm_box.link_ids_beats(obj.algorithm_box.source_mask_beats))
                         coeff=-1;
                     else
@@ -521,12 +648,13 @@ classdef Knobs < handle
                 subvector=knobs_vector(indices,1);
                 constraint_equation_coeffs=obj.constraint_equations_coeffs{obj.knob_groups_to_project(i)};
                 flowdiff=obj.knob_group_flow_differences(1,obj.knob_groups_to_project(i));
-                mu=obj.algorithm_box.multiplicative_uncertainty;
+                otc=obj.overevaluation_tolerance_coefficient;
+                utc=obj.underevaluation_tolerance_coefficient;
                 si=sign(flowdiff);
-                incert=obj.algorithm_box.additive_uncertainty;
+                incert=obj.algorithm_box.pems.mainline_uncertainty;
                 ref=obj.algorithm_box.pems.average_mainline_flow;
-%                   [subvector_on_correct_subspace,fval]=quadprog(eye(size(knob_group,1)),-reshape(subvector,1,[]),[si*constraint_equation_coeffs;-si*constraint_equation_coeffs],[si*(1+mu)*flowdiff;-si*(1-mu)*flowdiff],[],[],obj.naive_boundaries_min(obj.knob_group_to_project_indices{1,i},1),obj.naive_boundaries_max(obj.knob_group_to_project_indices{1,i},1)); % minimization program
-                [subvector_on_correct_subspace,fval]=quadprog(eye(size(knob_group,1)),-reshape(subvector,1,[]),[si*constraint_equation_coeffs;-si*constraint_equation_coeffs],[max(si*flowdiff+incert*ref,si*(1+mu)*flowdiff);max(-si*flowdiff+incert*ref,-si*(1-mu)*flowdiff)],[],[],obj.naive_boundaries_min(obj.knob_group_to_project_indices{1,i},1),obj.naive_boundaries_max(obj.knob_group_to_project_indices{1,i},1)); % minimization program
+%                   [subvector_on_correct_subspace,fval]=quadprog(eye(size(knob_group,1)),-reshape(subvector,1,[]),[si*constraint_equation_coeffs;-si*constraint_equation_coeffs],[si*otc*flowdiff;-si*utc*flowdiff],[],[],obj.naive_boundaries_min(obj.knob_group_to_project_indices{1,i},1),obj.naive_boundaries_max(obj.knob_group_to_project_indices{1,i},1)); % minimization program
+                [subvector_on_correct_subspace,fval]=quadprog(eye(size(knob_group,1)),-reshape(subvector,1,[]),[si*constraint_equation_coeffs;-si*constraint_equation_coeffs],[max(si*flowdiff+incert*ref,si*otc*flowdiff);max(-si*flowdiff+incert*ref,-si*utc*flowdiff)],[],[],obj.naive_boundaries_min(obj.knob_group_to_project_indices{1,i},1),obj.naive_boundaries_max(obj.knob_group_to_project_indices{1,i},1)); % minimization program
                 knobs_on_correct_subspace(obj.knob_group_to_project_indices{1,i},1)=subvector_on_correct_subspace;
             end    
         end %Project each multiple-knob group between the two hyperplans such that the flow they provide is the flow asked by PeMS mainline sensors +-obj.over/underevaluation_tolerance_coefficients
@@ -535,7 +663,7 @@ classdef Knobs < handle
         function [result_matrix] = rescale_knobs(obj, input_matrix, isRealScaleToZeroTenScale) % rescales the knobs from 0:10 to their actual respective range (used by cmaes for 'uniform sensitivity' reasons) or the opposite operation, depending on isRealScaleToZeroTenScale.
             min=repmat(obj.boundaries_min,1,size(input_matrix,2));
             range=repmat(obj.boundaries_max-obj.boundaries_min,1,size(input_matrix,2));
-            if obj.algorithm_box.is_uncertainty_for_monitored_ramps
+            if obj.is_uncertainty_for_monitored_ramps
                 min=[min;repmat(obj.monitored_ramp_knob_boundaries_min,1,size(input_matrix,2))];
                 range=[range;repmat(obj.monitored_ramp_knob_boundaries_max-obj.monitored_ramp_knob_boundaries_min,1,size(input_matrix,2))];
             end    
@@ -567,7 +695,7 @@ classdef Knobs < handle
             zeroten_reshaped=reshape(mean(obj.rescale_knobs(knobs_vector,1),2),1,[]);
             obj.knobs_history(end+1,1:obj.nKnobs)=reshaped(1,1:obj.nKnobs);
             obj.zeroten_knobs_history(end+1,1:obj.nKnobs)=zeroten_reshaped(1,1:obj.nKnobs);
-            if obj.algorithm_box.is_uncertainty_for_monitored_ramps
+            if obj.is_uncertainty_for_monitored_ramps
                 for i= 1:size(obj.monitored_ramp_link_ids)
                     obj.algorithm_box.beats_simulation.beats.set.demand_knob_for_link_id(obj.monitored_ramp_link_ids(i),knobs_vector(i+obj.nKnobs));
                 end
@@ -588,32 +716,9 @@ classdef Knobs < handle
             obj.monitored_ramp_knobs_genmean_history=nan;
             obj.monitored_ramp_zeroten_knobs_genmean_history=nan;
         end    
-                        
-        function [] = plot_knobs(obj,figureNumber,evaluation_number,knobs_array_to_plot, figure_title, y_label,with_legend)
-            n=nargin;
-            if (n<2 || figureNumber==0)
-                h=figure;
-            else
-                h=figure(figureNumber);
-            end  
-            if n<3 || evaluation_number==0
-                evaluation_number=size(knobs_array_to_plot,1);
-            end     
-%             p=[700,400,800,470];
-%             set(h, 'Position', p);
-            plot(knobs_array_to_plot(1:evaluation_number,:));
-            title(figure_title);
-            xlabel('Number of BeATS evaluations');
-            ylabel(y_label);
-            xlim([0,size(knobs_array_to_plot,1)+1]);
-            if (n>6 && with_legend==1) 
-                for i=1:obj.nKnobs
-                    leg{i}=['Knob ',num2str(find(obj.linear_link_ids==obj.link_ids(i,1))),' (',num2str(obj.link_ids(i,1)),')'];
-                end 
-                legend(leg);
-                legend BOXOFF
-            end
-        end  
+                
     end
+    
 end
+
 
